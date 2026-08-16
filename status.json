@@ -1,0 +1,7 @@
+{
+  "maintenance": {
+    "active": false,
+    "message": "서버 점검 중이에요. 잠시 후 다시 시도해주세요."
+  },
+  "minVersion": "1.1.3"
+}
