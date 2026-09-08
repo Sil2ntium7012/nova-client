@@ -1,0 +1,2473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<!-- 14-4(4차) 버그 수정: 기본 프로필 아이콘이 안 보이던 원인 - img-src에 file: 이 빠져 있어서
+     getProfileIconUrl()이 돌려주는 file://.../build/icon.png (그리고 커스텀 프로필 아이콘 파일들도
+     전부 동일하게) 가 CSP에 막혀서 조용히 로드 실패하고 있었음. media-src에는 file:이 있었는데
+     img-src에는 없어서 이미지만 깨졌던 것 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: file:; script-src 'self'; media-src 'self' file:;" />
+<title>Nova Client</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 커스텀 타이틀바 -->
+  <div class="titlebar">
+    <div class="titlebar-drag">
+      <div class="brand">
+        <!-- 4-1(4차): 타이틀바 아이콘 = 실제 앱 아이콘(build/icon.png)과 동일한 이미지 사용.
+             index.html은 src/ 안에서 로드되므로 ../build/icon.png 가 main.js의
+             path.join(__dirname, "build", "icon.png") 와 같은 파일을 가리킴 -->
+        <img class="brand-mark" src="../build/icon.png" alt="Nova Client" />
+        <!-- 24차: "Nova를 조금 두껍게 Client를 비교적 얇게 하고 Nova에서 O 안에다가 우리
+             아이콘인 별 그거 넣어줘" - 두 단어를 서로 다른 굵기의 span으로 나누고, "O" 글자
+             안에 앱 아이콘(build/icon.png) 가운데의 스파클 모양을 겹쳐 그려 넣는 방식으로
+             시작함. 24-3차~24-26차: 유니코드 문자("✦")가 폴백 폰트마다 비대칭으로 그려지는
+             문제를 찾아 대칭 좌표의 인라인 SVG로 교체. 24-16차~24-38차: Canvas TextMetrics로
+             "O" 글자의 실제 잉크 중심을 실측해서 그 위에 별을 얹는 positionBrandOSparks()를
+             계속 정교화(비율 기반 재작성, 가로/세로 기준 단위 실수 수정 등) - 그래도 라운드마다
+             "아직도 안 맞다"는 재지적이 이어짐.
+             24-39차: "그냥 O 자체를 별로 바꿔줘 대신 옆 폰트랑 크기는 맞아야 하고" - 접근을
+             통째로 바꿈. "O" 글자 안에 별을 겹쳐 넣는 대신, "O" 글자 자체를 지우고 그 자리에
+             별 도형을 인라인 요소(.brand-o-star)로 넣음. 더 이상 글자의 잉크 중심을 실측해서
+             겹쳐 그릴 필요가 없어져서(JS 위치 계산 자체가 사라짐 - positionBrandOSparks()와
+             그 측정용 Canvas 전부 제거), 폰트가 무엇이든, 화면 크기가 어떻든 항상 완전히
+             같은 자리에 그려짐. 크기는 style.css의 .brand-o-star에서 em 단위로 잡아서 타이틀바
+             (13.5px)/로그인(26px)/홈 화면(20px) 세 군데 각자의 font-size에 맞춰 자동으로
+             커지고 작아짐 - 자세한 내용은 style.css의 .brand-o-star 주석 참고. 로그인 화면
+             h1/홈 화면 큰 로고 글자에도 동일하게 재사용(아래 두 곳 참고) -->
+        <span class="brand-text brand-wordmark"><span class="brand-word-nova" aria-label="NOVA">N<span class="brand-o-star" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M 22 12 Q 13.5 13.5 12 22 Q 10.5 13.5 2 12 Q 10.5 10.5 12 2 Q 13.5 10.5 22 12 Z"/></svg></span>VA</span><span class="brand-word-client"> CLIENT</span></span>
+      </div>
+      <div class="brand-nav">
+        <!-- 24-15차: "뒤로가기 화살표가 옆에 노바클라이언트 타이틀이랑 크기게 맞게 해줘" -
+             아이콘이 17px(버튼 박스는 20px)로, 바로 옆 타이틀 글자(.brand-text, 13.5px)보다
+             눈에 띄게 커서 화살표만 붕 떠 보였음. 타이틀 글자 크기(13.5px)에 맞춰 줄임(아래
+             .brand-nav-btn 박스 크기도 같이 줄임) -->
+        <button id="btn-nav-back" type="button" class="brand-nav-btn" title="뒤로가기" data-i18n-title="nav_back" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="btn-nav-forward" type="button" class="brand-nav-btn" title="앞으로가기" data-i18n-title="nav_forward" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="titlebar-controls">
+      <button id="btn-update-available" class="tb-btn-update-pill" data-i18n-title="tb_update_available_tooltip" title="새 버전이 있어요 - 눌러서 업데이트" hidden>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+          <path d="M12 3v13" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 11l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 20h16" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="settings_update">업데이트</span>
+        <span class="notif-dot tb-update-dot"></span>
+      </button>
+      <!-- 10차 "미래 준비": 후원 사이트 링크가 아직 없어서 실제 주소는 못 넣지만, 자리와
+           버튼은 미리 만들어둠(눌러도 아직은 "준비 중" 안내만 뜸). 업데이트 알림 pill은 평소엔
+           hidden이라 안 겹치고, 있을 때도 그냥 나란히 배치되는 flex 줄이라 서로 밀어낼 뿐
+           겹치지 않음 -->
+      <button id="btn-donate" class="tb-btn" data-i18n-title="tb_donate_tooltip" title="후원하기 (준비 중)" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 20s-7-4.35-9.5-8.8C.8 7.9 2.4 4.5 5.8 4.1 8 3.85 10 5 12 7.2 14 5 16 3.85 18.2 4.1c3.4.4 5 3.8 3.3 7.1C19 15.65 12 20 12 20Z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <!-- 17차: "전체화면 지원을 다시 켜줘" - 리사이즈는 여전히 안 되지만 전체화면만 별도로 -->
+      <button id="btn-fullscreen" class="tb-btn" data-i18n-title="tb_fullscreen_tooltip" title="전체화면 (F11)" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" aria-hidden="true">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button id="btn-min" class="tb-btn" title="최소화" data-i18n-title="tb_minimize">
+        <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0" y="4.5" width="10" height="1.2" fill="currentColor"/></svg>
+      </button>
+      <button id="btn-close" class="tb-btn tb-btn-close" title="닫기" data-i18n-title="tb_close">
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 첫 실행 약관 동의 (전체화면, 동의 전까지 다른 조작 불가) -->
+  <div id="terms-overlay" class="modal-overlay" hidden>
+    <div class="modal modal-full">
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span data-i18n="terms_tab_label" class="modal-tab is-active" style="cursor:default">이용 안내 및 약관 동의</span>
+        </div>
+        <!-- 9-4: 설정에서 다시 볼 때만 나오는 닫기 버튼 (첫 실행 때는 원래대로 닫을 방법이 없어야 함) -->
+        <button id="btn-terms-close" class="icon-btn" type="button" data-i18n-title="btn_close" title="닫기" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div data-i18n="terms_guide_title" class="setting-section-title">Nova Client 이용 안내</div>
+        <p class="terms-text" data-i18n="terms_intro_text">
+          Nova Client는 마인크래프트용 비공식 서드파티 런처입니다.
+          Mojang, Microsoft 와 직접적인 제휴 관계가 없으며, 마인크래프트 정식 실행을 돕기 위한 도구입니다.
+        </p>
+        <ul class="terms-list">
+          <li data-i18n="terms_li_1">로그인 시 사용하는 Microsoft 계정 인증 정보는 이 기기에만 저장되며, 외부 서버로 전송되지 않습니다.</li>
+          <li data-i18n="terms_li_2">런처는 마인크래프트 실행에 필요한 자바, 게임 파일, 모드, 리소스팩을 사용자의 PC에 다운로드합니다.</li>
+          <li data-i18n="terms_li_3">제공되는 모드/리소스팩은 각 원저작자의 라이선스를 따르며, 이 클라이언트는 배포 편의를 위한 묶음일 뿐입니다.</li>
+          <li data-i18n="terms_li_4">클라이언트 이용 중 발생하는 문제에 대해 제작자는 책임을 지지 않으며, 문제 발생 시 디스코드로 문의해주세요.</li>
+          <!-- 24-43차 신규: "이용약관 수정할 거 있으면 좀 해주고 계정 생성 생겼으니까" -
+               Nova 사이트 계정(이메일/아이디+비밀번호로 만드는 자체 계정)이 새로 생겼는데
+               기존 약관엔 Microsoft 계정(위 terms_li_1) 안내만 있고 이 계정에 대한 안내가
+               없었음 - 서로 다른 두 계정임을 구분해서 명시 -->
+          <li data-i18n="terms_li_account">Nova 사이트 계정(이메일/아이디와 비밀번호로 만드는 계정)은 Microsoft 계정과는 별개로, Nova Client와 Nova 사이트(웹)에서 함께 사용하는 자체 계정입니다. 계정 인증과 코인/구매 내역 관리를 위해 자체 서버에 안전하게 저장됩니다.</li>
+        </ul>
+        <div data-i18n="terms_license_title" class="setting-section-title">라이선스</div>
+        <p class="terms-text" id="terms-license"></p>
+        <label class="terms-checkbox-row">
+          <input type="checkbox" id="terms-checkbox" />
+          <span data-i18n="terms_checkbox_label">위 내용을 모두 확인했으며 동의합니다.</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button data-i18n="terms_agree_start" id="btn-terms-agree" class="btn btn-primary btn-small" disabled>동의하고 시작하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-11차 신규: 최초 실행 시 한 번만 뜨는 무료 테마 선택 화면. 유료 테마(블랙&화이트/
+       핑크)는 상점에서 구매해야 해서 여기선 무료인 다크/화이트 두 개만 고를 수 있음 -->
+  <div id="theme-onboarding-overlay" class="modal-overlay" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span data-i18n="theme_onboarding_tab_label" class="modal-tab is-active" style="cursor:default">테마를 골라주세요</span>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p data-i18n="theme_onboarding_desc" class="terms-text">마음에 드는 테마로 시작해보세요. 다른 테마는 나중에 설정이나 상점에서 언제든 바꿀 수 있어요.</p>
+        <div class="theme-gallery" id="theme-onboarding-gallery">
+          <button type="button" class="theme-gallery-item theme-option" data-theme="dark">
+            <div class="theme-gallery-preview theme-gallery-preview-dark">
+              <span class="theme-gallery-preview-side"></span>
+              <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
+              <span class="theme-gallery-preview-accent"></span>
+            </div>
+            <span data-i18n="settings_theme_dark" class="theme-gallery-item-label">다크</span>
+          </button>
+          <button type="button" class="theme-gallery-item theme-option" data-theme="light">
+            <div class="theme-gallery-preview theme-gallery-preview-light">
+              <span class="theme-gallery-preview-side"></span>
+              <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
+              <span class="theme-gallery-preview-accent"></span>
+            </div>
+            <span data-i18n="settings_theme_light" class="theme-gallery-item-label">화이트</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button data-i18n="btn_start" id="btn-theme-onboarding-done" class="btn btn-primary btn-small">시작하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 콘텐츠 -->
+  <div class="app-shell">
+    <!-- 왼쪽 세로 네비게이션 -->
+    <nav class="sidebar">
+      <div class="sidebar-top">
+        <button class="sidebar-icon is-active" data-panel="launch" data-tooltip="플레이" data-i18n-tooltip="sidebar_launch">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="transform: rotate(-18deg);">
+            <path d="M12 2.5c2.8 1.6 4.6 4.6 4.6 8.3 0 3.2-1.3 6.5-3 8.7a2 2 0 0 1-3.2 0c-1.7-2.2-3-5.5-3-8.7 0-3.7 1.8-6.7 4.6-8.3Z" stroke-linejoin="round"/>
+            <circle cx="12" cy="10.5" r="2"/>
+            <path d="M8.5 16.5c-1.8.4-3 1.4-3 3.5 1.8-.4 3-1.1 3.6-2.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15.5 16.5c1.8.4 3 1.4 3 3.5-1.8-.4-3-1.1-3.6-2.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <!-- 24-14차: "프로필 만들기 아이콘 바꾸기" - 예전 아이콘(쌓인 사각형 2개)이 "만들기"보다
+             "목록"처럼 보인다는 지적으로 판단, 사람+플러스(계정 추가) 아이콘으로 교체 -->
+        <button class="sidebar-icon" data-panel="versions" data-tooltip="프로필 만들기" data-i18n-tooltip="sidebar_versions">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="9.5" cy="8" r="3.4"/>
+            <path d="M3.5 20c1-3.6 3.2-5.5 6-5.5 1 0 1.9.2 2.7.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M17 7.5v6M14 10.5h6" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="sidebar-icon" data-panel="explore" data-tooltip="컨텐츠 설치" data-i18n-tooltip="sidebar_explore">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M15.5 8.5l-2 5-5 2 2-5 5-2Z" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="sidebar-icon" data-panel="forum" data-tooltip="커뮤니티" data-i18n-tooltip="sidebar_forum">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M4 5h16v11H8l-4 4V5Z" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 9h8M8 12.5h5" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="sidebar-icon" data-panel="shop" data-tooltip="상점" data-i18n-tooltip="sidebar_shop">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M3 9l1.5-5h15L21 9" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 9h18v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9Z" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 13a3 3 0 0 0 6 0" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="sidebar-icon" data-panel="inventory" data-tooltip="보관함" data-i18n-tooltip="sidebar_inventory">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="3" y="7" width="18" height="13" rx="2"/>
+            <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 11h18" stroke-linecap="round"/>
+          </svg>
+          <span id="inventory-notif-dot" class="notif-dot" hidden></span>
+        </button>
+
+        <!-- 18차: "보관함 바로 아래에 아래 화살표 버튼 만들어서 누르면 밑으로 스킨/서버/소식/
+             업데이트 로그가 주루룩 뜨게, 닫을 수도 있게" - 사이드바를 직접 늘리지 않고, 화살표를
+             누르면 보관함 바로 아래로 4개의 바로가기 아이콘이 펼쳐지는 아코디언 형태로 구현 -->
+        <button id="btn-sidebar-more-toggle" class="sidebar-icon sidebar-more-toggle" type="button" data-tooltip="더보기" data-i18n-tooltip="sidebar_more">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="sidebar-more-icons" class="sidebar-more-icons" hidden>
+          <button class="sidebar-icon" id="sidebar-more-skin-btn" data-tooltip="스킨" data-i18n-tooltip="sidebar_more_skin" style="--i:0" type="button">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="7" y="3" width="10" height="7" rx="2"/>
+              <path d="M4.5 21v-4a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon sidebar-icon-soon" id="sidebar-more-server-btn" data-tooltip="서버 (준비 중)" data-i18n-tooltip="sidebar_more_server" style="--i:1" type="button">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="3.5" y="4" width="17" height="7" rx="1.8"/>
+              <rect x="3.5" y="13" width="17" height="7" rx="1.8"/>
+              <path d="M7 7.5h.01M7 16.5h.01" stroke-linecap="round"/>
+            </svg>
+            <span class="sidebar-icon-soon-badge" data-i18n="sidebar_soon_badge">곧</span>
+          </button>
+          <button class="sidebar-icon" id="sidebar-more-news-btn" data-panel="news" data-tooltip="소식" data-i18n-tooltip="sidebar_more_news" style="--i:2" type="button">
+            <!-- 24-11차: "소식 아이콘이 확성기 느낌이라 뉴스(신문) 느낌으로 바꿔줘" -
+                 확성기 모양 대신 접힌 신문 실루엣 아이콘으로 교체 -->
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M4 5.5h12a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 0 1.5 1.5H6a2 2 0 0 1-2-2Z" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M19.5 8v9.5a1.5 1.5 0 0 1-1.5 1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 9h6M7 12h6M7 15h3" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="sidebar-icon" id="sidebar-more-changelog-btn" data-tooltip="업데이트 로그" data-i18n-tooltip="sidebar_more_changelog" style="--i:3" type="button">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="12" cy="13" r="8"/>
+              <path d="M12 9v4l2.5 2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 2h6" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="sidebar-icon" id="sidebar-profile-btn" data-panel="profile" data-tooltip="프로필" data-i18n-tooltip="sidebar_profile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.6"/>
+            <path d="M4.5 20c1.4-3.6 4.6-5.5 7.5-5.5s6.1 1.9 7.5 5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="sidebar-icon" id="sidebar-settings-btn" data-panel="settings" data-tooltip="설정" data-i18n-tooltip="sidebar_settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 4.3l.06.06A1.65 1.65 0 0 0 8.92 4.7h.08A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9v.08A1.65 1.65 0 0 0 20.91 10H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+  <main class="app">
+    <!-- 19차: "선으로 나누지 말고 같은 블록 안에 구분선으로만 나누라고" - .view와 .home-friends를
+         각자 테두리 있는 별개 박스로 붙이는 대신, 이 프레임 하나가 테두리/배경/둥근 모서리를
+         전부 담당하고 .view/.home-friends는 투명한 내용 영역이 되게 함 -->
+    <div class="content-dock-frame" aria-hidden="true"></div>
+    <canvas id="cursor-trail" class="cursor-trail"></canvas>
+
+    <!-- 24-27차: "로그인 확인할 때 로그인창 띄우지 마, 이미 로그인 돼있으면 로딩이 뜨다
+         들어가지게 해줘야지" - 예전엔 view-login이 hidden 없이 기본 노출 상태라, 시작 시
+         캐시된 사이트 계정을 확인하는 동안(비동기 IPC 왕복) 화면엔 그 짧은 순간 로그인
+         화면이 먼저 보였다가 이미 로그인돼 있으면 홈으로 바뀌는 식이었음 - 이미 로그인된
+         사람 입장에선 "로그인하라는 화면이 잠깐 떴다 사라지는" 것처럼 보였음. 이제
+         view-login도 다른 화면들처럼 처음부터 hidden으로 시작하고, 그 확인이 끝날 때까지는
+         이 로딩 오버레이 하나만 보이다가(renderer.js 시작 시 사이트 계정 확인 IIFE 참고),
+         결과에 따라 showHome()/showLogin() 둘 중 하나가 실제 화면을 보여주면서 이 오버레이를
+         지움 -->
+    <div id="boot-gate" class="boot-gate">
+      <div class="boot-gate-spinner" aria-hidden="true"></div>
+    </div>
+
+
+    <!-- 강제 업데이트 배너 (버전이 너무 오래됨) -->
+    <div id="force-update-banner" class="update-banner force-update-banner" hidden>
+      <span data-i18n="force_update_desc">이 버전은 너무 오래됐어요. 업데이트가 필요해요.</span>
+      <button data-i18n="force_update_open_btn" id="btn-force-update" class="btn btn-primary btn-small">업데이트 페이지 열기</button>
+    </div>
+
+    <!-- 재접속 배너 (게임 종료 후) -->
+    <div id="reconnect-banner" class="update-banner reconnect-banner" hidden>
+      <span data-i18n="reconnect_ended_text" id="reconnect-text">게임이 종료됐어요.</span>
+      <button data-i18n="reconnect_now_btn" id="btn-reconnect-now" class="btn btn-primary btn-small">지금 재접속</button>
+      <button data-i18n="btn_cancel" id="btn-reconnect-cancel" class="btn btn-ghost btn-small">취소</button>
+    </div>
+
+    <!-- 크래시 리포트 알림 -->
+    <div id="crash-banner" class="crash-banner" hidden>
+      <span data-i18n="crash_desc">게임이 비정상 종료됐어요. 크래시 로그를 복사해서 디스코드에 올려주시면 빠르게 도와드릴게요.</span>
+      <div class="crash-banner-actions">
+        <button data-i18n="crash_copy_log_btn" id="btn-crash-copy" class="btn btn-primary btn-small">로그 복사</button>
+        <button data-i18n="btn_close" id="btn-crash-close" class="btn btn-ghost btn-small">닫기</button>
+      </div>
+    </div>
+
+    <!-- 로그인 전 화면 -->
+    <!-- 24-4차: "클라이언트도 사이트처럼 전용 계정 로그인통해서 하게 할 거고" - 이제 여기가
+         마이크로소프트 로그인이 아니라 "사이트 계정"(자체 아이디/비번) 로그인/회원가입
+         화면임. 마이크로소프트 로그인은 그대로 있지만, 사이트 계정으로 먼저 로그인한
+         다음 홈 화면에서 PLAY를 누를 때(또는 계정 전환 메뉴에서) 뜸 - 그 로그인이 곧
+         "마인크래프트 계정 등록"을 겸함(renderer.js의 auth:login 처리 참고). -->
+    <section id="view-login" class="view view-center" hidden>
+      <div class="logo-block">
+        <span class="brand-mark brand-mark-lg" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+        </span>
+        <h1 class="brand-wordmark"><span class="brand-word-nova" aria-label="NOVA">N<span class="brand-o-star" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M 22 12 Q 13.5 13.5 12 22 Q 10.5 13.5 2 12 Q 10.5 10.5 12 2 Q 13.5 10.5 22 12 Z"/></svg></span>VA</span><span class="brand-word-client"> CLIENT</span></h1>
+        <p data-i18n="login_site_account_sub" class="sub" id="login-mc-version">사이트 계정으로 로그인해주세요</p>
+      </div>
+
+      <!-- 24-44차: "로그인창을 조금 더 세련되게 해봐 배경과 어울어지고 박스가 최대한
+           없게 박스가 많으면 안예뻐" - 24-43차 때 만든 카드(.site-login-card, 탭+입력폼을
+           박스 하나로 감싸는 방식)를 도로 없앰 - 그 안에 탭 필박스+입력창 박스 2개+버튼까지
+           겹겹이 박스가 쌓여서 오히려 더 각지고 답답해 보였던 게 원인으로 보임. 이번엔 반대
+           방향: 탭은 필(pill) 배경 대신 밑줄만 슬라이드하는 방식으로, 입력창은 사각 박스
+           대신 밑줄만 있는 방식으로 바꿔서, body의 은은한 그라데이션 배경이 그대로 다
+           비치도록 함 - 화면에 남는 뚜렷한 "박스"는 로그인 버튼 하나뿐(그건 눌러야 하는
+           버튼이라 오히려 또렷해야 함). style.css의 .site-login-tabs/.site-login-field
+           주석 참고 -->
+      <div class="site-login-tabs" role="tablist">
+        <button data-i18n="btn_login" type="button" id="site-login-tab-login" class="site-login-tab is-active" data-mode="login">로그인</button>
+        <button data-i18n="btn_signup" type="button" id="site-login-tab-register" class="site-login-tab" data-mode="register">회원가입</button>
+      </div>
+
+      <form id="site-login-form" class="site-login-form" autocomplete="off">
+        <div class="site-login-field">
+          <svg class="site-login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3.5 6.5h17v11h-17Z" stroke-linejoin="round"/><path d="M4 7l8 6 8-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="site-login-email" class="setting-input" type="email" data-i18n-placeholder="ph_site_email" placeholder="이메일" autocomplete="email" hidden />
+        </div>
+        <div class="site-login-field">
+          <svg class="site-login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.6 4.6-5.5 7.5-5.5s6.1 1.9 7.5 5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="site-login-id" class="setting-input" type="text" data-i18n-placeholder="ph_site_id" placeholder="이메일 또는 아이디(닉네임)" autocomplete="username" />
+        </div>
+        <div class="site-login-field">
+          <svg class="site-login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.4"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke-linecap="round"/></svg>
+          <input id="site-login-password" class="setting-input" type="password" data-i18n-placeholder="ph_site_password" placeholder="비밀번호 (8자 이상)" autocomplete="current-password" />
+        </div>
+        <button data-i18n="btn_login" id="btn-site-login-submit" type="submit" class="btn btn-primary btn-wide">로그인</button>
+      </form>
+      <p id="site-login-error" class="error-text"></p>
+
+      <div class="footer-meta" id="login-version"></div>
+    </section>
+
+    <!-- 24-15차 신규: "게스트 없애라고", "마크 로그인이 마크 계정 추가에만 있어야 한다" -
+         사이트 계정 로그인 직후, 이 사이트 계정에 아직 연동된 마인크래프트 계정이 없으면
+         홈을 구경만 하게 두지 않고 이 화면부터 보여줌. 여기서 로그인해야만(=연동해야만)
+         홈으로 넘어갈 수 있음 - showAppPanel의 게이트 로직이 이 화면 밖 어떤 화면 요청도
+         전부 여기로 되돌림(사이드바를 눌러도 마찬가지). 마이크로소프트 로그인 창은 이제
+         이 화면과 설정 > 사이트 계정 패널, 두 곳에서만 뜸. -->
+    <!-- 24-20차: "로그인창 전체로 쓰지 말라고... 원래 창에다가 쓰라고 버튼들 남겨두고" -
+         예전엔 view-login과 완전히 같은 class="view view-center"라 로고까지 포함한 로그인
+         화면 전체를 그대로 복제한 것처럼 보였음. 사이드바는 이제 이 화면에서 숨기지 않고
+         그대로 두고(renderer.js showAppPanel), 내용도 화면 전체를 덮는 대신 작은 카드
+         (.mc-gate-card) 하나로 축소해서 "새 페이지 전체"가 아니라 그 안에 뜨는 작은
+         안내창처럼 보이게 함 -->
+    <section id="view-mc-gate" class="view view-center" hidden>
+      <div class="mc-gate-card">
+        <p data-i18n="mc_gate_title" class="mc-gate-title">마지막 한 단계만 더 하면 돼요</p>
+        <p class="mc-gate-text"><span data-i18n="mc_gate_text_1">이 계정에서 사용할 마인크래프트 계정으로 로그인해주세요.</span><br /><span data-i18n="mc_gate_text_2">로그인하면 이 사이트 계정에 자동으로 연동돼요.</span></p>
+        <button data-i18n="mc_gate_login_btn" id="btn-mc-gate-login" type="button" class="btn btn-primary btn-wide">마인크래프트 계정으로 로그인</button>
+        <button data-i18n="mc_gate_logout_btn" id="btn-mc-gate-logout" type="button" class="btn btn-ghost btn-small mc-gate-logout-btn">사이트 계정 로그아웃</button>
+      </div>
+    </section>
+
+    <!-- 로그인 후 대시보드 -->
+    <section id="view-home" class="view view-home" hidden>
+      <div class="home-main">
+        <!-- 24-59차: "로그인 성공하면 위에 메시지에 선릿밸리 서버 진행중! 이라는 글 항상
+             어디에다가 띄워줘" - 이 화면(view-home) 자체가 로그인에 성공해야만 보이는
+             화면이라, 여기 맨 위에 항상 떠 있는 것만으로 "로그인 성공하면" 조건이 자연스럽게
+             만족됨(별도 JS 로직 불필요). GitHub에서 매번 새로 불러오는 공지사항
+             (announcement.json/포럼 공지)과 달리 순수 클라이언트 내장 문구라 네트워크 연결과
+             무관하게 항상 뜸 - 사용자가 그만 띄우라고 할 때까지 계속 유지 -->
+        <div class="home-custom-banner" id="home-custom-banner">
+          <span>선릿밸리 서버 진행중!</span>
+        </div>
+
+        <!-- 13차: "환영합니다 글이 영어로 안 바뀐다" - 이름을 끼워넣어야 해서 고정 텍스트로는
+             번역이 안 됐음. 이제 JS(showHome)에서 t("home_welcome", {name})로 매번 채움 -->
+        <div class="home-greeting" id="home-greeting"></div>
+
+        <!-- 히어로 박스: 스크린샷 배경 위에 PLAY 버튼만, 서버/프로필 선택은 옆에 따로 분리 -->
+        <div class="home-hero-row">
+          <div class="home-hero">
+            <div id="screenshot-slideshow" class="screenshot-slideshow" hidden>
+              <img id="ss-img-a" class="ss-img is-active" alt="" />
+              <img id="ss-img-b" class="ss-img" alt="" />
+            </div>
+            <div class="home-hero-overlay"></div>
+
+            <div class="home-hero-center">
+              <div class="home-logo">
+                <!-- 4-2(4차): Play 화면 아이콘은 원래 일부러 놔둔 점 그리드였음 - 지난 라운드에
+                     타이틀바와 같이 스파크 SVG로 바뀐 걸 원래 모양(3x3 점 그리드)으로 되돌림 -->
+                <span class="brand-mark-lg" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                  <span></span><span></span><span></span>
+                </span>
+                <div class="home-logo-text brand-wordmark"><span class="brand-word-nova" aria-label="NOVA">N<span class="brand-o-star" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M 22 12 Q 13.5 13.5 12 22 Q 10.5 13.5 2 12 Q 10.5 10.5 12 2 Q 13.5 10.5 22 12 Z"/></svg></span>VA</span><span class="brand-word-client"> CLIENT</span></div>
+              </div>
+
+              <div id="play-area" class="play-area">
+                <button id="btn-play" class="btn btn-primary btn-play">
+                  <span id="btn-play-fill" class="btn-play-fill" style="width:0%"></span>
+                  <span id="btn-play-label" class="btn-play-label">PLAY</span>
+                </button>
+                <div id="progress-caption" class="progress-caption"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 19(4차): 서버/프로필을 팝업으로 안 띄우고, 이 카드 영역 안에서만 인라인으로
+               토글+탐색이 끝나게 재구성. "서버" / "프로필" 모드 스위치 하나로 위쪽 트리거를
+               바꾸고, 목록은 화면 밖으로 안 나가는 인라인 페이지네이션 그리드로 보여줌
+               (Explore 모드 그리드와 같은 패턴 재사용) -->
+          <div class="home-hero-side">
+            <div class="hero-side-mode-switch">
+              <button type="button" class="hero-side-mode-btn is-active" id="hero-mode-server-btn" data-mode="server" data-i18n="hero_mode_server">서버</button>
+              <button type="button" class="hero-side-mode-btn" id="hero-mode-profile-btn" data-mode="profile" data-i18n="hero_mode_profile">프로필</button>
+            </div>
+
+            <!-- 14차: "박스 안에 박스" 지적이 계속 이어져서, 이번엔 새로고침 버튼과 바깥
+                 박스(배경/테두리) 자체를 완전히 없앰. 위 서버/프로필 탭 스위치 밑에 바로
+                 얇은 구분선 하나만 두고, 목록 항목도 카드 박스가 아니라 항목 사이 구분선만
+                 있는 납작한 줄로 정리. 선택 표시는 이미 있는 잔상 pill(mountSlidingPill)
+                 효과 하나로만 충분해서 항목 자체엔 별도 테두리/배경을 안 줌.
+                 새로고침은 수동 버튼 없이도 상태 폴링이 주기적으로(main.js 타이머) 갱신해줌 -->
+            <div class="hero-side-block" id="hero-side-block-server">
+              <!-- 내부 로직(디스코드 상태 표시 등)에서 여전히 쓰는 값이라 지우진 않고, 화면에는
+                   목록과 중복이라 안 보이게만 함 -->
+              <b data-i18n="home_server_select_default" id="server-chip-name" hidden>서버 선택</b>
+              <!-- 24-11차: "목록에 위/아래로 더 있으면 화살표로 알려줘" - 스크롤 위치에 따라
+                   JS(updateHeroListScrollFade)가 켜고 끄는 위/아래 화살표 힌트 -->
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-up" id="server-list-arrow-up" hidden>▲</span>
+              <div id="server-list-items" class="hero-list-scroll"></div>
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-down" id="server-list-arrow-down" hidden>▼</span>
+            </div>
+
+            <div class="hero-side-block" id="hero-side-block-profile" hidden>
+              <b data-i18n="home_profile_select_default" id="profile-chip-name" hidden>프로필 선택</b>
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-up" id="profile-list-arrow-up" hidden>▲</span>
+              <div id="profile-list-items" class="hero-list-scroll"></div>
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-down" id="profile-list-arrow-down" hidden>▼</span>
+            </div>
+          </div>
+        </div>
+
+        <p id="game-error" class="error-text"></p>
+
+        <!-- 공지사항 (있을 때만 표시, 프로필 메뉴 대신 여기서 바로 보임) -->
+        <div id="home-announcement-card" class="home-announcement-card" hidden>
+          <div class="home-announcement-head">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span data-i18n="home_notice_title">공지사항</span>
+          </div>
+          <div id="home-announcement-text" class="home-announcement-text"></div>
+        </div>
+
+        <!-- 최근 업데이트: 뉴스카드 형식 (최신 6개)
+             23차: "전체화면일 때 플레이에 업데이트 목록을 6개 꽉 차게 나열하되 ... 빈공간
+             없이" - 예전엔 이 그리드가 내용 높이만큼만 차지해서, 창을 최대화하면 .home-main에
+             남는 세로 여유 공간이 그냥 빈 채로 아래에 남았음. 제목+그리드를 한 덩어리
+             (.home-news-section)로 묶어서 .home-main 안에서 flex:1로 남은 세로 공간을
+             전부 차지하게 하고, 그 안의 그리드는 3열 고정(6개 = 2줄)으로 정해서 카드들이
+             그 공간을 나눠 채우게 함 -->
+        <div class="home-news-section">
+          <div data-i18n="home_recent_updates_title" class="home-news-title">최근 업데이트</div>
+          <div id="home-news-grid" class="home-news-grid"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Versions: 버전 골라서 새 프로필 만들기 -->
+    <section id="view-versions" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span class="modal-title-label">Install</span>
+        </div>
+      </div>
+
+      <div class="modal-body" id="versions-list-panel">
+        <!-- 13차: "프리셋은 따로 창(탭) 만들지 말고 버전 목록 밑, 공유 코드 입력 위에 카테고리
+             5개가 인라인으로 뜨게 해줘" - 기존 "버전으로 만들기/프리셋으로 만들기" 탭 전환 방식을
+             없애고, 하나의 화면 안에 버전 목록 -> 프리셋 카테고리(인라인) -> 공유 코드 순서로 배치함 -->
+        <div id="versions-mode-version">
+          <!-- 12차: "AI 설명체 같은 문구 없애고 위로 당겨줘" - 안내 문구 자체를 지움 -->
+          <div id="versions-list" class="versions-list"></div>
+
+          <!-- 14차: "프리셋으로 만들기 그런 글 넣지마" - 섹션 제목 자체를 없애고 카테고리
+               카드만 바로 보이게 함 -->
+          <div id="versions-preset-inline-section" class="versions-preset-inline-section">
+            <div id="preset-browse-category-list" class="versions-list versions-list-major"></div>
+          </div>
+
+          <!-- 17차: "코드 치자마자 불러오기 누르지 말고, 먼저 미리보기가 아래에 뜨고 그 다음에
+               불러오기 버튼이 나오게 해줘" - 예전엔 코드 입력창 옆에 항상 "불러오기" 버튼이 떠
+               있었는데, 이제 코드를 입력/붙여넣기하면 아래에 미리보기가 뜨고 그게 유효할 때만
+               "불러오기" 버튼이 나타남 -->
+          <div id="versions-import-section" class="versions-import-section">
+            <div class="setting-section-title" data-i18n="versions_import_by_code">공유 코드로 불러오기</div>
+            <div class="redeem-row">
+              <input type="text" id="import-profile-code" class="setting-input redeem-input" placeholder="공유 코드를 입력하세요" data-i18n-placeholder="ph_share_code" style="text-transform:uppercase;" />
+              <button id="btn-import-profile" class="btn btn-primary btn-small" data-i18n="btn_import" hidden>불러오기</button>
+            </div>
+            <div id="import-profile-preview" class="shared-profile-inline-preview" hidden></div>
+          </div>
+        </div>
+
+        <!-- 16-3(4차)/13차: 프리셋 카테고리 카드를 누르면 그 안의 내 프리셋 목록으로 이동 -->
+        <div id="versions-mode-preset-list" hidden>
+          <button type="button" class="btn btn-ghost btn-small" id="btn-preset-browse-back-category" style="align-self:flex-start; margin-bottom:10px;" data-i18n="btn_back_to_list">← 목록으로</button>
+          <div class="setting-section-title" id="preset-browse-list-title" data-i18n="preset_browse_default_title">프리셋</div>
+          <div id="preset-browse-list" class="versions-list"></div>
+        </div>
+
+        <!-- 16-3(4차): 3단계 - 고른 프리셋의 마인크래프트 버전별 카드(자동 생성됨) -->
+        <div id="versions-mode-preset-version" hidden>
+          <button type="button" class="btn btn-ghost btn-small" id="btn-preset-browse-back-list" style="align-self:flex-start; margin-bottom:10px;" data-i18n="btn_back_to_list">← 목록으로</button>
+          <div class="setting-section-title" id="preset-browse-version-title" data-i18n="preset_browse_version_default_title">버전을 골라주세요</div>
+          <div class="preset-version-note" id="preset-browse-version-note"></div>
+          <div id="preset-browse-version-list" class="versions-list versions-list-major"></div>
+        </div>
+      </div>
+
+      <!-- 버전을 고르면 이 폼이 뜸 - 16차: "커스텀 프로필을 눌렀을 때 Install로 가지고,
+           버전을 골랐을 때 뜨게 해줘야지" - 예전엔 메모리/해상도/전체화면/JVM 인수까지
+           고르는 긴 폼이었는데(그 값들은 프로필 만든 뒤 프로필 설정에서 언제든 바꿀 수
+           있고, profiles:create가 생략되면 서버에서 알아서 기본값을 채워줌), "프로필 추가"
+           팝업에 따로 있던 아이콘+이름+버전(고른 값 그대로 표시, 다시 고르는 드롭다운
+           없음)+로더 화면을 이 자리로 옮김 -->
+      <!-- 17차: "버전 골라서 프로필 만드는 창은 작은 팝업창으로 떠야지(전에도 말했잖아)" -
+           16차까지는 versions-list-panel 전체를 가리는 풀사이즈 패널이었는데, 이제 목록 패널은
+           뒤에 그대로 두고(안 숨김) 이 패널만 어둡게 깔린 배경 위에 작은 카드로 가운데 뜸.
+           바깥쪽(#versions-create-panel)은 배경+정렬만 담당하는 오버레이 래퍼이고, 실제 카드
+           내용은 안쪽 .versions-create-card에 그대로 들어있음(style.css의
+           #versions-create-panel:not([hidden]) 규칙 참고) -->
+      <div class="modal-body" id="versions-create-panel" hidden>
+        <div class="versions-create-card">
+          <button id="btn-versions-back" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start;" data-i18n="btn_back_to_version_list">← 버전 목록으로</button>
+
+          <div class="profile-add-custom-head">
+            <button type="button" id="create-profile-icon-btn" class="profile-add-custom-icon-btn" data-i18n-title="create_profile_icon_pick_title" title="아이콘 선택">
+              <img id="create-profile-icon-img" src="" alt="" hidden />
+              <svg id="create-profile-icon-placeholder" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5.2-5.2a2 2 0 0 0-2.8 0L4 20" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="profile-add-custom-head-fields">
+              <input type="text" id="create-profile-name" class="setting-input" placeholder="예: 내 서바이벌" data-i18n-placeholder="ph_profile_name" />
+              <div id="create-profile-version-display" class="profile-add-version-display"></div>
+            </div>
+          </div>
+
+          <!-- 24-50차: "모드팩을 제외한 일반 프로필에서는 패브릭, 바닐라만 되게 해줘" -
+               이 화면(버전을 직접 골라 빈 프로필을 만드는 커스텀 프로필 생성 - 모드팩은
+               explore:install-modpack/installModpackFile로 별도 생성되고 이 화면을 아예
+               거치지 않으므로 "모드팩을 제외한"은 이 화면 자체가 이미 만족함)에서 고를 수
+               있는 로더를 Fabric/Vanilla 둘로만 줄임. Forge/NeoForge 버튼을 제거함 - 이미
+               Forge/NeoForge로 만들어져 있는 기존 프로필의 실행/모드 관리 로직은 그대로
+               유지됨(이 픽커는 "새로 만들 때" 고르는 값일 뿐). renderer.js의 로더 버튼
+               클릭 핸들러가 이 안에 실제로 있는 버튼들을 그대로 querySelectorAll로 읽어서
+               동작하므로(#create-profile-loader-row .profile-add-loader-option), JS는
+               따로 안 건드려도 됨 -->
+          <div id="create-profile-loader-row" class="profile-add-loader-row">
+            <label data-i18n="create_profile_loader_label" class="profile-add-loader-label">로더</label>
+            <div class="profile-add-loader-picker">
+              <button type="button" class="profile-add-loader-option is-active" data-loader="fabric">
+                <span class="profile-add-loader-name">Fabric</span>
+              </button>
+              <button type="button" class="profile-add-loader-option" data-loader="vanilla">
+                <span class="profile-add-loader-name">Vanilla</span>
+              </button>
+            </div>
+            <!-- 24-43차 신규: "바닐라로 프로필 만들 때 초록색 경고문으로 Nova Client 기본
+                 기능을 이용하실 수 없습니다 이런 거 작게띄워줘" - Vanilla가 선택된 동안만
+                 보이고 Fabric/Forge/NeoForge로 바꾸면 다시 숨겨짐(updateVanillaLoaderWarning(),
+                 renderer.js). 이 로더 행 자체가 프리셋 사용 시 숨겨지므로 그 안에 같이 둬서
+                 프리셋으로 만들 때도 자동으로 숨겨짐 -->
+            <div id="create-profile-vanilla-warning" class="create-profile-vanilla-warning" hidden>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 8.5v4.2M12 15.8h.01" stroke-linecap="round"/><path d="M10.6 3.9 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.4 3.9a2 2 0 0 0-3.4 0Z" stroke-linejoin="round"/></svg>
+              <span data-i18n="create_profile_vanilla_warning">Nova Client 기본 기능을 이용하실 수 없습니다</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label data-i18n="create_profile_use_preset_label">프리셋 이용하기</label>
+            <div class="setting-control">
+              <input type="checkbox" id="create-profile-use-preset" />
+            </div>
+          </div>
+          <div id="create-profile-preset-picker" class="setting-row" hidden>
+            <label data-i18n="create_profile_preset_picker_label">프리셋 선택</label>
+            <select id="create-profile-preset-select" class="setting-input"></select>
+          </div>
+
+          <!-- 17차: "프로필마다 만들 때 설명 적을 수 있게 해줘" -->
+          <div class="setting-row setting-row-col">
+            <label data-i18n="create_profile_description_label">설명 (선택)</label>
+            <textarea id="create-profile-description" class="setting-input" rows="2" maxlength="300" placeholder="이 프로필에 대한 설명을 적어보세요" data-i18n-placeholder="ph_profile_description"></textarea>
+          </div>
+
+          <button id="btn-create-profile-submit" class="btn btn-primary profile-add-submit-btn" type="button" data-i18n="btn_create_profile">프로필 만들기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Explore: 모드린스에서 모드/리소스팩 검색 -->
+    <section id="view-explore" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span class="modal-title-label">Contents</span>
+        </div>
+      </div>
+
+      <!-- 목록(검색) 화면 -->
+      <div class="explore-body" id="explore-list-panel">
+        <div class="explore-toolbar">
+          <input type="text" id="explore-search-input" class="setting-input explore-search-input" placeholder="Modrinth에서 검색..." data-i18n-placeholder="ph_explore_search" />
+          <!-- 17차 신규: 정렬 기준 선택 (다운로드순 고정이었던 걸 골라서 바꿀 수 있게) -->
+          <select id="explore-sort-select" class="setting-input explore-sort-select" data-i18n-title="sort_tooltip" title="정렬">
+            <option data-i18n="explore_sort_downloads" value="downloads">다운로드순</option>
+            <option data-i18n="forum_sort_popular" value="follows">인기순</option>
+            <option data-i18n="forum_sort_latest" value="newest">최신순</option>
+            <option data-i18n="explore_sort_updated" value="updated">업데이트순</option>
+          </select>
+        </div>
+
+        <!-- 7-5: 드롭다운이었던 모드/리소스팩/쉐이더 선택을 검색창 아래, 항상 보이는 탭 형태로 이동
+             (예전에 쓰이던 .explore-type-tab(s) 스타일을 그대로 재사용) -->
+        <div class="explore-type-tabs" id="explore-kind-tabs">
+          <button type="button" class="explore-type-tab is-active" data-type="mod" data-i18n="explore_type_mod">모드</button>
+          <button type="button" class="explore-type-tab" data-type="resourcepack" data-i18n="explore_type_resourcepack">리소스팩</button>
+          <button type="button" class="explore-type-tab" data-type="shader" data-i18n="explore_type_shader">쉐이더</button>
+          <!-- 10차 신규: 모드팩 - 다른 종류(모드/리소스팩/쉐이더)와 달리 "지금 프로필에 추가"가
+               아니라 설치하면 이 모드팩용 새 프로필이 통째로 만들어짐 -->
+          <button type="button" class="explore-type-tab" data-type="modpack" data-i18n="explore_type_modpack">모드팩</button>
+        </div>
+
+        <!-- 7-7: 종류별 카테고리 필터 칩 (모드/쉐이더/리소스팩마다 다른 목록을 보여줌) -->
+        <div class="explore-category-chips" id="explore-category-chips"></div>
+
+        <!-- 24-14차: "모드에서 클라이언트 모드만 따로 볼 수 있게 해주는 기능" - 모드 탭에서만
+             보이는 필터. 켜면 서버 전용(client_side=unsupported) 모드를 검색 결과에서 뺌 -->
+        <label class="explore-client-only-filter" id="explore-client-only-filter" hidden>
+          <input type="checkbox" id="explore-client-only-check" />
+          <span data-i18n="explore_client_mod_only">클라이언트 모드만 보기</span>
+        </label>
+
+        <div class="explore-content">
+          <div class="explore-results-col">
+            <div id="explore-results" class="explore-results"></div>
+            <!-- 7-4: 30개 캡 대신 페이지 단위로 더 볼 수 있게 함 -->
+            <!-- 4-1: 이전/다음만 있던 걸 번호 매김 페이지네이션(1~10, 화살표로 다음 묶음)으로 교체 -->
+            <div class="explore-pagination" id="explore-pagination" hidden>
+              <button type="button" class="explore-page-arrow" id="explore-page-group-prev" data-i18n-title="explore_page_prev10_title" title="이전 10페이지">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div id="explore-page-numbers" class="explore-page-numbers"></div>
+              <button type="button" class="explore-page-arrow" id="explore-page-group-next" data-i18n-title="explore_page_next10_title" title="다음 10페이지">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="explore-sidebar" id="explore-sidebar">
+            <div id="explore-profile-list" class="versions-list explore-profile-list"></div>
+            <!-- 10차 신규(모드팩): 모드팩은 미리 프로필을 고를 필요가 없음(설치하면 새 프로필이
+                 통째로 만들어짐) - 프로필 목록 대신 이 안내 문구를 보여줌 -->
+            <div id="explore-modpack-notice" class="explore-modpack-notice" hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"/><path d="M12 22V12M21 7l-9 5-9-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div>
+                <div data-i18n="explore_modpack_notice_title" class="explore-modpack-notice-title">모드팩을 설치하면</div>
+                <div data-i18n="explore_modpack_notice_desc" class="explore-modpack-notice-desc">이 모드팩용 새 프로필이 자동으로 만들어져요. 아이콘도 모드팩 아이콘으로 설정돼요.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 모드 상세 + 설치 화면 (모드린스로 안 나가고 앱 안에서 다 봄) -->
+      <div class="modal-body" id="explore-detail-panel" hidden>
+        <button id="btn-explore-detail-back" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start;" data-i18n="btn_back_to_list">← 목록으로</button>
+
+        <div class="mod-detail-head">
+          <img id="mod-detail-icon" class="mod-detail-icon" alt="" />
+          <div class="mod-detail-headinfo">
+            <div id="mod-detail-title" class="mod-detail-title"></div>
+            <div id="mod-detail-meta" class="mod-detail-meta"></div>
+          </div>
+          <!-- 7-6: 버전 목록까지 안 내려가도 바로 최신/추천 버전을 설치할 수 있는 원클릭 버튼 -->
+          <button data-i18n="btn_install" id="btn-mod-quick-install" class="btn btn-fixed-green btn-small" type="button">설치</button>
+          <button id="btn-mod-detail-external" class="icon-btn" data-i18n-title="mod_detail_open_modrinth_title" title="Modrinth 페이지 열기">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>
+          </button>
+        </div>
+
+        <!-- 10차: "갤러리를 따로 분리해줘야지, 버전이랑 changelog도 안에서 또 분리해줘" -
+             예전엔 설명/갤러리/본문/버전이 그냥 위아래로 쭉 이어붙어 있어서 어디까지가
+             뭔지 구분이 잘 안 됐음 - 섹션마다 카드(제목+배경)로 나눔 -->
+        <div class="mod-detail-layout">
+          <div class="mod-detail-main">
+            <p id="mod-detail-desc" class="mod-detail-desc"></p>
+
+            <!-- 20차: "스크린샷 박스가 있는 게 아니라 카테고리처럼 나뉘게 해달라했지 지금은
+                 스크린샷이랑 설명이랑 한 곳에 있잖아" - 예전엔 설명/스크린샷/버전이 각자
+                 박스(카드)로 그냥 위아래로 이어붙어 한 화면에 같이 있었음. 진짜 탭으로 나눠서
+                 한 번에 하나만 보이게 함 -->
+            <div class="mod-detail-tabs" id="mod-detail-tabs">
+              <button data-i18n="label_description" type="button" class="mod-detail-tab is-active" data-tab="desc">설명</button>
+              <button data-i18n="mod_detail_tab_gallery" type="button" class="mod-detail-tab" data-tab="gallery" id="mod-detail-tab-gallery" hidden>스크린샷</button>
+              <button data-i18n="manage_col_version" type="button" class="mod-detail-tab" data-tab="versions">버전</button>
+            </div>
+
+            <div id="mod-detail-gallery-section" class="mod-detail-section mod-detail-tab-panel" data-tab-panel="gallery" hidden>
+              <!-- 12차: "블록으로 잘게 나누지 말고 카테고리처럼 골라서 크게 보이게" - 작은
+                   그리드 대신 큰 사진 하나 + 그 밑에 고를 수 있는 작은 탭 줄로 재구성 -->
+              <div id="mod-detail-gallery" class="mod-detail-gallery">
+                <img id="mod-detail-gallery-main" class="mod-detail-gallery-main" />
+                <div id="mod-detail-gallery-tabs" class="mod-detail-gallery-tabs"></div>
+              </div>
+            </div>
+
+            <div id="mod-detail-body-section" class="mod-detail-section mod-detail-tab-panel" data-tab-panel="desc" hidden>
+              <div class="mod-detail-section-head-row">
+                <div data-i18n="label_description" class="setting-section-title">설명</div>
+                <!-- 17차 신규: 모드 설명이 대부분 영어라 바로 번역해서 볼 수 있는 버튼 -->
+                <button data-i18n="mod_detail_translate_btn" type="button" id="btn-mod-detail-translate" class="btn btn-ghost btn-small">번역</button>
+              </div>
+              <div id="mod-detail-body" class="mod-detail-body-text"></div>
+            </div>
+
+            <div class="mod-detail-section mod-detail-tab-panel" data-tab-panel="versions" hidden>
+              <div class="setting-section-title mod-version-section-title">
+                <span><span data-i18n="mod_install_version_prefix">버전</span> (<span id="mod-install-target-name"></span><span data-i18n="mod_install_version_suffix">에 설치돼요</span>)</span>
+                <!-- 24-14차: "버전에서 릴리스만 볼지 베타도 다 볼지 고르게 해주고 기본은 릴리스만" -->
+                <label class="mod-version-beta-toggle">
+                  <input type="checkbox" id="mod-version-show-beta" />
+                  <span data-i18n="mod_detail_show_beta">베타 버전도 보기</span>
+                </label>
+              </div>
+              <div id="mod-install-version-list" class="mod-version-list"></div>
+            </div>
+          </div>
+
+          <div class="mod-detail-sidebar">
+            <div class="mod-detail-side-block">
+              <div data-i18n="label_author" class="mod-detail-side-label">제작자</div>
+              <!-- 17차 신규: 제작자 누르면 그 제작자의 모드/리팩/쉐이더가 다 보이는 제작자 페이지로 이동 -->
+              <div id="mod-detail-author" class="mod-detail-side-value author-page-link"></div>
+            </div>
+            <div class="mod-detail-side-block">
+              <div data-i18n="mod_detail_side_mcversion" class="mod-detail-side-label">마인크래프트 버전</div>
+              <div id="mod-detail-versions-chips" class="mod-detail-chip-list"></div>
+            </div>
+            <div class="mod-detail-side-block">
+              <div data-i18n="mod_detail_side_tags" class="mod-detail-side-label">태그</div>
+              <div id="mod-detail-tags" class="mod-detail-chip-list"></div>
+            </div>
+            <div class="mod-detail-side-block">
+              <div data-i18n="home_recent_updates_title" class="mod-detail-side-label">최근 업데이트</div>
+              <div id="mod-detail-updated" class="mod-detail-side-value"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9-2(4차): 모드 상세 갤러리 라이트박스 (Modrinth처럼 클릭해서 크게 보기) -->
+      <div id="mod-gallery-lightbox" class="mod-gallery-lightbox" hidden>
+        <button id="btn-mod-gallery-close" class="mod-gallery-lightbox-close" type="button" data-i18n-aria-label="btn_close" aria-label="닫기">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+        </button>
+        <button id="btn-mod-gallery-prev" class="mod-gallery-lightbox-nav mod-gallery-lightbox-prev" type="button" data-i18n-aria-label="mod_gallery_prev_aria" aria-label="이전">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <img id="mod-gallery-lightbox-img" alt="" />
+        <button id="btn-mod-gallery-next" class="mod-gallery-lightbox-nav mod-gallery-lightbox-next" type="button" data-i18n-aria-label="mod_gallery_next_aria" aria-label="다음">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div id="mod-gallery-lightbox-caption" class="mod-gallery-lightbox-caption"></div>
+      </div>
+    </section>
+
+    <!-- Forum -->
+    <section id="view-forum" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span class="modal-title-label">Forum</span>
+        </div>
+      </div>
+
+      <!-- 목록 화면 -->
+      <div class="modal-body" id="forum-list-panel">
+        <div class="explore-toolbar">
+          <input type="text" id="forum-search-input" class="setting-input explore-search-input" placeholder="게시글 검색..." data-i18n-placeholder="ph_forum_search" />
+          <!-- 20차: "위에 네임태그(타이틀) 부분에 아무것도 넣지마 위아래로 길어지잖아 다른
+               곳에 두면 되잖아" - 관리자 전용 신고 목록 버튼이 타이틀 줄(.modal-header)에
+               같이 있어서 줄이 늘어나 보였음. 검색/필터 도구줄 쪽으로 옮김 -->
+          <!-- 11-2(4차): 관리자에게만 보이는 신고 목록 버튼 (app:is-admin 체크로 표시 여부 결정) -->
+          <button id="btn-forum-open-reports" class="btn btn-ghost btn-small" type="button" hidden>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-2px; margin-right:4px;"><path d="M5 21V4" stroke-linecap="round"/><path d="M5 4h13l-3 4.5L18 13H5" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="forum_open_reports">신고 목록</span>
+          </button>
+
+          <div class="dropdown-select-wrap">
+            <button id="forum-category-trigger" class="dropdown-select-btn" type="button">
+              <span id="forum-category-label" data-i18n="forum_cat_all">전체</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div id="forum-category-menu" class="dropdown-select-menu" hidden>
+              <button type="button" class="dropdown-select-item is-active" data-category="all" data-i18n="forum_cat_all">전체</button>
+              <button type="button" class="dropdown-select-item" data-category="공지사항" data-i18n="forum_cat_notice">공지사항</button>
+              <button type="button" class="dropdown-select-item" data-category="정보" data-i18n="forum_cat_info">정보</button>
+              <button type="button" class="dropdown-select-item" data-category="질문" data-i18n="forum_cat_question">질문</button>
+              <button type="button" class="dropdown-select-item" data-category="잡담" data-i18n="forum_cat_chat">잡담</button>
+              <button type="button" class="dropdown-select-item" data-category="의견" data-i18n="forum_cat_opinion">의견</button>
+            </div>
+          </div>
+
+          <div class="dropdown-select-wrap">
+            <button id="forum-tag-trigger" class="dropdown-select-btn" type="button">
+              <span id="forum-tag-label" data-i18n="forum_tag_all">말머리 전체</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div id="forum-tag-menu" class="dropdown-select-menu" hidden>
+              <button type="button" class="dropdown-select-item is-active" data-tag="all" data-i18n="forum_tag_all">말머리 전체</button>
+            </div>
+          </div>
+
+          <div class="dropdown-select-wrap">
+            <button id="forum-sort-trigger" class="dropdown-select-btn" type="button">
+              <span id="forum-sort-label" data-i18n="forum_sort_latest">최신순</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div id="forum-sort-menu" class="dropdown-select-menu" hidden>
+              <button type="button" class="dropdown-select-item is-active" data-sort="latest" data-i18n="forum_sort_latest">최신순</button>
+              <button type="button" class="dropdown-select-item" data-sort="popular" data-i18n="forum_sort_popular">인기순</button>
+            </div>
+          </div>
+
+          <!-- 14차: "글쓰기 버튼이 혼자 너무 작은 느낌" - 좁은 폭에서 검색창/드롭다운이 줄바꿈되면
+               이 버튼만 다음 줄에 혼자 뚝 떨어져서 유독 작아 보였음. 아이콘을 붙이고 btn-small
+               대신 일반 크기로 키워서 혼자 있어도 존재감이 나게 함(#btn-forum-write CSS 참고) -->
+          <button id="btn-forum-write" class="btn btn-primary" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" style="vertical-align:-2px; margin-right:5px;"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg><span data-i18n="forum_write_btn">글쓰기</span></button>
+        </div>
+        <div id="forum-post-list" class="forum-post-list"></div>
+      </div>
+
+      <!-- 글쓰기 화면 -->
+      <!-- 10차: 예전엔 setting-row(label 왼쪽 | 입력칸 오른쪽)를 제목/내용에도 그대로 써서
+           칸이 좁고 이상하게 나뉘어 보였음 - 제목/내용은 라벨 없이 꽉 찬 폭으로, 게시하기
+           버튼은 위쪽 툴바 오른쪽으로 옮김 -->
+      <div class="modal-body" id="forum-write-panel" hidden>
+        <div class="forum-write-toolbar">
+          <button id="btn-forum-write-back" class="btn btn-ghost btn-small" type="button" data-i18n="btn_back_to_list">← 목록으로</button>
+          <div class="forum-write-toolbar-right">
+            <span id="forum-draft-status" class="forum-draft-status" hidden></span>
+            <button data-i18n="forum_draft_save_btn" id="btn-forum-draft-save" class="btn btn-ghost btn-small" type="button">임시저장</button>
+            <button data-i18n="forum_submit_btn" id="btn-forum-submit" class="btn btn-primary btn-small" type="button">게시하기</button>
+          </div>
+        </div>
+
+        <div class="forum-write-meta-row">
+          <div class="forum-write-meta-field">
+            <label data-i18n="label_category">카테고리</label>
+            <!-- 24-11차: "카테고리가 미리 선택돼 있지 않고 직접 골라야" - 빈 플레이스홀더
+                 옵션을 기본으로 넣어서 사용자가 직접 고르기 전엔 아무 것도 선택 안 된 상태로 둠 -->
+            <select id="forum-write-category" class="setting-input">
+              <option data-i18n="forum_category_placeholder_opt" value="" disabled selected>카테고리를 선택해주세요</option>
+              <option data-i18n="forum_cat_info" value="정보">정보</option>
+              <option data-i18n="forum_cat_question" value="질문">질문</option>
+              <option data-i18n="forum_cat_chat" value="잡담">잡담</option>
+              <option data-i18n="forum_cat_opinion" value="의견">의견</option>
+            </select>
+          </div>
+          <div class="forum-write-meta-field" id="forum-write-tag-row" hidden>
+            <label data-i18n="forum_tag_label">말머리 (선택)</label>
+            <select id="forum-write-tag" class="setting-input">
+              <option data-i18n="forum_tag_none_opt" value="">없음</option>
+            </select>
+          </div>
+        </div>
+
+        <input type="text" id="forum-write-title" class="forum-title-input" placeholder="제목을 입력하세요" data-i18n-placeholder="ph_forum_title" />
+
+        <!-- 11차 신규: 네이버 카페/블로그 에디터처럼 위에 서식 기능들을 나열한 툴바.
+             document.execCommand 기반이라 별도 라이브러리 없이 contenteditable 하나로 동작함 -->
+        <div class="forum-richtext-toolbar" id="forum-richtext-toolbar">
+          <button type="button" class="rt-btn" data-cmd="bold" data-i18n-tooltip="rt_bold" data-tooltip="굵게"><b>B</b></button>
+          <button type="button" class="rt-btn" data-cmd="italic" data-i18n-tooltip="rt_italic" data-tooltip="기울임"><i>I</i></button>
+          <button type="button" class="rt-btn" data-cmd="underline" data-i18n-tooltip="rt_underline" data-tooltip="밑줄"><u>U</u></button>
+          <button type="button" class="rt-btn" data-cmd="strikeThrough" data-i18n-tooltip="rt_strike" data-tooltip="취소선"><s>S</s></button>
+          <span class="rt-sep"></span>
+          <!-- 12차: "작게/보통/크게" 대신 실제 px 숫자를 쫙 나열하고 기본값을 표시해달라는
+               요청 - execCommand의 legacy 1~7단계 대신, 적용 후 <font size="7">를 찾아 실제
+               px로 바꿔치는 방식(forumApplyFontSize)으로 정확한 숫자를 그대로 반영함 -->
+          <select class="rt-select" id="rt-font-size" data-i18n-title="rt_font_size_title" title="글씨 크기">
+            <option value="12">12px</option>
+            <option value="14">14px</option>
+            <option data-i18n="rt_font_size_default_opt" value="16" selected>16px (기본)</option>
+            <option value="18">18px</option>
+            <option value="20">20px</option>
+            <option value="24">24px</option>
+            <option value="28">28px</option>
+            <option value="32">32px</option>
+          </select>
+          <select class="rt-select" id="rt-font-name" data-i18n-title="rt_font_name_title" title="폰트">
+            <option data-i18n="rt_font_suit_opt" value="SUIT">SUIT (기본)</option>
+            <option value="Malgun Gothic">맑은 고딕</option>
+            <option value="Dotum">돋움</option>
+            <option value="Batang">바탕</option>
+            <option value="Gungsuh">궁서</option>
+            <option value="Consolas">고정폭(Consolas)</option>
+            <option value="Georgia">세리프(Georgia)</option>
+          </select>
+          <span class="rt-sep"></span>
+          <button type="button" class="rt-btn" data-cmd="justifyLeft" data-i18n-tooltip="rt_align_left" data-tooltip="왼쪽 정렬">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h15" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="rt-btn" data-cmd="justifyCenter" data-i18n-tooltip="rt_align_center" data-tooltip="가운데 정렬">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M4 18h16" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="rt-btn" data-cmd="justifyRight" data-i18n-tooltip="rt_align_right" data-tooltip="오른쪽 정렬">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 12h12M6 18h15" stroke-linecap="round"/></svg>
+          </button>
+          <span class="rt-sep"></span>
+          <div class="dropdown-select-wrap">
+            <!-- 12차: 글자색 표시를 네모 스와치 대신 "가나다" 글자 + 지그재그 밑줄로 바꿔서
+                 지금 고른 색이 뭔지 워드/한글 프로그램처럼 한눈에 보이게 함 -->
+            <button type="button" class="rt-btn rt-color-btn-a" id="rt-color-btn" data-i18n-tooltip="rt_text_color" data-tooltip="글자색">
+              <span class="rt-color-a">가</span>
+              <svg class="rt-color-zigzag" width="16" height="5" viewBox="0 0 16 5" preserveAspectRatio="none">
+                <path id="rt-color-swatch" d="M0 4 4 1 8 4 12 1 16 4" fill="none" stroke="#e5484d" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div id="rt-color-menu" class="dropdown-select-menu rt-color-menu" hidden></div>
+          </div>
+          <!-- 24-11차: "인용구가 그냥 네모 박스라 별로다" - 예전 인용구 버튼(테두리 박스
+               스타일)은 "박스" 도구로 이름을 바꿔서 그대로 재활용하고(예쁘다고 했으니까),
+               인용구 버튼은 실제 말풍선/인용부호처럼 보이는 새 아이콘+스타일로 새로 만듦 -->
+          <button type="button" class="rt-btn" id="rt-box-btn" data-i18n-tooltip="rt_highlight_box" data-tooltip="강조 박스">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 8c-2 1-3 2.5-3 4.5S5.5 16 7 16M17 8c-2 1-3 2.5-3 4.5s1.5 3.5 3 3.5" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="rt-btn" id="rt-quote-btn" data-i18n-tooltip="rt_quote" data-tooltip="인용구">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7.17 6.5C4.87 6.5 3 8.37 3 10.67c0 2.02 1.44 3.7 3.35 4.08-.32 1.35-1.24 2.44-2.6 2.99a.6.6 0 0 0 .22 1.15c3.02-.2 5.36-2.35 5.94-5.43.1-.5.15-1.02.15-1.55C10.06 8.63 8.86 6.5 7.17 6.5zm9.66 0c-2.3 0-4.17 1.87-4.17 4.17 0 2.02 1.44 3.7 3.35 4.08-.32 1.35-1.24 2.44-2.6 2.99a.6.6 0 0 0 .22 1.15c3.02-.2 5.36-2.35 5.94-5.43.1-.5.15-1.02.15-1.55C19.72 8.63 18.52 6.5 16.83 6.5z"/></svg>
+          </button>
+          <button type="button" class="rt-btn" data-cmd="insertHorizontalRule" data-i18n-tooltip="rt_hr" data-tooltip="구분선">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16" stroke-linecap="round"/></svg>
+          </button>
+          <div class="dropdown-select-wrap">
+            <button type="button" class="rt-btn" id="rt-table-btn" data-i18n-tooltip="rt_table" data-tooltip="표 삽입">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 16h16M10 4v16"/></svg>
+            </button>
+            <!-- 24-11차: "표 만들 때 행/열 개수를 직접 고를 수 있게" - 고정 3x3 삽입 대신
+                 숫자를 입력하는 작은 팝오버 -->
+            <div id="rt-table-menu" class="dropdown-select-menu rt-table-menu" hidden>
+              <div class="rt-table-menu-row">
+                <label data-i18n="rt_table_rows_label">행 <input type="number" id="rt-table-rows" min="1" max="12" value="3" /></label>
+                <label data-i18n="rt_table_cols_label">열 <input type="number" id="rt-table-cols" min="1" max="12" value="3" /></label>
+              </div>
+              <button data-i18n="rt_table_insert_btn" type="button" id="rt-table-insert-btn" class="btn btn-primary btn-small">삽입</button>
+            </div>
+          </div>
+          <button type="button" class="rt-btn" id="rt-image-btn" data-i18n-tooltip="rt_image" data-tooltip="사진 삽입">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-9 9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <!-- 12차: 아래 있던 파일 첨부 버튼을 툴바 안으로 옮김 -->
+          <button type="button" class="rt-btn" id="rt-file-btn" data-i18n-tooltip="rt_file" data-tooltip="파일 첨부">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.1 12.5 20a5 5 0 0 1-7-7l8.1-8.1a3.5 3.5 0 0 1 5 5L10 18.5a2 2 0 0 1-3-3l7.6-7.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="dropdown-select-wrap">
+            <button type="button" class="rt-btn" id="rt-emoji-btn" data-i18n-tooltip="rt_emoji" data-tooltip="스티커(이모지)">🙂</button>
+            <div id="rt-emoji-menu" class="dropdown-select-menu rt-emoji-menu" hidden></div>
+          </div>
+        </div>
+        <div id="forum-write-content" class="forum-textarea forum-richtext-editor" contenteditable="true" data-placeholder="내용을 입력하세요 (링크는 텍스트로 붙여넣으면 자동으로 링크가 돼요)" data-i18n-placeholder="ph_forum_content"></div>
+
+        <!-- 11차 신규: 내 프로필 중 하나를 골라 공유 코드를 본문과 별개로 글 상단에 고정.
+             다른 사람은 그 코드를 복사해서 쓰거나, 안 써도 미리보기로 모드/쉐이더 구성을 볼 수 있음 -->
+        <div class="forum-share-attach-row">
+          <label class="forum-share-attach-toggle">
+            <input type="checkbox" id="forum-write-share-toggle" />
+            <span data-i18n="forum_attach_share_code">내 프로필 공유 코드 첨부 (선택)</span>
+          </label>
+          <select id="forum-write-share-select" class="setting-input" hidden></select>
+        </div>
+      </div>
+
+      <!-- 글 상세 화면 -->
+      <div class="modal-body" id="forum-detail-panel" hidden>
+        <button id="btn-forum-detail-back" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start;" data-i18n="btn_back_to_list">← 목록으로</button>
+        <div id="forum-detail-content"></div>
+      </div>
+    </section>
+
+    <!-- Updates: 업데이트 내역 전용 화면 -->
+    <!-- 프로필 관리 (모드/리소스팩/쉐이더 목록, 이름/메모리/해상도 수정) -->
+    <section id="view-profile-manage" class="view view-panel" hidden>
+      <!-- 14차: "6번 사진 저거 프로필에 있는 거 저거 없애줘" - "Profile" 영문 타이틀이 목록/프리셋
+           관리 화면에서는 바로 옆 탭("내 프로필"/"프리셋 관리")과 같은 뜻을 중복해서 보여주고
+           있었음. 다만 이 라벨은 특정 프로필을 편집할 때는 그 프로필 이름(breadcrumb)으로 바뀌는
+           용도로도 쓰이고 있어서(renderer.js openProfileEdit) 완전히 지우지 않고, 중복되는
+           두 목록 화면에서만 JS로 숨기도록 함(openProfileList/openPresetManage 참고) -->
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span class="modal-title-label" id="profile-manage-title" hidden></span>
+        </div>
+        <!-- 16-2(4차): 프리셋 관리를 프로필 편집과 분리된 독립 탭으로 -->
+        <div class="profile-manage-toplevel-tabs">
+          <button data-i18n="profile_manage_tab_profiles" type="button" class="profile-manage-toplevel-tab is-active" data-toplevel="profiles">내 프로필</button>
+          <button data-i18n="profile_manage_tab_presets" type="button" class="profile-manage-toplevel-tab" data-toplevel="presets">프리셋 관리</button>
+        </div>
+      </div>
+
+      <!-- 프로필 목록 (카드로 골라서 들어감) -->
+      <div class="modal-body" id="profile-list-body">
+        <!-- 12차: "AI 설명체 같은 문구 없애고 위로 당겨줘" - 안내 문구 자체를 지움 -->
+        <div class="mini-list-toolbar profile-manage-toolbar">
+          <input type="text" id="profile-manage-search" class="mini-list-search" placeholder="프로필 검색" data-i18n-placeholder="ph_profile_search" />
+          <!-- 17차: "프로필 리스트 볼 때 박스 크기를 고를 수 있게 해줘" - 기본/갤러리식(큰 박스)/
+               자세히보기(위아래로 쭉 나열되는 리스트) 3가지 보기 방식을 고를 수 있는 버튼 -->
+          <div class="profile-view-mode-group" role="group" data-i18n-aria-label="profile_view_mode_group_aria" aria-label="보기 방식">
+            <button type="button" class="profile-view-mode-btn is-active" data-view="default" data-i18n-title="profile_view_mode_default_title" title="기본 보기">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            </button>
+            <button type="button" class="profile-view-mode-btn" data-view="gallery" data-i18n-title="profile_view_mode_gallery_title" title="갤러리 보기 (큰 박스)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="8" height="18" rx="1.5"/><rect x="13" y="3" width="8" height="18" rx="1.5"/></svg>
+            </button>
+            <button type="button" class="profile-view-mode-btn" data-view="list" data-i18n-title="profile_view_mode_list_title" title="자세히 보기 (목록)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>
+            </button>
+          </div>
+          <button id="profile-manage-sort-btn" type="button" class="mini-list-sort-btn" data-sort="recent" title="정렬" data-i18n-title="sort_tooltip" data-i18n="sort_by_recent">최근 플레이순</button>
+        </div>
+        <div id="profile-manage-grid" class="profile-card-grid"></div>
+      </div>
+
+      <!-- 16-2(4차): 독립된 "프리셋 관리" 화면 - 만들기(소스 프로필 + 카테고리 5개 + 리소스팩/쉐이더
+           포함 여부) + 목록(카테고리별) + 삭제 -->
+      <div class="modal-body" id="preset-manage-body" hidden>
+        <div data-i18n="preset_create_title" class="setting-section-title">새 프리셋 만들기</div>
+        <div class="setting-row">
+          <label data-i18n="preset_create_source_label">어느 프로필의 구성을 쓸까요?</label>
+          <select id="preset-create-source" class="setting-input"></select>
+        </div>
+        <div class="setting-row">
+          <label data-i18n="label_category">카테고리</label>
+          <div id="preset-create-category-picker" class="preset-category-picker"></div>
+        </div>
+        <div class="setting-row">
+          <label data-i18n="preset_create_name_label">프리셋 이름</label>
+          <input type="text" id="preset-create-name" class="setting-input" placeholder="예: 오늘의 PVP 세팅" data-i18n-placeholder="ph_preset_name" />
+        </div>
+        <div class="setting-row">
+          <label data-i18n="preset_create_rp_label">리소스팩 기본 포함</label>
+          <div class="setting-control">
+            <input type="checkbox" id="preset-create-include-resourcepack" />
+          </div>
+        </div>
+        <div class="setting-row">
+          <label data-i18n="preset_create_shader_label">쉐이더 기본 포함</label>
+          <div class="setting-control">
+            <input type="checkbox" id="preset-create-include-shader" />
+          </div>
+        </div>
+        <button data-i18n="preset_create_submit_btn" id="btn-preset-create-submit" class="btn btn-primary btn-small" type="button">프리셋 만들기</button>
+
+        <div data-i18n="preset_my_list_title" class="setting-section-title" style="margin-top:20px;">내 프리셋</div>
+        <div id="preset-manage-list" class="preset-manage-list"></div>
+      </div>
+
+      <!-- 프로필 하나 골랐을 때 편집 화면 -->
+      <div class="modal-body" id="profile-edit-body" hidden>
+        <div class="profile-edit-header-row">
+          <button data-i18n="btn_back_to_profile_list" id="btn-profile-edit-back" class="btn btn-ghost btn-small" type="button">← 프로필 목록으로</button>
+        </div>
+
+        <!-- 5-10(7차): 참고 스크린샷(모드린스 인스턴스 화면) 구조로 재구성 - 왼쪽 큰 아이콘,
+             이름(제목) + 부제(로더/버전 · 마지막 플레이), 오른쪽엔 Play / 설정(톱니바퀴) / 더보기(⋮) -->
+        <div class="profile-edit-hero profile-edit-hero-v2">
+          <div class="profile-edit-hero-icon-wrap">
+            <img id="manage-profile-icon-preview" class="profile-icon-preview profile-edit-hero-icon" alt="" />
+            <button id="btn-manage-profile-icon" class="profile-edit-hero-icon-edit-btn" type="button" data-i18n-title="manage_profile_icon_edit_title" title="아이콘 바꾸기">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <!-- 17차: "프로필 사진 없앨 수 있게 해줘" - 직접 고른 아이콘을 지워서 기본 아이콘으로 되돌림 -->
+            <button id="btn-manage-profile-icon-remove" class="profile-edit-hero-icon-remove-btn" type="button" data-i18n-title="manage_profile_icon_remove_title" title="기본 아이콘으로">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div class="profile-edit-hero-info">
+            <div class="profile-edit-hero-name-row">
+              <input type="text" id="manage-profile-name-input" class="profile-edit-hero-name-input" />
+            </div>
+            <!-- 14차: "기본 프로필 삭제 불가 색 입히지 말고 위치 조정" - 편집 가능한 이름 입력칸
+                 바로 옆이라 자리가 좁고 어색했던 배지를, 버전/마지막 플레이 정보가 있는
+                 부제 줄로 옮기고 강조색 대신 무채색 톤으로 바꿈 -->
+            <div class="profile-edit-hero-subtitle">
+              <span id="manage-profile-version-label"></span>
+              <span id="manage-profile-lastplayed"></span>
+              <span data-i18n="manage_profile_default_badge" id="manage-profile-default-badge" class="profile-edit-default-badge" hidden>기본 프로필 · 삭제 불가</span>
+            </div>
+            <div id="manage-profile-imported-badge" class="profile-edit-imported-badge" hidden></div>
+          </div>
+          <div class="profile-edit-hero-actions">
+            <!-- 14차: "프로필 수정에서 플레이 버튼 없애줘" - 실행은 홈 화면에서 하게 되므로,
+                 편집 화면에서는 설정/더보기만 남김 -->
+            <button id="btn-profile-hero-settings" class="icon-btn icon-btn-circle" type="button" title="프로필 설정" data-i18n-title="profile_settings_title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="dropdown-select-wrap">
+              <button id="btn-profile-hero-kebab" class="icon-btn icon-btn-circle" type="button" title="더보기" data-i18n-title="btn_more">
+
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+              </button>
+              <div id="profile-hero-kebab-menu" class="dropdown-select-menu profile-hero-kebab-menu" hidden>
+                <button data-i18n="hero_share_code_btn" type="button" class="dropdown-select-item" id="btn-hero-share">프로필 코드 공유</button>
+                <button data-i18n="hero_open_folder_btn" type="button" class="dropdown-select-item" id="btn-hero-open-folder">폴더 열기</button>
+                <button data-i18n="hero_shortcut_btn" type="button" class="dropdown-select-item" id="btn-hero-shortcut">바로가기 만들기</button>
+                <!-- 22차: "프로필 그 ...에서 .mrpack으로 뽑는 모드팩 파일로 만드는 기능도
+                     만들어줘" - 지금 프로필의 모드/리소스팩/쉐이더 구성을 표준 Modrinth 모드팩
+                     파일(.mrpack)로 내보냄 -->
+                <button data-i18n="hero_export_modpack_btn" type="button" class="dropdown-select-item" id="btn-hero-export-modpack">모드팩으로 내보내기 (.mrpack)</button>
+                <!-- 17차: "프리셋 문구가 관리자 아닌데도 보인다" - 화면 맨 아래에 늘 붙어있던 항목을
+                     관리자만 쓰는 다른 관리 기능들처럼 더보기(⋮) 메뉴 안으로 옮기고, 여기서
+                     JS가 관리자일 때만 hidden을 풀어줌(btn-manage-profile-goto-preset, renderer.js) -->
+                <button data-i18n="hero_goto_preset_btn" type="button" class="dropdown-select-item" id="btn-manage-profile-goto-preset" hidden>프리셋 관리에서 이 구성으로 만들기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10차: "카테고리(탭)가 검색 밑에 있어야지 공간 남잖아" - 예전엔 탭이 검색보다 위에 있었음.
+             검색은 탭 3개가 공유하는 칸 하나로 합치고(내용 종류별로 따로 3개 두던 것 통합),
+             그 아래에 탭을 둠
+             14차: "파일 업로드/모드 추가를 검색 옆으로, 이름순/전체선택/새로고침을 탭 옆으로
+             옮기자" - 종류별(모드/리소스팩/쉐이더)로 서로 다른 버튼이라 완전히 하나로 합칠 순
+             없어서, 종류마다 한 벌씩 두고 지금 활성 탭인 것만 보이게 함(JS: setProfileFileTab) -->
+        <div class="manage-content-toolbar">
+          <input type="text" id="manage-shared-search" class="setting-input manage-content-search" placeholder="모드 검색" data-i18n-placeholder="ph_manage_mods_search" />
+          <div class="manage-toolbar-kind-group" data-kind="mods">
+            <button id="btn-manage-mods-add" class="btn btn-ghost btn-small" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"/></svg>
+              <span data-i18n="manage_file_upload_label">파일 업로드</span>
+            </button>
+            <button data-i18n="manage_mods_browse_btn" id="btn-manage-mods-browse" class="btn btn-fixed-green btn-small manage-browse-btn" type="button">모드 추가</button>
+          </div>
+          <div class="manage-toolbar-kind-group" data-kind="resourcepacks" hidden>
+            <button id="btn-manage-rp-add" class="btn btn-ghost btn-small" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"/></svg>
+              <span data-i18n="manage_file_upload_label">파일 업로드</span>
+            </button>
+            <button data-i18n="manage_rp_browse_btn" id="btn-manage-rp-browse" class="btn btn-fixed-green btn-small manage-browse-btn" type="button">리소스팩 추가</button>
+          </div>
+          <div class="manage-toolbar-kind-group" data-kind="shaderpacks" hidden>
+            <button id="btn-manage-shader-add" class="btn btn-ghost btn-small" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"/></svg>
+              <span data-i18n="manage_file_upload_label">파일 업로드</span>
+            </button>
+            <button data-i18n="manage_shader_browse_btn" id="btn-manage-shader-browse" class="btn btn-fixed-green btn-small manage-browse-btn" type="button">쉐이더팩 추가</button>
+          </div>
+        </div>
+        <!-- 17차: "이름순/최근순 → 전체|모드|리소스팩|쉐이더 → 새로고침/모드 업데이트 순서로
+             꽉 차게" - 정렬을 탭 왼쪽으로, 새로고침/업데이트를 탭 오른쪽으로 재배치하고
+             "전체" 탭을 새로 추가함(모드/리소스팩/쉐이더를 한 화면에서 같이 보는 용도).
+             "전체 선택"은 각 목록 패널 맨 위로 옮김(아래 profile-file-panel-* 참고) -->
+        <div class="profile-file-tabs-row">
+          <div class="manage-toolbar-kind-group manage-sort-group" data-kind="all" hidden>
+            <select id="manage-all-sort" class="manage-sort-select">
+              <option data-i18n="sort_by_name" value="name">이름순</option>
+              <option data-i18n="sort_recent_short" value="recent">최근순</option>
+            </select>
+          </div>
+          <div class="manage-toolbar-kind-group manage-sort-group" data-kind="mods">
+            <select id="manage-mods-sort" class="manage-sort-select">
+              <option data-i18n="sort_by_name" value="name">이름순</option>
+              <option data-i18n="sort_recent_short" value="recent">최근순</option>
+            </select>
+          </div>
+          <div class="manage-toolbar-kind-group manage-sort-group" data-kind="resourcepacks" hidden>
+            <select id="manage-rp-sort" class="manage-sort-select">
+              <option data-i18n="sort_by_name" value="name">이름순</option>
+              <option data-i18n="sort_recent_short" value="recent">최근순</option>
+            </select>
+          </div>
+          <div class="manage-toolbar-kind-group manage-sort-group" data-kind="shaderpacks" hidden>
+            <select id="manage-shader-sort" class="manage-sort-select">
+              <option data-i18n="sort_by_name" value="name">이름순</option>
+              <option data-i18n="sort_recent_short" value="recent">최근순</option>
+            </select>
+          </div>
+
+          <div class="profile-file-tabs">
+            <button type="button" class="profile-file-tab" data-tab="all"><span data-i18n="manage_tab_all">전체</span> (<span id="manage-all-count">0</span>)</button>
+            <button type="button" class="profile-file-tab is-active" data-tab="mods"><span data-i18n="manage_tab_mods">모드</span> (<span id="manage-mods-count">0</span>)</button>
+            <button type="button" class="profile-file-tab" data-tab="resourcepacks"><span data-i18n="manage_tab_rp">리소스팩</span> (<span id="manage-rp-count">0</span>)</button>
+            <button type="button" class="profile-file-tab" data-tab="shaderpacks"><span data-i18n="manage_tab_shaders">쉐이더팩</span> (<span id="manage-shader-count">0</span>)</button>
+          </div>
+
+          <div class="manage-toolbar-kind-group manage-actions-group" data-kind="all" hidden>
+            <button type="button" id="btn-manage-all-refresh" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="refresh_tooltip" title="새로고침">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="refresh_tooltip">새로고침</span>
+            </button>
+          </div>
+          <div class="manage-toolbar-kind-group manage-actions-group" data-kind="mods">
+            <!-- 10차: 업데이트 가능한 모드가 있을 때만 보이게(JS에서 hidden 토글) + 고정 초록 아이콘 버튼 -->
+            <button type="button" id="btn-manage-mods-update" class="btn btn-fixed-green btn-small" data-i18n-title="manage_update_all_hint_title" title="업데이트 가능한 모드를 한 번에 반영" hidden>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5" stroke-linecap="round"/><path d="M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="manage_update_all">전체 업데이트</span>
+            </button>
+            <button type="button" id="btn-manage-mods-refresh" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="refresh_tooltip" title="새로고침">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="refresh_tooltip">새로고침</span>
+            </button>
+            <!-- 22차: "프로필 갱신을 새로고침 옆으로 옮기고 업데이트는 이거 옆에 띄워" - 원래
+                 프로필 설정 팝업 안에 있던 두 항목(공유 원작자만 보이는 "프로필 갱신", 불러온
+                 프로필만 보이는 "업데이트 연동")을 여기로 옮김. 둘 다 해당 안 되는 프로필에서는
+                 그대로 hidden 처리됨(openProfileSettingsModal, renderer.js) -->
+            <button id="btn-manage-profile-refresh-share" type="button" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="manage_refresh_share_title" title="공유 코드에 지금 구성 다시 올리기" hidden>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 3v6h-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 21v-6h6" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 9a9 9 0 0 0-15.5-5.3L3 6M3 15a9 9 0 0 0 15.5 5.3L21 18" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="manage_refresh_share_btn">프로필 갱신</span>
+            </button>
+            <label id="manage-profile-updatesync-row" class="manage-updatesync-toggle" data-i18n-title="manage_updatesync_title" title="원작자가 프로필을 갱신하면 자동으로 받아올지" hidden>
+              <span data-i18n="manage_updatesync_label">업데이트 연동</span>
+              <span class="manage-toggle-switch">
+                <input type="checkbox" id="manage-profile-updatesync" />
+                <span class="manage-toggle-slider"></span>
+              </span>
+            </label>
+          </div>
+          <div class="manage-toolbar-kind-group manage-actions-group" data-kind="resourcepacks" hidden>
+            <button type="button" id="btn-manage-rp-refresh" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="refresh_tooltip" title="새로고침">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="refresh_tooltip">새로고침</span>
+            </button>
+          </div>
+          <div class="manage-toolbar-kind-group manage-actions-group" data-kind="shaderpacks" hidden>
+            <button type="button" id="btn-manage-shader-refresh" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="refresh_tooltip" title="새로고침">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="refresh_tooltip">새로고침</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 17차: "전체 선택은 모드 선택 맨 위에 있게 해줘" - 예전엔 탭 옆 툴바에 따로 있던
+             "전체 선택"을, 목록 헤더의 체크박스 칸(맨 위 왼쪽)으로 옮겨서 자연스럽게 목록
+             전체를 통솔하는 자리가 되게 함 -->
+        <div id="profile-file-panel-all" class="profile-file-panel" hidden>
+          <div class="manage-list-header">
+            <span class="manage-list-header-check"></span>
+            <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
+            <span data-i18n="manage_col_version" class="manage-list-header-version">버전</span>
+            <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
+          </div>
+          <!-- 24-34차: "모드가 적다고 이렇게 사이즈를 채우는 느낌으로 하면 안되지" - 이 목록이
+               예전 칩(chip) 스타일 때 쓰던 .resourcepack-list(flex-direction:row + flex-wrap:wrap)
+               클래스를 표(table) 스타일로 바뀐 뒤에도 계속 같이 달고 있었음. 뒤에 나오는
+               .resourcepack-list 규칙이 소스 순서상 .manage-file-table보다 나중에 선언돼 있어서
+               (둘 다 클래스 하나짜리라 우선순위가 같음 - 나중 선언이 이김) flex-direction이
+               column이 아니라 row로 깨지고 있었고, 각 행이 width:100%라 결국 한 줄에 하나씩
+               줄바꿈되면서 남는 세로 공간(.profile-file-panel이 flex:1로 늘려둔 만큼)을
+               align-content:stretch 기본값이 그 줄들에 골고루 나눠 늘려버려서, 항목이 적을수록
+               행 하나하나가 뻥튀기돼 보였던 것. .manage-file-table 스타일만으로 이미 충분해서
+               resourcepack-list는 그냥 없앰 -->
+          <div id="manage-all-list" class="manage-file-table"></div>
+        </div>
+
+        <div id="profile-file-panel-mods" class="profile-file-panel">
+          <!-- 5-9(5차): 참고 스크린샷(모드린스 스타일 표)처럼 체크박스/Project/Version/Actions
+               헤더 열을 진짜로 추가함 -->
+          <div class="manage-list-header">
+            <span class="manage-list-header-check"><input type="checkbox" id="manage-mods-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
+            <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
+            <span data-i18n="manage_col_version" class="manage-list-header-version">버전</span>
+            <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
+          </div>
+          <div id="manage-mods-list" class="manage-file-table"></div>
+          <div id="manage-mods-bulk-bar" class="manage-bulk-bar" hidden>
+            <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-mods-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
+            <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-mods-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
+            <button data-i18n="manage_bulk_delete" type="button" id="btn-manage-mods-bulk-delete" class="btn btn-ghost btn-small danger-text">선택 삭제</button>
+          </div>
+        </div>
+
+        <div id="profile-file-panel-resourcepacks" class="profile-file-panel" hidden>
+          <div class="manage-list-header">
+            <span class="manage-list-header-check"><input type="checkbox" id="manage-rp-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
+            <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
+            <span data-i18n="manage_col_version" class="manage-list-header-version">버전</span>
+            <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
+          </div>
+          <div id="manage-rp-list" class="manage-file-table"></div>
+          <div id="manage-rp-bulk-bar" class="manage-bulk-bar" hidden>
+            <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-rp-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
+            <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-rp-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
+            <button data-i18n="manage_bulk_delete" type="button" id="btn-manage-rp-bulk-delete" class="btn btn-ghost btn-small danger-text">선택 삭제</button>
+          </div>
+        </div>
+
+        <div id="profile-file-panel-shaderpacks" class="profile-file-panel" hidden>
+          <div class="manage-list-header">
+            <span class="manage-list-header-check"><input type="checkbox" id="manage-shader-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
+            <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
+            <span data-i18n="manage_col_version" class="manage-list-header-version">버전</span>
+            <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
+          </div>
+          <div id="manage-shader-list" class="manage-file-table"></div>
+          <div id="manage-shader-bulk-bar" class="manage-bulk-bar" hidden>
+            <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-shader-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
+            <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-shader-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
+            <button data-i18n="manage_bulk_delete" type="button" id="btn-manage-shader-bulk-delete" class="btn btn-ghost btn-small danger-text">선택 삭제</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 설정 / 상점 -->
+    <!-- 설정 (전체화면 아니라 작은 팝업 + 왼쪽 카테고리 목록) -->
+    <div id="settings-overlay" class="modal-overlay" hidden>
+      <div class="settings-popup-box">
+        <div class="settings-popup-header">
+          <span class="modal-title-label">Settings</span>
+          <button id="btn-settings-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
+            <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
+        </div>
+
+        <div class="settings-popup-body">
+          <div class="settings-nav">
+            <!-- 24-31차: "내 프로필을 설정 맨 위로 올려" - 예전엔 언어/클라이언트 사이에 있던
+                 "내 프로필" 카테고리를 목록 맨 앞으로 옮김. 기본으로 열리는 탭도 같이 옮김
+                 (openSettings 참고, 18차 때 세웠던 "목록 맨 앞 = 기본 탭" 관례를 그대로 따름) -->
+            <button class="settings-nav-item is-active" data-cat="profile" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.2"/><path d="M5.5 19.5c1.4-3.4 4-5.2 6.5-5.2s5.1 1.8 6.5 5.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="settings_nav_profile">내 프로필</span>
+            </button>
+            <!-- 18차: "설정에서는 스킨을 없애고 저기(사이드바 더보기)로 옮겨야지" - 스킨 카테고리를
+                 통째로 빼서 사이드바 "더보기 > 스킨"에서 여는 별도 팝업(#skin-overlay)으로 옮김 -->
+            <button class="settings-nav-item" data-cat="play" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 8.5a5 5 0 0 1 0 7" stroke-linecap="round"/><path d="M18 6a8.5 8.5 0 0 1 0 12" stroke-linecap="round"/></svg>
+              <span data-i18n="settings_nav_sound">소리</span>
+            </button>
+            <button class="settings-nav-item" data-cat="display" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/></svg>
+              <span data-i18n="settings_nav_display">화면</span>
+            </button>
+            <!-- 15차: "설정에 언어는 따로 빼고" - 화면(테마) 카테고리에 같이 있던 언어 설정을
+                 별도의 독립된 카테고리로 분리함 -->
+            <button class="settings-nav-item" data-cat="language" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.3 2.3 3.5 5.3 3.5 8.5s-1.2 6.2-3.5 8.5c-2.3-2.3-3.5-5.3-3.5-8.5S9.7 5.8 12 3.5Z" stroke-linecap="round"/></svg>
+              <span data-i18n="settings_nav_language">언어</span>
+            </button>
+            <button class="settings-nav-item" data-cat="client" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+              <span data-i18n="settings_nav_client">클라이언트</span>
+            </button>
+            <!-- 24-24차: "AI 진단 도우미를 정보 말고 전용 설정에서 따로 창 하나 주고" - "정보"
+                 탭 안 "도움말" 서브섹션에 묻혀있던 AI 진단 도우미 버튼을 독립된 카테고리로 분리 -->
+            <button class="settings-nav-item" data-cat="ai" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v10.5H9l-4.5 4V5.5Z" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4.5" stroke-linecap="round"/></svg>
+              <span data-i18n="settings_nav_ai">AI 도우미</span>
+            </button>
+            <!-- 12차: "클라이언트 안에 너무 많은 게 몰려있다" - 업데이트/커뮤니티 관련 항목을
+                 별도의 "정보" 카테고리로 분리 -->
+            <button class="settings-nav-item" data-cat="about" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v.01M12 11v5" stroke-linecap="round"/></svg>
+              <span data-i18n="settings_nav_about">정보</span>
+              <!-- 24-11차: "정보 옆 빨간 점 없애줘" - 안 읽은 업데이트 내역 배지를 제거함
+                   (renderer.js의 관련 코드는 optional-chaining/null 체크가 있어 안전하게 no-op됨) -->
+            </button>
+          </div>
+
+          <div class="settings-content scroll-fade-mask" id="settings-content">
+            <!-- 소리 -->
+            <div class="settings-panel-section" data-cat-panel="play">
+              <!-- 24-58차: "배경음악 설정이랑 음악 아예 전부 삭제하자" - 여기 있던 "런처 배경음악
+                   볼륨" 슬라이더 행을 제거함(효과음 볼륨은 별개 기능이라 아래 그대로 유지) -->
+              <div class="setting-row">
+                <label data-i18n="settings_sfx_volume">효과음 볼륨</label>
+                <div class="setting-control">
+                  <input type="range" id="set-sfx-volume" min="0" max="100" step="5" />
+                  <span id="set-sfx-volume-value" class="setting-value">50%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 화면 -->
+            <div class="settings-panel-section" data-cat-panel="display">
+              <div class="setting-row setting-row-col">
+                <label data-i18n="settings_theme">테마</label>
+                <!-- 15차: "테마는 미리보기 느낌으로 박스 형태로 배열, 상점에서 살 수 있는 것도
+                     미리 다 배치해놔 대신 안사면 잠금 걸어" - 기본 제공되는 3개 밝기 모드(다크/
+                     화이트/시스템) 박스 뒤에, 상점의 fulltheme(완전 테마) 상품들을 renderer.js의
+                     renderThemeGallery()가 실시간으로 이어붙임(미보유 시 잠금 오버레이) -->
+                <!-- 16차: "테마에 시스템 없애주고 테마 예시를 좀 더 꾸며줄래 대충 클라이언트
+                     틀만 있는 느낌으로" - 시스템 옵션 버튼을 지우고, 미리보기 박스 안에 가짜
+                     사이드바 띠 + 글줄 몇 개를 넣어서 납작한 색상 사각형이 아니라 실제 클라이언트
+                     화면을 흉내낸 미니 목업처럼 보이게 함 (아래 fulltheme 상점 카드도 동일) -->
+                <div class="theme-gallery" id="theme-mode-gallery">
+                  <button type="button" class="theme-gallery-item theme-option theme-mode-option" data-theme="dark">
+                    <div class="theme-gallery-preview theme-gallery-preview-dark">
+                      <span class="theme-gallery-preview-side"></span>
+                      <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
+                      <span class="theme-gallery-preview-accent"></span>
+                    </div>
+                    <span class="theme-gallery-item-label" data-i18n="settings_theme_dark">다크</span>
+                  </button>
+                  <button type="button" class="theme-gallery-item theme-option theme-mode-option" data-theme="light">
+                    <div class="theme-gallery-preview theme-gallery-preview-light">
+                      <span class="theme-gallery-preview-side"></span>
+                      <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
+                      <span class="theme-gallery-preview-accent"></span>
+                    </div>
+                    <span class="theme-gallery-item-label" data-i18n="settings_theme_light">화이트</span>
+                  </button>
+                  <!-- 상점 fulltheme 상품 카드는 여기 아래에 JS로 이어붙음 -->
+                </div>
+              </div>
+
+              <!-- 24-24차: "설정 화면에서 전체화면 + 해상도 기능 넣어주고" - 서버로 플레이할 때
+                   쓰던 하드코딩 1280x720을 직접 바꿀 수 있게 함(프로필 모드는 원래부터 프로필별
+                   해상도/전체화면 설정을 따로 씀 - 프로필 관리 > 프로필 설정 참고) -->
+              <!-- 24-31차: "해상도랑 전체화면 정렬 좀 잘 해줘 너무 뜬금없이 가운데 있음" - 해상도
+                   행만 setting-row-col(세로 쌓기)이고 전체화면 행은 일반 setting-row(가로)라
+                   같은 2단 그리드 안에서 서로 높이가 달라, 짧은 전체화면 행이 큰 그리드 셀 안에서
+                   위아래로 붕 뜬 것처럼 보였음. 2단 그리드를 없애고 아래 다른 설정 행들(자동 실행
+                   등)과 똑같이 둘 다 세로로 쌓이는 일반 setting-row 한 줄씩으로 통일함 -->
+              <div style="margin-top:6px; padding-top:14px; border-top:1px solid var(--border-soft);">
+                <div class="setting-row">
+                  <label data-i18n="settings_mc_resolution_label">마인크래프트 실행 해상도</label>
+                  <div class="setting-control resolution-control">
+                    <input type="number" id="set-mc-resolution-width" class="setting-input-small" min="640" max="7680" /> ×
+                    <input type="number" id="set-mc-resolution-height" class="setting-input-small" min="480" max="4320" />
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <label data-i18n="settings_mc_fullscreen_label">전체화면으로 시작</label>
+                  <div class="setting-control">
+                    <input type="checkbox" id="set-mc-fullscreen" />
+                  </div>
+                </div>
+              </div>
+              <div style="font-size:11px; color:var(--text-2);" data-i18n="settings_mc_resolution_hint">서버로 플레이할 때 적용돼요. 프로필로 플레이할 때는 각 프로필의 설정을 따로 써요.</div>
+            </div>
+
+            <!-- 15차: 언어 - 이전엔 화면 카테고리 안에 같이 있었는데 별도 카테고리로 분리 -->
+            <!-- 24-14차: "시스템 언어 옵션 빼고 언어 선택 UI 좀 더 낫게 바꿔줘" - 자동으로
+                 OS 언어를 따라가는 "시스템 언어 사용" 옵션을 없애고(main.js의 getSettings()가
+                 처음 실행될 때 딱 한 번 OS 언어로 확정해서 저장함) 항상 ko/en 둘 중 하나만
+                 고르게 함. 각 항목 라벨도 지금 켜진 UI 언어를 따라 번역되는 게 아니라 그
+                 언어 자신의 표기(한국어/English)로 고정 - "영어 (English)"처럼 두 언어가
+                 섞여 보이던 걸 없앰. 가로로 나열된 라디오 버튼 대신 세로 목록 형태로 재구성함 -->
+            <div class="settings-panel-section" data-cat-panel="language">
+              <div class="setting-row setting-row-col">
+                <label data-i18n="language_setting_label">언어</label>
+                <div class="lang-picker-list" id="language-picker">
+                  <button data-i18n="lang_option_ko" type="button" class="lang-option lang-picker-item" data-lang="ko">한국어</button>
+                  <button type="button" class="lang-option lang-picker-item" data-lang="en">English</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 24-14차: "내 프로필"(자기소개) - 18차 때 임시로 클라이언트 칸에 얹어뒀던 걸
+                 여기 독립된 카테고리로 옮김. 요소 id는 그대로라 renderer.js 쪽 코드(loadProfileBio
+                 등)는 손댈 필요 없음 -->
+            <div class="settings-panel-section is-active" data-cat-panel="profile">
+              <div class="settings-subgroup-title" data-i18n="settings_my_profile">내 프로필</div>
+              <!-- 24-54차: "프로필 사진이 사이트 계정에 왜 있어 내 프로필에 있어야지" - 원래
+                   아래 renderSiteAccountPanel()이 매번 통째로 다시 그리는 "마인크래프트 계정"
+                   패널(#site-account-panel) 안에 있던 프로필 사진 변경 UI를, 재생성되지 않는
+                   "내 프로필" 영역 최상단(자기소개 위)으로 옮김. #site-account-avatar-preview/
+                   #btn-change-avatar id는 그대로라 renderer.js의 loadAvatarPreview/
+                   openAvatarCropFlow는 손댈 필요 없음(이제 openSettings()에서 한 번 로드함) -->
+              <!-- 24-69차: "닉네임 변경 너무 아래에 있어 위로 올려주고 프로필 사진 변경 옆으로" -
+                   예전엔 닉네임 변경이 한참 아래 "사이트 계정" 패널(마인크래프트/디스코드 연동
+                   다음) 안에 있었음. 프로필 사진 변경과 나란히 보이도록 여기(내 프로필 최상단)로
+                   끌어올림 - 프로필 사진처럼 이제 매번 다시 그려지지 않는 고정 마크업이라
+                   리스너/데이터 로드도 openSettings()에서 한 번만 처리(renderer.js
+                   loadNicknameTicketCount 참고, 예전 renderSiteAccountPanel 안에 있던 로직) -->
+              <div class="profile-identity-row">
+                <div class="site-account-avatar-row">
+                  <div id="site-account-avatar-preview" class="site-account-avatar-preview"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.6-3.6 4.8-5.5 8-5.5s6.4 1.9 8 5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                  <button id="btn-change-avatar" class="btn btn-ghost btn-small" type="button">프로필 사진 변경</button>
+                </div>
+                <div class="site-account-nickname-row">
+                  <div class="site-account-nickname-label">닉네임 변경 <span id="nickname-ticket-count" style="color:var(--text-2); font-weight:400;">(보유 변경권 확인 중...)</span></div>
+                  <div class="site-account-link-form">
+                    <input id="site-account-new-nickname-input" type="text" class="setting-input" placeholder="새 닉네임" />
+                    <button id="btn-use-nickname-ticket" class="btn btn-ghost btn-small" type="button">변경</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row setting-row-col">
+                <label data-i18n="settings_bio_label">자기소개 (친구에게만 보여요)</label>
+                <textarea id="set-profile-bio" class="setting-input" rows="2" maxlength="200" placeholder="한 줄 소개를 남겨보세요" data-i18n-placeholder="settings_bio_placeholder"></textarea>
+              </div>
+              <button id="btn-profile-bio-save" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start;" data-i18n="btn_save">저장</button>
+
+              <!-- 24-4차: 사이트 전용 계정 - 이제 로그인 자체가 사이트 계정 기준이라(24-4차
+                   에서 view-login이 사이트 로그인 화면으로 바뀜) 여기선 "계정 만들기"가 아니라
+                   연동된 마인크래프트 계정/디스코드 관리 + 로그아웃만 함. 코인/상점(구매한
+                   스킨 등)/출석/퀘스트는 여기 연동된 마인크래프트 계정들이 전부 공유해서 씀.
+                   24-24차: "계정 추가하는 거 프로필로 옮겨주고" - 클라이언트 탭에 있던 이
+                   패널을 내 프로필 탭으로 옮김(계정 전환 메뉴의 "+ 다른 계정 추가"도 이제
+                   여기로 바로 감) -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_site_account_title" style="margin-top:6px; padding-top:14px; border-top:1px solid var(--border-soft);">사이트 계정</div>
+              <div id="site-account-panel" class="site-account-panel">
+                <div style="color:var(--text-2); font-size:12px;" data-i18n="settings_checking">확인 중...</div>
+              </div>
+            </div>
+
+            <!-- 클라이언트 -->
+            <div class="settings-panel-section" data-cat-panel="client">
+              <div class="setting-row">
+                <label data-i18n="settings_installed_size">설치 용량</label>
+                <span id="installed-size" class="setting-value" data-i18n="settings_checking">확인 중...</span>
+              </div>
+
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_folder">폴더</div>
+              <div class="setting-grid-2col">
+                <button id="btn-brand-open-game-folder" type="button" class="setting-action-row">
+                  <span data-i18n="settings_open_game_folder">게임 폴더 열기</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <!-- 24-63차: "게임 파일 다운로드한 거 전부 제거하는 거... 설정 런처에 만들고
+                   옮겨줘" - 이 기능(app:reset-install IPC, renderer.js의 btn-reset-install
+                   클릭 핸들러)은 예전부터 만들어져 있었는데, 정작 index.html 어디에도 이
+                   버튼 자체가 없어서 실제로는 누를 방법이 없는 상태였음(2465줄 부근 참고).
+                   이번에 처음으로 버튼을 만들어 여기(설치 용량/폴더 바로 아래)에 둠. 되돌릴
+                   수 없는 동작이라 danger-text로 강조 + 클릭 시 확인창(showConfirm)이 뜸 -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_game_files">게임 파일</div>
+              <div class="setting-grid-2col">
+                <button id="btn-reset-install" type="button" class="setting-action-row danger-text">
+                  <span data-i18n="settings_reset_install">다운로드한 게임 파일 모두 삭제</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <!-- 7-2: 마인크래프트/Fabric 버전별로 필요한 자바 버전과 실제 설치 위치를 보여줌 (읽기 전용) -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_java_location">자바 위치</div>
+              <div id="java-info-list" class="java-info-list">
+                <div style="color:var(--text-2); font-size:12px;" data-i18n="settings_checking">확인 중...</div>
+              </div>
+
+              <!-- 17차: 게임 실행 시 런처 동작 / 컴퓨터 시작 시 자동 실행 / 친구에게 상태 공유 여부
+                   24-23차: "설명이 너무 구구절절 길어" - 중복이던 섹션 제목을 없애고 행 라벨/선택지
+                   문구를 짧게 줄임. "자동 실행 아니요/예 말고 체크박스로" - select 대신 체크박스
+                   2개(자동 실행 켜기 + 백그라운드로 시작, 후자는 첫 체크가 켜져야 뜻이 있어서
+                   들여쓰기로 종속 표시)로 바꿈. "친구에게 지금 뭐하는지 공유 이따구로 쓰지 말고
+                   상태 공유로" - 부정형("공유 안 하기") 대신 긍정형("상태 공유")으로 바꿈 -->
+              <div class="setting-row">
+                <label data-i18n="settings_launch_behavior_label">게임 실행 시</label>
+                <div class="setting-control">
+                  <select id="set-on-launch-behavior">
+                    <option value="stay" data-i18n="settings_launch_behavior_stay">유지</option>
+                    <option value="background" data-i18n="settings_launch_behavior_background">백그라운드</option>
+                    <option value="quit" data-i18n="settings_launch_behavior_quit">종료</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <label data-i18n="settings_autostart_label">컴퓨터 시작 시 자동 실행</label>
+                <div class="setting-control">
+                  <input type="checkbox" id="set-autostart-enabled" />
+                </div>
+              </div>
+              <div class="setting-row setting-row-sub" id="setting-row-autostart-background">
+                <label data-i18n="settings_autostart_background_label">백그라운드로 시작</label>
+                <div class="setting-control">
+                  <input type="checkbox" id="set-autostart-background" />
+                </div>
+              </div>
+              <div class="setting-row">
+                <label data-i18n="settings_hide_presence_label">친구에게 상태 공유</label>
+                <div class="setting-control">
+                  <input type="checkbox" id="set-hide-presence" />
+                </div>
+              </div>
+
+              <!-- 24-63차: "업데이트확인이랑 런처 재시작 모두 설정 런처에 만들고 옮겨줘" -
+                   원래 "정보" 탭에 있던 이 두 버튼을 여기(클라이언트 탭)로 옮김. id는 그대로라
+                   renderer.js 클릭 핸들러는 손댈 필요 없음 -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_update">업데이트</div>
+              <div class="setting-grid-2col">
+                <button id="btn-brand-check-update" type="button" class="setting-action-row">
+                  <span data-i18n="settings_check_update">업데이트 확인</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button id="btn-restart-launcher" type="button" class="setting-action-row">
+                  <span data-i18n="settings_restart_launcher">런처 재시작</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 24-24차: "정보" 탭 "도움말" 서브섹션에 있던 AI 진단 도우미를 옮겨온 독립
+                 카테고리. 버튼 id(btn-brand-ai-assistant)는 그대로라 renderer.js 쪽 클릭
+                 핸들러(aiAssistantOpen)는 손댈 필요 없음 -->
+            <div class="settings-panel-section" data-cat-panel="ai">
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_help_title">도움말</div>
+              <div class="setting-grid-2col">
+                <button id="btn-brand-ai-assistant" type="button" class="setting-action-row">
+                  <span data-i18n="settings_ai_assistant">AI 진단 도우미</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 12차 신규: 업데이트/커뮤니티 관련 항목을 "클라이언트"에서 분리한 "정보" 탭
+                 24-63차: "업데이트확인이랑 런처 재시작 모두 설정 런처에 만들고 옮겨줘" - 이
+                 탭에 있던 업데이트 확인/런처 재시작 버튼을 "클라이언트" 탭(data-cat="client")
+                 으로 옮김(아래 참고) - 여기 있던 "업데이트" 서브그룹 자체를 제거 -->
+            <div class="settings-panel-section" data-cat-panel="about">
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_community">커뮤니티 · 정보</div>
+              <div class="setting-grid-2col">
+                <button id="btn-brand-discord" type="button" class="setting-action-row">
+                  <span data-i18n="settings_luna_discord">디스코드</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button id="btn-brand-website" type="button" class="setting-action-row">
+                  <span data-i18n="settings_nova_website">Nova Client 사이트</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <!-- 24-31차 신규: 코인 구매(충전) 페이지로 바로 이동 -->
+                <button id="btn-brand-coins-shop" type="button" class="setting-action-row">
+                  <span data-i18n="settings_coins_shop">상점</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button id="btn-brand-terms" type="button" class="setting-action-row">
+                  <span data-i18n="settings_license_terms">라이선스 및 이용약관</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <p id="settings-license" class="terms-text" style="font-size:11px; color:var(--text-2);"></p>
+
+              <!-- 17차: "유료화하니까 법적으로 필요한 사업자 정보도 넣어줘" - CONFIG.BUSINESS_INFO를
+                   그대로 보여줌(실제 값은 main.js에서 사업자가 직접 채워야 함, 지금은 플레이스홀더)
+                   24-9차: "런처에 그 내 사업자 등록 정보는 아직이라 가려줘" - 아직 실제 사업자
+                   등록 정보를 채우기 전이라 이 섹션 전체를 숨김. main.js의 CONFIG.BUSINESS_INFO와
+                   renderer.js의 렌더링 로직은 그대로 둬서, 나중에 실제 정보가 준비되면 이 wrapper의
+                   hidden 속성만 지우면 바로 다시 보이게 만들 수 있음 -->
+              <div id="settings-business-info-section" hidden>
+                <div class="setting-section-title settings-subgroup-title" data-i18n="settings_business_info_title">사업자 정보</div>
+                <div id="settings-business-info" class="business-info-box"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="justify-content:flex-end;">
+          <button id="btn-settings-save" class="btn btn-primary btn-small" data-i18n="btn_save">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 15차: "프로필 추가 눌렀을 때 커스텀 프로필/모드팩 찾기/모드팩 업로드 3가지로" -
+         설정창처럼 전체 화면이 아니라 가운데 뜨는 개별 박스 화면.
+         16차: "커스텀 프로필은 바로 이렇게 뜨는 게 아니야" - 이 팝업은 이제 3가지 선택지만
+         보여주고 끝남. "커스텀 프로필"을 고르면 Install(버전 목록)로 이동해서 버전을 고른
+         뒤에 이어서 만들고(#versions-create-panel 참고), "모드팩 찾기"는 Contents(Explore)의
+         모드팩 탭으로 이동함 - 예전에 여기 있던 아이콘/이름/버전/로더 입력 단계는 통째로
+         지우고 Install 쪽으로 옮김.
+         16차 추가 수정: "인스톨을 눌렀을 때랑 + 버튼 눌러서 하는 프로필 추가랑 반대로
+         됐잖아" - Install 사이드바 아이콘은 이제 예전처럼 바로 버전 목록으로 감. 이 팝업은
+         대신 프로필 관리 화면의 "프로필 추가"(+) 카드를 눌렀을 때 뜸(renderer.js의
+         renderProfileManageGrid > addCard 참고) -->
+    <div id="profile-add-overlay" class="modal-overlay" hidden>
+      <div class="profile-add-popup-box">
+        <div class="settings-popup-header">
+          <span data-i18n="profile_add_title" class="modal-title-label" id="profile-add-title">프로필 추가</span>
+          <button id="btn-profile-add-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
+            <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
+        </div>
+
+        <div id="profile-add-step-choice" class="profile-add-step">
+          <button type="button" class="profile-add-choice-card" id="profile-add-choice-custom">
+            <div class="profile-add-choice-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M8 9h8M8 13h5" stroke-linecap="round"/></svg>
+            </div>
+            <div class="profile-add-choice-text">
+              <div data-i18n="profile_add_custom_name" class="profile-add-choice-name">커스텀 프로필</div>
+              <div data-i18n="profile_add_custom_desc" class="profile-add-choice-desc">버전과 로더를 직접 골라 빈 프로필을 만들어요</div>
+            </div>
+          </button>
+          <button type="button" class="profile-add-choice-card" id="profile-add-choice-modpack-find">
+            <div class="profile-add-choice-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+            </div>
+            <div class="profile-add-choice-text">
+              <div data-i18n="profile_add_find_modpack_name" class="profile-add-choice-name">모드팩 찾기</div>
+              <div data-i18n="profile_add_find_modpack_desc" class="profile-add-choice-desc">Modrinth에서 완성된 모드팩을 검색해서 설치해요</div>
+            </div>
+          </button>
+          <button type="button" class="profile-add-choice-card" id="profile-add-choice-modpack-upload">
+            <div class="profile-add-choice-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"/></svg>
+            </div>
+            <div class="profile-add-choice-text">
+              <div data-i18n="profile_add_upload_modpack_name" class="profile-add-choice-name">모드팩 업로드</div>
+              <div data-i18n="profile_add_upload_modpack_desc" class="profile-add-choice-desc">갖고 있는 .mrpack 파일을 직접 골라서 설치해요</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shop -->
+    <section id="view-shop" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span class="modal-title-label">Shop</span>
+        </div>
+      </div>
+
+      <div class="modal-body shop-modal-body">
+        <div class="shop-topbar">
+          <div class="shop-category-tabs">
+            <button class="shop-category-btn is-active" data-category="all" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span data-i18n="shop_cat_all">전체</span>
+            </button>
+            <button class="shop-category-btn" data-category="theme" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17c-2.3 0-3-1.5-3-3 0-1 .6-1.4.6-2.2 0-1-1-1.3-1-2.3s1-1.3 1-2.3-1-1.5-1-2.7 1.4-2.5 3.4-4.5Z"/></svg>
+              <span data-i18n="shop_cat_theme_color">테마 색상</span>
+            </button>
+            <button class="shop-category-btn" data-category="fulltheme" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M3.5 15h17M9 3.5v17" stroke-linecap="round"/></svg>
+              <span data-i18n="shop_cat_fulltheme">테마</span>
+            </button>
+            <button class="shop-category-btn" data-category="cosmetic" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2.5l2.6 5.9 6.4.7-4.8 4.3 1.4 6.3-5.6-3.3-5.6 3.3 1.4-6.3-4.8-4.3 6.4-.7Z" stroke-linejoin="round"/></svg>
+              <span data-i18n="shop_cat_cosmetic">코스메틱</span>
+            </button>
+            <button class="shop-category-btn" data-category="special" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2.5l2.1 4.6 5 .6-3.6 3.5.9 5-4.4-2.4-4.4 2.4.9-5-3.6-3.5 5-.6Z" stroke-linejoin="round"/><path d="M19 15.5l.9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9Z" stroke-linejoin="round"/></svg>
+              <span data-i18n="shop_cat_special">스페셜</span>
+            </button>
+            <button class="shop-category-btn" data-category="misc" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+              <span data-i18n="shop_cat_misc">기타</span>
+            </button>
+          </div>
+          <div class="dropdown-select-wrap">
+            <button id="shop-coin-badge" class="shop-coin-badge" type="button" title="코인 내역 보기" data-i18n-title="shop_coin_history">
+              <span class="coin-icon">🪙</span>
+              <span id="shop-coins">0</span>
+            </button>
+            <div id="shop-coin-log-panel" class="dropdown-select-menu coin-log-panel" style="left:auto; right:0; width:240px;" hidden>
+              <div class="coin-log-title" data-i18n="shop_coin_history">코인 내역</div>
+              <div id="shop-coin-log-list" class="coin-log-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="shop-layout">
+          <!-- 17차: 예전엔 서브 상품이 메인 상품을 "ㄴ"자로 감싸는 고정 2카드 레이아웃이었는데,
+               "일정 시간마다 서로 옆으로 넘어가는 애니메이션"을 원해서 자동 회전 캐러셀로 교체함.
+               renderShopCarousel()이 track 안에 슬라이드를 매번 새로 그리고, dots는 그 개수만큼
+               자동 생성됨. 이 블록 전체는 전체 탭에서만 보여야 함 - renderShopGrid()에서 hidden 토글 -->
+          <div id="shop-featured" class="shop-featured">
+            <div class="shop-carousel" id="shop-carousel">
+              <div class="shop-carousel-track" id="shop-carousel-track"></div>
+              <div class="shop-carousel-dots" id="shop-carousel-dots"></div>
+            </div>
+          </div>
+
+          <div class="shop-main">
+            <div data-i18n="shop_all_items_title" class="setting-section-title">전체 상품</div>
+            <div id="shop-grid" class="shop-grid"></div>
+          </div>
+        </div>
+
+        <!-- 리딤 코드 - 팝업이 아니라 상점 맨 아래에 항상 보이는 입력란으로 -->
+        <div class="shop-redeem-section">
+          <div data-i18n="shop_redeem_title" class="setting-section-title">리딤 코드</div>
+          <div class="redeem-row">
+            <input type="text" id="redeem-input" class="setting-input redeem-input" placeholder="코드를 입력하세요" data-i18n-placeholder="ph_redeem_code" />
+            <button data-i18n="btn_use" id="btn-redeem" class="btn btn-primary btn-small">사용하기</button>
+          </div>
+          <p id="redeem-message" class="error-text"></p>
+          <div id="redeem-dev-panel" class="redeem-dev-panel" hidden>
+            <div data-i18n="shop_redeem_admin_list_title" class="setting-section-title">전체 리딤 코드 목록 (개발자 전용)</div>
+            <div id="redeem-dev-list" class="redeem-dev-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 24-14차 신규: "상품들 바로 구매 말고 상품 보기 해서 창 띄우고 그 색이 입혀진 클라이언트
+         사진을 앞에 보여주고 구매할지 고르게 하고 x 버튼으로 나갈 수도 있게 하고" -
+         상점 스와치/캐러셀을 눌렀을 때 바로 구매하지 않고, 이 미리보기 창을 먼저 띄움.
+         실제 스크린샷 대신 설정 > 테마 갤러리에서 쓰는 것과 같은 미니 클라이언트 목업
+         (.theme-gallery-preview - 사이드바 띠 + 글줄)을 크게 보여줘서 "이 색이 클라이언트에
+         입혀지면 이런 느낌"이라는 걸 대략 보여줌 -->
+    <div id="shop-preview-overlay" class="confirm-overlay" hidden>
+      <div class="confirm-box shop-preview-box">
+        <button type="button" class="shop-preview-close" id="btn-shop-preview-close" data-i18n-aria-label="btn_close" aria-label="닫기">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5L5 19" stroke-linecap="round"/></svg>
+        </button>
+        <div class="theme-gallery-preview theme-gallery-preview-shop shop-preview-mockup" id="shop-preview-mockup">
+          <span class="theme-gallery-preview-side"></span>
+          <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
+        </div>
+        <div class="shop-preview-name" id="shop-preview-name"></div>
+        <div class="shop-preview-price" id="shop-preview-price"></div>
+        <div class="shop-preview-actions">
+          <button data-i18n="btn_cancel" type="button" class="btn btn-ghost btn-small" id="btn-shop-preview-cancel">취소</button>
+          <button data-i18n="btn_purchase" type="button" class="btn btn-primary btn-small" id="btn-shop-preview-buy">구매하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 보관함: 구매한 아이템 착용/해제 (Shop과 별도 화면) -->
+    <section id="view-inventory" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <button class="inventory-tab is-active" data-tab="items" type="button" data-i18n="inventory_tab_items">보관함</button>
+          <span style="color:var(--border); margin:0 2px;">|</span>
+          <!-- 14차: "인벤토리 들어갔을 때 출석체크 글에도 빨간색 뜨게" - 사이드바 아이콘엔
+               이미 있던 알림 점(#inventory-notif-dot)을, 보관함 탭에 머물러 있어도 보이도록
+               이 탭 라벨 옆에도 똑같이 붙임(refreshCoins가 둘 다 같이 토글).
+               data-i18n은 텍스트를 textContent로 통째로 덮어써서 안에 span을 못 넣으므로,
+               라벨 글자만 별도 span으로 감싸고 점은 그 형제로 둠 -->
+          <button class="inventory-tab" data-tab="attendance" type="button"><span data-i18n="inventory_tab_attendance">출석체크</span><span id="inventory-attendance-tab-dot" class="notif-dot" hidden></span></button>
+        </div>
+      </div>
+      <div class="modal-body" id="inventory-items-panel">
+        <div class="setting-section-title" data-i18n="inventory_purchased_title">구매한 아이템</div>
+        <div id="inventory-grid" class="shop-grid"></div>
+        <div class="setting-row" style="margin-top:6px;">
+          <label data-i18n="inventory_reset_theme_label">기본 초록 테마로 되돌리기</label>
+          <button id="btn-shop-default" class="btn btn-fixed-green btn-small" data-i18n="btn_apply">적용</button>
+        </div>
+      </div>
+      <div class="modal-body inventory-attendance-body" id="inventory-attendance-panel" hidden>
+        <div class="attendance-col">
+          <!-- 24-14차: "출첵에서도 코인 보이게 하기" - 상점의 코인 배지(shop-coin-badge)를
+               재사용, id만 새로 둠(같은 id는 문서에 하나만 있어야 해서) -->
+          <div class="attendance-header-row">
+            <div class="setting-section-title"><span data-i18n="attendance_title">출석체크</span> (<span id="attendance-month-label"></span>)</div>
+            <div id="attendance-coin-badge" class="shop-coin-badge">
+              <span class="coin-icon">🪙</span>
+              <span id="attendance-coins">0</span>
+            </div>
+          </div>
+          <div id="attendance-calendar" class="attendance-calendar"></div>
+        </div>
+        <div class="quest-col">
+          <div data-i18n="quest_title" class="setting-section-title">퀘스트</div>
+          <!-- 15차 신규: 일일(1/3/6시간, 출석체크 완료해야 수령 가능)/주간(10/30/60시간) 플레이타임 퀘스트 -->
+          <div class="quest-section">
+            <div class="quest-section-title">
+              <span data-i18n="quest_daily_title">일일 퀘스트</span>
+              <span data-i18n="quest_daily_sub" class="quest-section-sub">런처로 플레이한 시간 · 출석체크 후 받을 수 있어요</span>
+            </div>
+            <div id="quest-daily-list" class="quest-list"></div>
+          </div>
+          <div class="quest-section">
+            <div class="quest-section-title">
+              <span data-i18n="quest_weekly_title">주간 퀘스트</span>
+              <span data-i18n="quest_weekly_sub" class="quest-section-sub">이번 주 누적 플레이 시간</span>
+            </div>
+            <div id="quest-weekly-list" class="quest-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 20차: "소식은 창이 따로 열리는 게 아니라 화면이 바뀌어야지" - 예전엔 독립 팝업
+         (#news-overlay)이었는데, 다른 사이드바 메뉴들처럼 화면 자체가 바뀌는 view로 바꿈 -->
+    <section id="view-news" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <span class="modal-title-label" data-i18n="sidebar_more_news">소식</span>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="news-grid" class="news-grid">
+          <div class="news-empty" data-i18n="news_empty">불러오는 중...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 17차: "친구 패널이랑 내 마인크래프트 프로필 패널은 어느 화면에서든 사라지면 안 돼,
+         대신 흐려지는 건 괜찮아" - 예전엔 view-home 안에서만 보이는 일반 레이아웃 요소였는데,
+         이제 어느 .view 화면(#view-home 포함)이 활성이든 상관없이 항상 떠 있는 고정
+         오버레이로 뺐음. 안의 프로필 클러스터(profile-cluster)가 "내 마인크래프트 프로필"
+         패널, 그 아래가 친구 목록 패널 - 두 개가 원래도 같은 박스 안에 있었음.
+         홈 화면이 아닐 때는 showAppPanel()에서 .is-pinned-dim 클래스를 붙여서 흐리게 함
+         (style.css의 .home-friends 규칙 참고) -->
+    <div class="home-friends">
+      <!-- 19차: 컨텐츠 설치(Explore) 화면에서는 이 자리에 친구 목록 대신 프로필 목록이 뜨므로
+           (아래 #home-friends-explore-slot), 기존 친구/계정 내용은 이 안에 묶어서 통째로
+           숨겼다 보였다 할 수 있게 함 -->
+      <div id="home-friends-default-content">
+        <div class="profile-cluster">
+          <div id="profile-trigger" class="profile" role="button" data-i18n-title="profile_account_menu_title" title="계정 메뉴">
+            <div id="avatar" class="avatar">L</div>
+            <div class="profile-info">
+              <div data-i18n="home_default_name" id="profile-name" class="profile-name">플레이어</div>
+              <div class="profile-meta" id="profile-mc-version">Nova</div>
+            </div>
+          </div>
+          <div id="account-menu" class="account-menu" hidden>
+            <div id="account-menu-list" class="account-menu-list scroll-fade-mask"></div>
+            <div class="account-menu-divider"></div>
+            <button data-i18n="account_add_btn" id="btn-account-add" class="account-menu-add">+ 다른 계정 추가</button>
+            <button data-i18n="btn_logout" id="btn-logout" class="account-menu-logout">로그아웃</button>
+          </div>
+        </div>
+
+        <!-- 24-53차 후속: "3개를 세로 말고 가로로 나눈 다음에 각각의 창이 밑에 뜨게 하는 방식" -
+             세로로 계속 쌓아서 다 보여주던 걸(24-53차) 인벤토리 탭(.inventory-tab/showInventoryTab)과
+             같은 방식으로 바꿈 - 위에 가로 탭 3개(친구/친구추가/차단), 그 아래에 고른 탭 내용만 보임 -->
+        <div class="home-friends-title-row">
+          <div class="home-friends-tabs">
+            <button class="home-friends-tab is-active" data-friends-tab="friends" type="button">
+              <span data-i18n="home_friends_title">친구</span><span id="home-friends-tab-dot" class="notif-dot" hidden></span>
+            </button>
+            <span class="home-friends-tab-sep">|</span>
+            <button class="home-friends-tab" data-friends-tab="add" type="button">
+              <span data-i18n="home_friends_add_tab">친구추가</span><span id="home-friends-add-tab-dot" class="notif-dot" hidden></span>
+            </button>
+            <span class="home-friends-tab-sep">|</span>
+            <button class="home-friends-tab" data-friends-tab="block" type="button" data-i18n="home_friends_block_tab">차단</button>
+          </div>
+        </div>
+
+        <!-- 1) 친구 -->
+        <div id="home-friends-panel-friends" class="home-friends-tab-panel">
+          <!-- 17차: "친구 부분을 한글로 해줘" - "Friends (N online)"으로 영문만 남아있던 걸 한글로 -->
+          <div class="home-friends-online-line"><span id="home-friends-online">0</span><span data-i18n="home_friends_online_suffix">명 접속중</span></div>
+          <div id="home-friends-list" class="home-friends-list"></div>
+          <div data-i18n="home_friends_empty" id="home-friends-empty" class="home-friends-empty">아직 친구가 없어요</div>
+        </div>
+
+        <!-- 2) 친구 추가(닉네임) / 받은 요청(수락·거절) / 보낸 요청(취소) -->
+        <div id="home-friends-panel-add" class="home-friends-tab-panel" hidden>
+          <div class="home-friend-add-row">
+            <input type="text" id="home-friend-add-input" class="setting-input" placeholder="클라이언트 닉네임" data-i18n-placeholder="ph_nickname" />
+            <button data-i18n="btn_add_short" id="btn-home-friend-add" class="btn btn-primary btn-small" type="button">추가</button>
+          </div>
+          <p id="home-friend-add-error" class="error-text"></p>
+          <div id="home-friends-requests" class="home-friends-requests"></div>
+        </div>
+
+        <!-- 3) 차단 관련 -->
+        <div id="home-friends-panel-block" class="home-friends-tab-panel" hidden>
+          <div class="home-friend-add-row">
+            <input type="text" id="home-friend-block-input" class="setting-input" placeholder="클라이언트 닉네임" data-i18n-placeholder="ph_nickname" />
+            <button data-i18n="btn_block" id="btn-home-friend-block" class="btn btn-ghost btn-small" type="button">차단</button>
+          </div>
+          <p id="home-friend-block-error" class="error-text"></p>
+          <div id="home-friends-blocked-list" class="home-friends-list"></div>
+          <div data-i18n="home_friends_blocked_empty" id="home-friends-blocked-empty" class="home-friends-empty">차단한 사용자가 없어요</div>
+        </div>
+      </div>
+
+      <!-- 19차: "컨텐츠 설치는 친구창 위치에 친구창 대신 프로필 리스트로 교체" - Explore 화면이
+           활성일 때 .explore-sidebar(프로필 목록)가 JS(showAppPanel)에 의해 이 안으로
+           옮겨져 들어옴, 화면을 벗어나면 다시 원래 자리로 되돌아감 -->
+      <div id="home-friends-explore-slot" class="home-friends-explore-slot" hidden>
+        <div class="home-friends-title-row">
+          <div class="home-friends-title" data-i18n="explore_profile_list_title">설치할 프로필</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  </div>
+
+  <!-- 5-12(7차): 프로필 설정 (톱니바퀴) - 작은 오버레이 모달. JVM 인수 / 메모리 / 해상도+전체화면 /
+       사용중인 자바(읽기전용) / 용량(읽기전용) / (불러온 프로필만) 업데이트 연동 토글 + 프로필 갱신 -->
+  <div id="profile-settings-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box profile-settings-box">
+      <div class="updates-popup-header">
+        <span class="modal-title-label" data-i18n="profile_settings_title">프로필 설정</span>
+        <button id="btn-profile-settings-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <!-- 23차: "설정 하나 안에 다 때려박지 말고 설정처럼 카테고리를 나눠 달라니까 하나도
+           안했네? 설정처럼 해달라고" - 22차엔 구분선만 있는 평평한(flat) 목록으로만 나눴는데,
+           그건 "설정처럼"이 아니라는 지적을 받음. 메인 설정 화면(#settings-overlay)과 똑같이
+           왼쪽 카테고리 목록 + 오른쪽 내용 패널 구조로 다시 만듦. 단, 메인 설정의
+           .settings-nav/.settings-nav-item/.settings-content/.settings-panel-section은
+           renderer.js에서 document 전체를 대상으로 querySelectorAll하고 mountSlidingPill도
+           document에서 처음 찾은 .settings-nav 하나에만 연결되므로, 이름을 그대로 재사용하면
+           두 팝업의 카테고리 전환 로직이 서로 오염됨 -> 여기는 profile-settings- 접두사가 붙은
+           별도 클래스 + 별도 스위처 함수(showProfileSettingsCategory)를 씀 -->
+      <div class="profile-settings-popup-body">
+        <div class="profile-settings-nav">
+          <button class="profile-settings-nav-item is-active" data-pcat="launch" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 8.5a5 5 0 0 1 0 7" stroke-linecap="round"/><path d="M18 6a8.5 8.5 0 0 1 0 12" stroke-linecap="round"/></svg>
+            <span data-i18n="profile_settings_tab_run">실행</span>
+          </button>
+          <button class="profile-settings-nav-item" data-pcat="advanced" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 9 4 12l4 3M16 9l4 3-4 3M13 6l-2 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="profile_settings_tab_advanced">고급</span>
+          </button>
+          <button class="profile-settings-nav-item" data-pcat="info" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v.01M12 11v5" stroke-linecap="round"/></svg>
+            <span data-i18n="forum_cat_info">정보</span>
+          </button>
+          <button class="profile-settings-nav-item profile-settings-nav-item-danger" data-pcat="danger" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5 21.5 20h-19L12 3.5Z" stroke-linejoin="round"/><path d="M12 9.5v5M12 17.5v.01" stroke-linecap="round"/></svg>
+            <span data-i18n="profile_settings_tab_danger">위험 구역</span>
+          </button>
+        </div>
+
+        <div class="profile-settings-content">
+          <!-- 21차: "위아래로 길기만 하고 정렬이 죄다 엉망이잖아" - 짧은 항목끼리는 2단 그리드
+               (.setting-grid-2col)로 나란히 묶어서 세로 길이를 줄이고, "전체화면이랑 해상도랑
+               떨어져있으면 안되지" - 둘을 같은 줄에 나란히 묶음(메모리 할당은 슬라이더라
+               폭이 필요해서 따로 한 줄) -->
+          <div class="profile-settings-panel-section is-active" data-pcat-panel="launch">
+            <div class="setting-row setting-row-col">
+              <label data-i18n="create_profile_memory_label">메모리 할당</label>
+              <div class="setting-control">
+                <input type="range" id="manage-profile-memory" min="2" max="16" step="1" />
+                <span id="manage-profile-memory-value" class="setting-value">4GB</span>
+              </div>
+            </div>
+            <div class="setting-grid-2col">
+              <div class="setting-row setting-row-col">
+                <label data-i18n="create_profile_resolution_label">실행 해상도</label>
+                <div class="setting-control resolution-control">
+                  <input type="number" id="manage-profile-width" class="setting-input-small" /> ×
+                  <input type="number" id="manage-profile-height" class="setting-input-small" />
+                </div>
+              </div>
+              <div class="setting-row">
+                <label data-i18n="create_profile_fullscreen_label">전체화면으로 시작</label>
+                <div class="setting-control">
+                  <input type="checkbox" id="manage-profile-fullscreen" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-settings-panel-section" data-pcat-panel="advanced">
+            <div class="setting-row setting-row-col">
+              <label data-i18n="profile_settings_jvmargs_label">JVM 인수 (고급)</label>
+              <input type="text" id="manage-profile-jvmargs" class="setting-input" placeholder="예: -XX:+UseG1GC" data-i18n-placeholder="ph_jvm_example" />
+            </div>
+            <!-- 17차: "프로필마다 수정할 때 설명 적을 수 있게 해줘 대신 기존 창을 해치면 안돼" -
+                 프로필 편집 화면(위쪽 큰 카드)이 아니라, 이미 있던 별도의 "프로필 설정" 모달 안에
+                 넣어서 기존 화면 레이아웃은 그대로 유지함 -->
+            <div class="setting-row setting-row-col">
+              <label data-i18n="create_profile_description_label">설명 (선택)</label>
+              <textarea id="manage-profile-description" class="setting-input" rows="2" maxlength="300" placeholder="이 프로필에 대한 설명을 적어보세요" data-i18n-placeholder="ph_profile_description"></textarea>
+            </div>
+          </div>
+
+          <div class="profile-settings-panel-section" data-pcat-panel="info">
+            <div class="setting-row">
+              <label data-i18n="profile_settings_disk_label">용량</label>
+              <div data-i18n="settings_checking_calc" id="manage-profile-disk-usage" class="profile-settings-readonly">계산하는 중...</div>
+            </div>
+            <div class="setting-row">
+              <label data-i18n="profile_settings_java_label">사용중인 자바</label>
+              <div data-i18n="settings_checking" id="manage-profile-java-info" class="profile-settings-readonly">확인하는 중...</div>
+            </div>
+            <!-- 22차: "프로필 갱신을 새로고침 옆으로 옮기고 업데이트는 이거 옆에 띄워" - 공유
+                 프로필 전용인 "프로필 갱신"/"업데이트 연동"이 여기 설정 팝업 안에 묻혀있던 걸
+                 모드 목록 툴바의 새로고침 버튼 옆(.manage-actions-group[data-kind="mods"])으로
+                 옮김. 아이디는 그대로 유지해서 저장/토글 로직은 그대로 재사용함 -->
+          </div>
+
+          <!-- 10차: "위험 구역에 있는 삭제를 없애고 설정에 넣어줘" -->
+          <div class="profile-settings-panel-section" data-pcat-panel="danger">
+            <p data-i18n="profile_settings_danger_desc" class="profile-settings-danger-desc">이 프로필을 삭제하면 안에 있는 모드/리소스팩도 함께 삭제되고, 되돌릴 수 없어요.</p>
+            <button data-i18n="profile_settings_delete_btn" id="btn-manage-profile-delete" class="btn btn-ghost btn-small danger-text" type="button">이 프로필 삭제</button>
+          </div>
+        </div>
+      </div>
+      <div class="confirm-actions">
+        <button data-i18n="btn_close" type="button" class="btn btn-ghost btn-small" id="btn-profile-settings-cancel">닫기</button>
+        <button data-i18n="btn_save" type="button" class="btn btn-primary btn-small" id="btn-profile-settings-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5-13(7차): 프로필 공유 - 작은 중앙 모달 (코드 크게 표시 + 복사 버튼) -->
+  <div id="profile-share-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box" style="width:320px;">
+      <div data-i18n="profile_share_title" class="confirm-message" style="text-align:left; font-weight:700;">프로필 공유</div>
+      <div data-i18n="profile_share_blocked_note" id="profile-share-blocked-note" style="font-size:11.5px; color:var(--text-2); margin-top:6px;" hidden>프리셋으로 만든 프로필은 공유할 수 없어요</div>
+      <div data-i18n="profile_share_loading" id="profile-share-loading" style="font-size:12.5px; color:var(--text-2); margin-top:10px;" hidden>코드를 만드는 중...</div>
+      <div id="profile-share-body" hidden>
+        <div data-i18n="profile_share_hint" style="font-size:11.5px; color:var(--text-2); margin-top:8px;">이 코드를 알려주면 다른 사람이 이 프로필을 그대로 받아갈 수 있어요</div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px;">
+          <div id="profile-share-code" style="font-family:var(--font-mono); font-size:26px; font-weight:800; color:var(--accent); letter-spacing:3px; user-select:text; cursor:text;"></div>
+        </div>
+        <button data-i18n="profile_share_copy_btn" id="btn-profile-share-copy" class="btn btn-ghost btn-small" type="button" style="width:100%; margin-top:10px;">코드 복사</button>
+      </div>
+      <div class="confirm-actions" style="margin-top:16px;">
+        <button type="button" class="btn btn-ghost btn-small" id="btn-profile-share-close" data-i18n="btn_close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 전체 업데이트 확인 결과 -->
+  <div id="mods-update-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box" style="width:380px;">
+      <div data-i18n="mods_update_title" class="confirm-message" style="text-align:left; font-weight:700;">업데이트 가능한 모드</div>
+      <div id="mods-update-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px; max-height:320px; overflow-y:auto;"></div>
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button data-i18n="btn_close" type="button" class="btn btn-ghost btn-small" id="btn-mods-update-close">닫기</button>
+        <button data-i18n="manage_update_all" type="button" class="btn btn-fixed-green btn-small" id="btn-mods-update-all">전체 업데이트</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모드 버전 직접 선택 (1-9: 최신 버전 말고 원하는 버전으로 바꾸기) -->
+  <div id="mod-version-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box" style="width:380px;">
+      <div data-i18n="mod_version_select_title" class="confirm-message" style="text-align:left; font-weight:700;" id="mod-version-title">버전 선택</div>
+      <div id="mod-version-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px; max-height:320px; overflow-y:auto;"></div>
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button data-i18n="btn_close" type="button" class="btn btn-ghost btn-small" id="btn-mod-version-close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 17차 신규: "제작자" 페이지 - 프로필 수정(모드 이름 클릭)/모드설치(Contents 상세) 양쪽에서
+       같은 제작자 이름을 누르면 열리는 공용 팝업. 그 제작자의 모드/리소스팩/쉐이더를 전부 모아
+       보여주고, 프로젝트 개수/전체 다운로드수/자기소개(bio)도 같이 보여줌
+       (main.js의 explore:author-projects, Modrinth 계정 기준) -->
+  <!-- 17차 신규: "AI 기능을 만들어서 모드 충돌이나 클라이언트 정보만 좀 알려주는 AI 가능해?
+       ... 딮러닝 없이 단어나 키워드를 인식해서 답변하는 거야 예를 들어 어떠한 문제로
+       오셨나요 > 모드 > 충돌/~~이유 > 어떤식으로 써져있는지 물어보고 그거에 대한 대답을
+       통해 답변(해결책)" - 딥러닝/외부 AI 연동 없이, 정해진 선택지(+일부 키워드 매칭)만으로
+       답을 찾아가는 진단 도우미. 채팅창처럼 대화가 쭉 쌓이고, 매 단계 선택지 버튼이 아래에 뜸 -->
+  <div id="ai-assistant-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box ai-assistant-box">
+      <div class="updates-popup-header">
+        <span data-i18n="ai_assistant_title" class="modal-title-label">AI 진단 도우미</span>
+        <button id="btn-ai-assistant-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <p data-i18n="ai_assistant_disclaimer" class="ai-assistant-disclaimer">딥러닝이나 외부 AI 없이, 정해진 선택지와 키워드로만 답을 찾아드려요</p>
+      <div id="ai-assistant-log" class="ai-assistant-log"></div>
+      <div id="ai-assistant-choices" class="ai-assistant-choices"></div>
+      <div id="ai-assistant-input-row" class="ai-assistant-input-row" hidden>
+        <input type="text" id="ai-assistant-input" class="setting-input" data-i18n-placeholder="ai_assistant_input_ph" placeholder="화면에 뜬 문구를 그대로 적어주세요" />
+        <button data-i18n="btn_confirm" id="btn-ai-assistant-submit" class="btn btn-primary btn-small" type="button">확인</button>
+      </div>
+      <div class="ai-assistant-footer-actions">
+        <button data-i18n="ai_assistant_back_btn" id="btn-ai-assistant-back" class="btn btn-ghost btn-small" type="button">← 이전</button>
+        <button data-i18n="ai_assistant_restart_btn" id="btn-ai-assistant-restart" class="btn btn-ghost btn-small" type="button">처음으로</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="author-page-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box author-page-box">
+      <div class="updates-popup-header">
+        <span data-i18n="label_author" class="modal-title-label">제작자</span>
+        <button id="btn-author-page-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <div data-i18n="news_empty" id="author-page-loading" class="author-page-loading">불러오는 중...</div>
+      <div id="author-page-body" class="author-page-body" hidden>
+        <div class="author-page-head">
+          <img id="author-page-avatar" class="author-page-avatar" src="" alt="" />
+          <div class="author-page-head-info">
+            <div id="author-page-name" class="author-page-name">-</div>
+            <div id="author-page-bio" class="author-page-bio"></div>
+          </div>
+        </div>
+        <div class="author-page-stats">
+          <div class="author-page-stat">
+            <span id="author-page-project-count" class="author-page-stat-value">0</span>
+            <span data-i18n="label_project" class="author-page-stat-label">프로젝트</span>
+          </div>
+          <div class="author-page-stat">
+            <span id="author-page-total-downloads" class="author-page-stat-value">0</span>
+            <span data-i18n="author_page_stat_downloads" class="author-page-stat-label">전체 다운로드</span>
+          </div>
+        </div>
+        <div id="author-page-project-list" class="author-page-project-list"></div>
+        <div data-i18n="author_page_empty" id="author-page-empty" class="author-page-empty" hidden>이 제작자의 프로젝트를 찾을 수 없어요</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 18차 신규: "설정에서는 스킨을 없애고 저기(사이드바 더보기)로 옮겨야지" - 원래 설정 팝업
+       안에 있던 스킨 탭(3D 미리보기 + 기본 스킨 목록)을 통째로 빼서, 사이드바 "더보기 > 스킨"
+       아이콘을 누르면 바로 뜨는 독립된 작은 팝업으로 바꿈. 안의 내용(요소 id)은 그대로라
+       renderer.js의 loadSkinSection/loadDefaultSkinPresets 등은 손댈 필요 없음 -->
+  <div id="skin-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box skin-popup-box">
+      <div class="updates-popup-header">
+        <span class="modal-title-label" data-i18n="settings_nav_skin">스킨</span>
+        <button id="btn-skin-overlay-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <div class="skin-row">
+        <!-- 9차: skinview3d 캔버스로 모자/망토까지 보여주고, 실패하면 예전 crafatar
+             이미지가 그대로 보이는 이중 구조 (아래 img가 항상 먼저 즉시 뜸)
+             24-61차: crafatar 응답을 기다리는 동안 빈 박스만 보이던 걸 보완 - img/canvas를
+             감싸는 wrap 안에 로딩 스피너를 얹음(renderer.js bindSkinLoadingSpinner 참고) -->
+        <div class="skin-preview-wrap">
+          <canvas id="skin-preview-3d" class="skin-preview" hidden></canvas>
+          <img id="skin-preview" class="skin-preview" data-i18n-alt="skin_preview_alt" alt="현재 스킨" />
+          <span id="skin-preview-spinner" class="skin-loading-spinner" hidden></span>
+        </div>
+        <div class="skin-controls">
+          <div class="setting-row">
+            <label data-i18n="settings_skin_model">모델</label>
+            <div class="setting-control">
+              <select id="set-skin-variant">
+                <option value="classic" data-i18n="settings_skin_classic">기본형(Classic)</option>
+                <option value="slim" data-i18n="settings_skin_slim">슬림형(Slim)</option>
+              </select>
+            </div>
+          </div>
+          <div class="skin-buttons">
+            <button id="btn-skin-pick" class="btn btn-ghost btn-small" data-i18n="settings_skin_pick_file">파일 선택...</button>
+            <button id="btn-skin-apply" class="btn btn-primary btn-small" disabled data-i18n="btn_apply">적용</button>
+          </div>
+          <div id="skin-file-name" class="skin-file-name"></div>
+          <p id="skin-error" class="error-text"></p>
+        </div>
+      </div>
+
+      <!-- 19차 재수정: "스킨에 마크 기본 스킨 걍 없애고 내가 추가한 것만 리스트에 추가하는
+           식으로 하고" - 기본 스킨(스티브/알렉스 등) 섹션은 완전히 제거. 이제 이 팝업은
+           위 3D 미리보기+업로드, 그리고 아래 "내가 추가한 스킨" 목록 두 부분만 남음 -->
+      <div class="settings-subgroup-title" data-i18n="settings_skin_custom_title">내가 추가한 스킨</div>
+      <div id="skin-custom-list" class="skin-custom-list">
+        <div class="skin-preset-empty" data-i18n="settings_skin_custom_empty">아직 직접 추가한 스킨이 없어요</div>
+      </div>
+
+      <!-- 24-53차 신규: "여태까지 바꿨던 거 로그 있어서 되돌리기 기능도 있으면 좋겠고" -
+           직접 관리하는 "내가 추가한 스킨" 목록과 별개로, 적용할 때마다(기본 스킨 포함) 자동으로
+           쌓이는 최근 변경 기록. 되돌리기를 누르면 그 시점 스킨으로 다시 적용됨 -->
+      <div class="settings-subgroup-title" data-i18n="settings_skin_history_title">최근 변경 기록</div>
+      <div id="skin-history-list" class="skin-custom-list">
+        <div class="skin-preset-empty" data-i18n="settings_skin_history_empty">아직 변경 기록이 없어요</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 19차: 소식(News) - "소식은 포럼이 아니야 내가 올리는 완전 이벤트나 이런 거야, 소식에는
+       여러 박스로 올라갈 거야" - 개발자가 news.json(GitHub)에 올린 이벤트/소식을 여러 카드로 -->
+  <!-- 업데이트 내역 (작은 팝업창) -->
+  <div id="updates-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box updates-popup-box">
+      <div class="updates-popup-header">
+        <span class="modal-title-label">Updates</span>
+        <button id="btn-updates-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+
+      <div class="updates-status-card">
+        <div class="updates-status-left">
+          <div data-i18n="updates_current_version_title" class="updates-status-title">지금 쓰는 버전</div>
+          <div class="updates-status-version">v<span id="updates-current-version">-</span></div>
+        </div>
+        <div data-i18n="settings_checking" id="updates-status-badge" class="updates-status-badge">확인 중...</div>
+      </div>
+
+      <div data-i18n="updates_history_title" class="setting-section-title">업데이트 내역</div>
+      <div id="changelog-list" class="changelog-list updates-popup-changelog"></div>
+
+      <!-- 24-18차: "업데이트 기록 가면 왼쪽 아래 있는 그거 글만 수정" - 정확히 어떤 문구를
+           원하시는지는 여전히 모르지만(정보 유실), 짐작 없이 넘기지 말고 이번엔 일단 시도함.
+           일반 사용자에게 낯선 개발자 용어인 "GitHub"를 굳이 노출할 필요가 없어 보여서 그
+           부분만 빼고 자연스러운 한국어 문구로 바꿈 - 기능(누르면 릴리즈 페이지가 열림)은 그대로.
+           원하시는 정확한 문구가 따로 있으면 그대로 알려주시면 바로 바꿉니다. -->
+      <button data-i18n="updates_github_btn" id="btn-updates-github" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start; margin-top:10px;">깃허브에서 전체 업데이트 기록 보기 ↗</button>
+    </div>
+  </div>
+
+  <!-- 포럼 유저 프로필 팝업 -->
+  <div id="forum-user-popup" class="confirm-overlay" hidden>
+    <div class="confirm-box forum-user-popup-box">
+      <!-- 9차: 아래 "닫기" 텍스트 버튼 대신 오른쪽 위 X 아이콘으로 -->
+      <button type="button" id="btn-forum-user-close" class="popup-close-x" data-i18n-aria-label="btn_close" aria-label="닫기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+      </button>
+      <!-- 17-1(4차): 얼굴만 크롭한 forum-user-head는 제거하고 전신 스킨 렌더 하나로 통일 -->
+      <!-- 9차: skinview3d가 되면 모자/망토까지 그려진 캔버스를 보여주고, 안 되면(라이브러리
+           로드 실패 등) 예전처럼 crafatar 이미지가 그대로 보이는 안전한 이중 구조
+           24-61차: 서버에서 유저 정보/스킨을 받아오는 동안 빈 박스만 보이던 걸 보완 - wrap
+           안에 로딩 스피너를 얹음(renderer.js bindSkinLoadingSpinner 참고) -->
+      <div class="forum-user-skin-wrap">
+        <canvas id="forum-user-skin-3d" class="forum-user-skin" hidden></canvas>
+        <img id="forum-user-skin" class="forum-user-skin" alt="" />
+        <span id="forum-user-skin-spinner" class="skin-loading-spinner" hidden></span>
+      </div>
+      <div id="forum-user-name" class="forum-user-name"></div>
+      <div id="forum-user-bio" class="forum-user-bio"></div>
+
+      <div data-i18n="forum_user_locked_msg" id="forum-user-locked-msg" class="forum-user-locked-msg" hidden>친구만 이 프로필을 볼 수 있어요</div>
+
+      <!-- 14차: "프로필 눌렀을 때 3번(이름/귓속말/프로필보기 팝업) 스킵하고 4번(이 팝업)으로
+           바로 가게 해줘" - 친구가 특정 서버에서 플레이 중일 때만 보이던 "참가하기"가 원래
+           작은 중간 팝업(friend-status-popup)에만 있었는데, 이제 그 팝업을 건너뛰므로
+           같은 기능을 여기로 옮겨옴 -->
+      <div id="forum-user-server-line" class="forum-user-server-line" hidden></div>
+
+      <div id="forum-user-stats" class="forum-user-stats">
+        <div><b id="forum-user-coins">-</b><span data-i18n="forum_coins_label">코인</span></div>
+        <button type="button" id="btn-forum-user-postcount" class="forum-user-postcount-btn">
+          <b id="forum-user-postcount">-</b><span data-i18n="forum_postcount_label">작성글</span>
+        </button>
+      </div>
+
+      <div id="forum-user-actions" class="forum-user-actions">
+        <button type="button" class="btn btn-ghost btn-small" id="btn-forum-user-add-friend" data-i18n="btn_add_friend">친구 추가</button>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-forum-user-whisper" data-i18n="whisper_title_prefix">귓속말</button>
+        <button type="button" class="btn btn-primary btn-small" id="btn-forum-user-join" hidden data-i18n="btn_join">참가하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11-2(4차): 게시글 신고 모달 - 사유 선택 + 자유 서술 -->
+  <div id="forum-report-popup" class="confirm-overlay" hidden>
+    <div class="confirm-box forum-report-box">
+      <!-- 24-45차: 답글 신고에도 이 모달을 같이 쓰게 되면서, JS가 대상에 따라
+           "게시글 신고"/"답글 신고"로 제목을 바꿔 넣을 수 있도록 id 추가 -->
+      <div data-i18n="forum_report_title" class="confirm-message" id="forum-report-title">게시글 신고</div>
+      <div class="forum-report-target" id="forum-report-target"></div>
+      <div class="forum-report-reasons" id="forum-report-reasons">
+        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_spam" type="radio" name="forum-report-reason" value="스팸" checked /> 스팸</label>
+        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_abuse" type="radio" name="forum-report-reason" value="욕설/비방" /> 욕설/비방</label>
+        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_flood" type="radio" name="forum-report-reason" value="도배" /> 도배</label>
+        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_inappropriate" type="radio" name="forum-report-reason" value="부적절한 내용" /> 부적절한 내용</label>
+        <label class="forum-report-reason-item"><input data-i18n="reason_other" type="radio" name="forum-report-reason" value="기타" /> 기타</label>
+      </div>
+      <textarea id="forum-report-detail" class="setting-input" rows="3" placeholder="자세한 내용을 적어주세요 (선택)" data-i18n-placeholder="ph_report_detail"></textarea>
+      <div class="confirm-actions">
+        <button data-i18n="btn_cancel" type="button" class="btn btn-ghost btn-small" id="btn-forum-report-cancel">취소</button>
+        <button data-i18n="forum_report_submit_btn" type="button" class="btn btn-danger-filled btn-small" id="btn-forum-report-submit">신고 접수</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11-2(4차): 관리자 전용 신고 목록 -->
+  <!-- 24-14차: "신고목록 닫기 말고 X로 바꾸고 위치 조정" - 아래쪽 "닫기" 텍스트 버튼 대신
+       forum-user-popup과 같은 오른쪽 위 X 아이콘으로 교체 -->
+  <div id="forum-reports-admin-popup" class="confirm-overlay" hidden>
+    <div class="confirm-box forum-reports-admin-box">
+      <button type="button" id="btn-forum-reports-admin-close" class="popup-close-x" data-i18n-aria-label="btn_close" aria-label="닫기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+      </button>
+      <div class="confirm-message" data-i18n="forum_reports_title">신고 목록</div>
+      <div id="forum-reports-admin-list" class="forum-reports-admin-list"></div>
+    </div>
+  </div>
+
+  <!-- 14차: "프로필 눌렀을 때 3번 스킵하고 4번으로" - 이 작은 중간 팝업(이름+귓속말+프로필
+       보기+참가하기)을 없애고, 전체 프로필 팝업(forum-user-popup)이 참가하기까지 흡수함 -->
+
+  <!-- 17차: 관리자가 게시글 작성자를 바로 제재(글쓰기 금지 / 읽기+쓰기 금지)할 수 있는 팝업 -->
+  <div id="forum-moderate-popup" class="confirm-overlay" hidden>
+    <div class="confirm-box forum-report-box">
+      <div data-i18n="forum_moderate_title" class="confirm-message">유저 제재</div>
+      <div class="forum-report-target" id="forum-moderate-target"></div>
+      <div id="forum-moderate-current" class="forum-moderate-current" hidden></div>
+      <div class="forum-report-reasons">
+        <label class="forum-report-reason-item"><input data-i18n="forum_moderate_write" type="radio" name="forum-moderate-type" value="write" checked /> 글쓰기 금지</label>
+        <label class="forum-report-reason-item"><input data-i18n="forum_moderate_read_write" type="radio" name="forum-moderate-type" value="read_write" /> 읽기+쓰기 금지</label>
+      </div>
+      <select id="forum-moderate-duration" class="setting-input">
+        <option data-i18n="duration_1h" value="1">1시간</option>
+        <option data-i18n="duration_24h" value="24" selected>24시간</option>
+        <option data-i18n="duration_7d" value="168">7일</option>
+        <option data-i18n="duration_30d" value="720">30일</option>
+        <option data-i18n="duration_indefinite" value="0">무기한</option>
+      </select>
+      <textarea id="forum-moderate-reason" class="setting-input" rows="2" data-i18n-placeholder="forum_moderate_reason_ph" placeholder="사유를 적어주세요 (선택)"></textarea>
+      <div class="confirm-actions">
+        <button data-i18n="forum_moderate_unrestrict_btn" type="button" class="btn btn-ghost btn-small" id="btn-forum-moderate-unrestrict">제재 해제</button>
+        <button data-i18n="btn_cancel" type="button" class="btn btn-ghost btn-small" id="btn-forum-moderate-cancel">취소</button>
+        <button data-i18n="forum_moderate_submit_btn" type="button" class="btn btn-danger-filled btn-small" id="btn-forum-moderate-submit">제재하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-61차 신규: 친구 목록 줄 우클릭 컨텍스트 메뉴 - 커서 위치에 뜨는 절대위치 메뉴 하나를
+       재사용(renderer.js의 openFriendContextMenu가 매번 대상만 바꿔서 위치/표시를 갱신함) -->
+  <div id="friend-context-menu" class="friend-context-menu" hidden>
+    <button type="button" class="dropdown-select-item" data-friend-ctx-action="whisper" data-i18n="friend_ctx_whisper">귓속말</button>
+    <button type="button" class="dropdown-select-item" data-friend-ctx-action="join" data-i18n="friend_ctx_join">참가하기</button>
+    <button type="button" class="dropdown-select-item" data-friend-ctx-action="remove" data-i18n="friend_ctx_remove">친구 삭제하기</button>
+    <button type="button" class="dropdown-select-item is-danger" data-friend-ctx-action="block" data-i18n="friend_ctx_block">차단하기</button>
+  </div>
+
+  <!-- 귓속말: 롤 채팅창처럼 우측 하단에 고정, 나머지 화면을 가리지 않음. 게임 실행 중엔 자동으로 숨김 (setInGameUiState) -->
+  <div id="whisper-popup" class="whisper-popup-dock" hidden>
+    <div class="confirm-box whisper-popup-box">
+      <div class="whisper-popup-header">
+        <span data-i18n="whisper_title_prefix" id="whisper-popup-title" class="modal-title-label">귓속말</span>
+        <button id="btn-whisper-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <div id="whisper-message-list" class="whisper-message-list"></div>
+      <div class="whisper-input-row">
+        <input type="text" id="whisper-input" class="setting-input" placeholder="메시지를 입력하세요" data-i18n-placeholder="ph_whisper_input" maxlength="500" />
+        <button data-i18n="btn_send" id="btn-whisper-send" class="btn btn-primary btn-small" type="button">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-45차 신규: 프로필 사진(아바타) 선택 + 크롭 팝업. 별도 라이브러리 없이(CDN을 못 쓰는
+       앱이라) 캔버스로 직접 그려서 드래그로 위치 조정 + 슬라이더로 확대/축소만 지원하는
+       단순한 크롭 도구 - "알잘딱"하게 필요한 만큼만 구현함 -->
+  <div id="avatar-crop-popup" class="confirm-overlay" hidden>
+    <div class="confirm-box avatar-crop-box">
+      <div class="confirm-message" data-i18n="avatar_crop_title">프로필 사진 설정</div>
+      <div class="avatar-crop-canvas-wrap">
+        <canvas id="avatar-crop-canvas" width="280" height="280"></canvas>
+      </div>
+      <div class="avatar-crop-zoom-row setting-control">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+        <input type="range" id="avatar-crop-zoom" min="0" max="100" value="0" />
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+      </div>
+      <div class="confirm-actions">
+        <button data-i18n="btn_cancel" type="button" class="btn btn-ghost btn-small" id="btn-avatar-crop-cancel">취소</button>
+        <button data-i18n="avatar_crop_save_btn" type="button" class="btn btn-primary btn-small" id="btn-avatar-crop-save">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <audio id="sfx-coin"></audio>
+
+  <script src="i18n.js"></script>
+  <!-- 9차: 스킨 렌더에 모자/망토까지 보여주기 위한 3D 스킨 뷰어 라이브러리 (MIT, 로컬 번들) -->
+  <script src="vendor/skinview3d.bundle.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

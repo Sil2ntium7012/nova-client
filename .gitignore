@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+*.buildbak
+
+# 배포용 모드팩/서버팩 zip - 수백 MB라 깃에 올리면 안 됩니다
+# (GitHub 은 100MB 넘는 파일을 거부합니다. Release 첨부로만 올리세요)
+hisunlit-client.zip
+hisunlit-server.zip
+*.zip
+
+# 배경음악 원본 - 133MB짜리가 있어서 GitHub 100MB 제한에 걸립니다
+# (효과음 sfx/ 는 작아서 그대로 올립니다)
+music/

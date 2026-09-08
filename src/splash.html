@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>Nova Client</title>
+<style>
+  /* 12차 신규: 예전엔 main.js가 src/splash.html을 불러오도록 돼있는데 실제 파일이 없어서
+     (splashWindow.loadFile 대상이 없음) 실행할 때마다 3.2초간 빈 창만 떠 있었을 것 - 파일을
+     새로 만들면서 "아이콘의 별은 가만히, 주변 네모 블록들이 로딩창처럼 돌아가고 밝기가
+     은은하게 바뀌는" 모양으로 요청받은 대로 구현함(build/icon.png의 3x3 초록 블록 +
+     가운데 반짝이는 별 모티브를 그대로 가져다 씀) */
+  /* 24-14차: "부팅 애니메이션 좀 더 화려하게" - 기존 블록 링 + 별은 그대로 두고(핵심 정체성),
+     그 뒤에 은은하게 숨쉬는 오로라 헤일로, 서로 다른 속도/방향으로 도는 바깥 파티클 층(=
+     패럴랙스 느낌), 블록 색조가 천천히 순환하는 컬러 시프트를 추가했었음. */
+  /* 24-48차 전면 재작업: "로딩창 너무 이상하게 생겼어 디스코드처럼 안되나? 조금 더 크고
+     깔끔하고 모션도 조금 더 깔끔하고 예쁘게" - 24-14차가 "화려하게"를 문자 그대로 따라가며
+     블록 링 회전(3.6s) + 반대방향 파티클 링 회전(11s) + 파티클 개별 반짝임(2.6s) + 헤일로
+     숨쉬기(4.8s) + 헤일로 색조 순환(9.6s) + 블록 색조 순환(9.6s) + 별 반짝임(2.4s), 이렇게
+     서로 다른 박자로 도는 7개의 독립적인 애니메이션 레이어를 쌓아버린 게 "이상하고 산만해
+     보인다"는 이번 피드백의 진짜 원인으로 보임 - 화려함과 깔끔함은 다른 방향이었음.
+     이번엔 반대로: 회전하는 링/파티클/색조 순환을 전부 걷어내고, 이 앱 홈 화면 로고
+     (.home-logo .brand-mark-lg, style.css의 square-pulse 애니메이션)에 이미 쓰고 있어서
+     검증된 "네모 9칸이 서로 다른 박자로 은은하게 밝아졌다 어두워지는" 잔잔한 패턴 하나만
+     가져다 씀(별만 그 자리에 가만히, 12차 원래 요청 그대로 유지) - 움직이는 축을 하나로
+     줄이면 저절로 차분하고 정돈된 인상이 됨. 창도 250x220→320x360으로 키우고(main.js도
+     같이 수정), 로고 밑에 "N★VA CLIENT" 워드마크를 새로 추가해서 디스코드 로딩화면처럼
+     로고+브랜드명이 같이 보이도록 함(그동안 텍스트가 전혀 없었음) */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 워드마크 전용 - 앱 전체 style.css를 이 창은 로드하지 않아서(독립 파일), 실제 쓰는
+     굵기(700/500)만 여기 따로 선언함(경로는 style.css와 같은 src/fonts/ 기준) */
+  @font-face {
+    font-family: "SUIT";
+    src: url("fonts/SUIT-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "SUIT";
+    src: url("fonts/SUIT-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* 24-43차: "배경 아예 없는 거 보단 작은 배경 만들어서 밑에 작대기로 진행도표시하면 좋을
+     듯" - 창이 완전히 투명해서 아이콘 애니메이션이 허공에 떠 있던 걸 감싸는 카드 배경을
+     추가함(이 창 자체(main.js의 createSplashWindow)는 여전히 투명/프레임 없음 - 카드만
+     둥근 모서리+반투명 배경을 가짐). 24-45차: 유리(블러) 느낌으로 재작업. 24-48차: 카드
+     자체를 더 키움(296x336, 창은 320x360) - 배경/블러 방식은 그대로 유지(호평받았던 부분).
+     24-54차: "로딩창 배경 없애고 로고랑 Nova Client 글이랑 아래쪽 초록색 바 이것만으로
+     하자 배경은 투명에 없이 하고" - 24-43차 때 추가했던 카드 배경/블러/테두리/그림자를
+     전부 걷어내고 완전 투명으로 되돌림. 로고+워드마크+진행 게이지(아래 .splash-top/
+     .splash-gauge-track)는 내용 변경 없이 그대로 유지 - 애초에 이 셋 말고 다른 건 없었음.
+     24-55차: "로고 크기를 조금 줄이고 타이틀 크기를 키워서 둘이 위아래가 아니라 병렬로
+     하게 해줘 좀 크게" - 세로로 쌓여있던 아이콘+워드마크를 가로로 나란히 배치하는 구조로
+     바꾸면서, 그에 맞춰 카드/창 자체도 세로로 긴 모양(296x336/320x360)에서 가로로 넓은
+     모양(432x216/456x240)으로 바꿈(아래 .splash-top 주석 참고).
+     24-57차: "N★VA CLIENT 워드마크가 잘려서 보인다" - 위 432x216이라는 값이 이 창을
+     실제로 그리는 SUIT 폰트가 아니라 개발 중 확인용 폰트의 폭을 기준으로 정한 값이었고,
+     그 폭이 실제 기기의 SUIT 폰트보다 좁게 잡혀서 워드마크 끝(T)이 창 밖으로 잘려나가는
+     문제가 있었음(게다가 이 카드 크기에 맞춰 창을 키우는 수정 자체가 한동안 반영도 안 되고
+     있었음 - 프로젝트 문서 참고). 폭을 또 추측해서 고치는 대신 아예 폭/높이 고정값을
+     없애고 내용물 크기에 맞춰 카드가 스스로 커지도록 바꿈 - 실제로 그려진 크기는 아래
+     스크립트가 document.fonts.ready 이후 이 카드를 직접 재서 main.js에 IPC로 보고하고,
+     main.js(createSplashWindow)가 그 실측값에 맞춰 창 자체를 리사이즈함(어떤 폰트가
+     실제로 얼마나 넓게 그려지든 잘릴 수가 없는 구조). justify-content: space-between
+     (위아래 내용을 창 안에서 밀어내는 방식)도 창 높이가 고정값일 때만 의미가 있었던
+     설정이라, 내용 크기에 맞춰 커지는 지금은 아이콘+워드마크 묶음과 게이지 사이에 고정
+     간격(gap)을 두는 방식으로 바꿈 */
+  .splash-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding: 26px 24px 20px;
+    background: transparent;
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  body.is-leaving .splash-card {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  /* 24-55차: "위아래가 아니라 병렬로"(가로 배치) 요청대로 column→row로 변경. 로고(아이콘)+
+     워드마크를 한 묶음으로 묶어서, 카드 전체의 space-between은 이 묶음과 게이지 사이에만
+     걸리게 하는 구조(24-45차 때 절대좌표 대신 flex로 바꿔서 겹침 버그를 구조적으로 막았던
+     방식)는 그대로 유지 - 방향만 바뀜 */
+  .splash-top {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+  }
+
+  /* 24-55차: "로고 크기를 조금 줄이고" - 160px → 116px(약 27% 축소). 안쪽 블록/별도 같은
+     비율로 같이 줄임(아래 .splash-block/.splash-star 참고) */
+  .splash-wrap {
+    position: relative;
+    width: 116px;
+    height: 116px;
+    flex: none;
+  }
+
+  /* 24-48차: 이 앱 홈 화면 로고(.home-logo .brand-mark-lg)에 이미 쓰고 있는 square-pulse와
+     완전히 같은 원리 - 네모 8칸이 서로 다른 박자로 은은하게 밝아졌다 어두워짐. 회전은 없음.
+     24-55차: .splash-wrap 축소 비율(116/160)에 맞춰 36px→26px로 같이 축소 */
+  .splash-block {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    top: 50%;
+    left: 50%;
+    margin: -13px 0 0 -13px;
+    border-radius: 8px;
+    background: linear-gradient(160deg, #7bff82, #4fcf58);
+    opacity: 0.32;
+    animation-name: splash-block-pulse;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+  }
+  @keyframes splash-block-pulse {
+    0%, 100% { opacity: 0.32; box-shadow: 0 0 0 0 transparent; }
+    50% { opacity: 1; box-shadow: 0 0 16px 3px rgba(123, 255, 130, 0.5); }
+  }
+  /* 3x3 격자에서 가운데(별 자리)를 뺀 8칸 - 이제 회전은 안 하고 이 고정 위치에 그대로 있음.
+     24-55차: 이동 거리도 46px→33px로 같이 축소(.splash-wrap 축소 비율과 동일) */
+  .splash-block-1 { transform: translate(-33px, -33px); animation-duration: 2.6s; animation-delay: 0s; }
+  .splash-block-2 { transform: translate(0, -33px);     animation-duration: 3.1s; animation-delay: 0.4s; }
+  .splash-block-3 { transform: translate(33px, -33px);  animation-duration: 2.3s; animation-delay: 0.9s; }
+  .splash-block-4 { transform: translate(-33px, 0);     animation-duration: 2.9s; animation-delay: 0.2s; }
+  .splash-block-5 { transform: translate(33px, 0);      animation-duration: 2.1s; animation-delay: 1.1s; }
+  .splash-block-6 { transform: translate(-33px, 33px);  animation-duration: 3.4s; animation-delay: 0.6s; }
+  .splash-block-7 { transform: translate(0, 33px);      animation-duration: 2.7s; animation-delay: 1.3s; }
+  .splash-block-8 { transform: translate(33px, 33px);   animation-duration: 2.4s; animation-delay: 0.1s; }
+
+  /* 가운데 별 - 요청대로(12차) 회전/이동 없이 그 자리에 가만히, 은은하게 반짝이기만 함.
+     24-55차: 40px→28px로 축소(.splash-wrap 축소 비율과 동일) */
+  .splash-star {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 28px;
+    height: 28px;
+    margin: -14px 0 0 -14px;
+    filter: drop-shadow(0 0 10px rgba(123, 255, 130, 0.65));
+    animation: splash-star-twinkle 2.6s ease-in-out infinite;
+  }
+  @keyframes splash-star-twinkle {
+    0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 10px rgba(123, 255, 130, 0.65)); }
+    50% { opacity: 1; filter: drop-shadow(0 0 18px rgba(123, 255, 130, 0.95)); }
+  }
+
+  /* 24-48차 신규: 그동안 이 창엔 글자가 하나도 없었음("디스코드처럼" 요청 - 디스코드
+     로딩화면은 로고와 브랜드명이 같이 보임) - 로그인/홈 화면과 같은 워드마크 마크업을
+     그대로 재사용(N + O자리 별 + VA + CLIENT). 24-55차: "타이틀 크기를 키워서... 좀 크게"
+     - 21px → 40px(약 90% 확대)로 크게 키움 */
+  .splash-wordmark {
+    font-family: "SUIT", "Malgun Gothic", "Segoe UI", sans-serif;
+    font-size: 40px;
+    line-height: 1;
+    color: #f1f1f2;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+  }
+  .splash-wordmark b { font-weight: 700; }
+  .splash-wordmark .light { font-weight: 500; opacity: 0.85; }
+  .splash-o-star {
+    display: inline-block;
+    width: 0.6em;
+    height: 0.6em;
+    vertical-align: -0.04em;
+    color: #7bff82;
+  }
+
+  /* 24-43차 신규: 카드 하단의 아주 얇은 진행 게이지. "이 작대기는 엄청 얇은 게이지고
+     게이지 이 외에는 뭐 있으면 안돼" - 퍼센트 숫자/라벨/아이콘 없이 막대 하나만 둠.
+     구조/JS 계약은 24-45차와 동일하게 유지(카드 flex의 두 번째 자식) */
+  .splash-gauge-track {
+    position: relative;
+    width: 100%;
+    flex: none;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.10);
+    overflow: hidden;
+  }
+  .splash-gauge-fill {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4fcf58, #7bff82);
+    /* JS가 width%를 계속 갱신하는데, 매 갱신마다 살짝 부드럽게 이어지도록 짧은 트랜지션만 둠 */
+    transition: width 0.25s ease;
+  }
+</style>
+</head>
+<body>
+  <div class="splash-card">
+    <div class="splash-top">
+      <div class="splash-wrap">
+        <div class="splash-block splash-block-1"></div>
+        <div class="splash-block splash-block-2"></div>
+        <div class="splash-block splash-block-3"></div>
+        <div class="splash-block splash-block-4"></div>
+        <div class="splash-block splash-block-5"></div>
+        <div class="splash-block splash-block-6"></div>
+        <div class="splash-block splash-block-7"></div>
+        <div class="splash-block splash-block-8"></div>
+        <svg class="splash-star" viewBox="0 0 100 100" fill="none">
+          <path d="M50 6 C 54 42, 58 46, 94 50 C 58 54, 54 58, 50 94 C 46 58, 42 54, 6 50 C 42 46, 46 42, 50 6 Z" fill="#ecfff0"/>
+        </svg>
+      </div>
+      <div class="splash-wordmark">
+        <b>N</b><svg class="splash-o-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M 22 12 Q 13.5 13.5 12 22 Q 10.5 13.5 2 12 Q 10.5 10.5 12 2 Q 13.5 10.5 22 12 Z"/></svg><b>VA</b><span class="light"> CLIENT</span>
+      </div>
+    </div>
+    <div class="splash-gauge-track"><div class="splash-gauge-fill" id="splash-gauge-fill"></div></div>
+  </div>
+  <script>
+    // 24-43차 신규: 실제 부팅 단계(사이트 계정 확인/마인크래프트 계정 자동 로그인)가 몇 %
+    // 진행됐는지는 이 창 자체가 알 방법이 없음(main.js가 세부 진행률을 보내는 IPC가 없음 -
+    // app:boot-ready는 "다 끝났다"는 신호 하나뿐, 24-35차 참고) - main.js 쪽 계약을 새로 만드는
+    // 대신, 이 파일 안에서만 완결되는 방식으로 구현함: 시간이 지날수록 점점 느려지며 92%까지만
+    // 스스로 채워지다가(끝나지 않았는데 100%로 보이는 거짓말은 하지 않음), main.js가 실제로
+    // 부팅 완료 시 body에 붙이는 is-leaving 클래스(위 .splash-card 참고 - 기존 페이드아웃과
+    // 동일한 신호, 새 IPC 필요 없음)를 MutationObserver로 감지한 순간 100%로 채운 뒤 카드와
+    // 함께 사라짐 (24-48차: 로직 변경 없음, 그대로 유지)
+    (function () {
+      var fill = document.getElementById("splash-gauge-fill");
+      if (!fill) return;
+      var pct = 0;
+      var TARGET = 92;
+      var timer = setInterval(function () {
+        pct += (TARGET - pct) * 0.06 + 0.15;
+        if (pct >= TARGET) {
+          pct = TARGET;
+          clearInterval(timer);
+        }
+        fill.style.width = pct + "%";
+      }, 90);
+
+      var observer = new MutationObserver(function () {
+        if (document.body.classList.contains("is-leaving")) {
+          clearInterval(timer);
+          fill.style.width = "100%";
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    })();
+  </script>
+  <script>
+    // 24-57차 신규: 위 .splash-card 주석 참고 - 실제 SUIT 폰트로 다 그려진 뒤의 진짜 카드
+    // 크기를 재서 main.js에 보고함. document.fonts.ready를 기다리는 이유는, 그 전에 재면
+    // 폰트가 아직 대체 폰트(fallback)로 그려진 상태라 실제 폭보다 좁게(또는 넓게) 잘못
+    // 잴 수 있기 때문 - 이번 잘림 버그의 근본 원인이 정확히 이 "잘못 잰 폭" 문제였음.
+    // Math.ceil + 여유 몇 px을 더해서, 소수점 반올림 때문에 딱 1px 모자라 잘리는 일이 없게
+    // 함(카드는 body 안에서 항상 정중앙 정렬이라 여유분은 사방에 고르게 투명 여백으로만
+    // 남고 시각적으로 전혀 티 안 남).
+    (function () {
+      function reportSize() {
+        var card = document.querySelector(".splash-card");
+        if (!card || !window.novaSplash || !window.novaSplash.reportSplashSize) return;
+        var rect = card.getBoundingClientRect();
+        window.novaSplash.reportSplashSize(Math.ceil(rect.width) + 6, Math.ceil(rect.height) + 6);
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(reportSize).catch(reportSize);
+      } else {
+        reportSize();
+      }
+    })();
+  </script>
+</body>
+</html>

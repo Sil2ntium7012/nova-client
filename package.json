@@ -1,0 +1,100 @@
+{
+  "name": "nova-client",
+  "productName": "Nova Client",
+  "version": "1.0.8",
+  "description": "여러 마인크래프트 서버를 골라 접속할 수 있는 커스텀 런처",
+  "main": "main.js",
+  "author": "Luna World",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win nsis --publish never",
+    "dist:win:publish": "electron-builder --win nsis --publish always"
+  },
+  "build": {
+    "appId": "kr.lunarworld.launcher",
+    "productName": "Nova Client",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "package.json",
+      "build/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "mods",
+        "to": "mods",
+        "filter": ["**/*.jar"]
+      },
+      {
+        "from": "novamod",
+        "to": "novamod",
+        "filter": ["**/*.jar"]
+      },
+      {
+        "from": "resourcepacks",
+        "to": "resourcepacks",
+        "filter": ["**/*.zip"]
+      },
+      {
+        "from": "screenshots",
+        "to": "screenshots",
+        "filter": ["**/*.png", "**/*.jpg", "**/*.jpeg"]
+      },
+      {
+        "from": "sfx",
+        "to": "sfx",
+        "filter": ["**/*.mp3"]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Sil2ntium7012",
+        "repo": "nova-client",
+        "releaseType": "release"
+      }
+    ],
+    "afterAllArtifactBuild": "build/afterAllArtifactBuild.js",
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "NovaClient-Setup.exe",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nova Client",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp"
+    }
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.0",
+    "discord-rpc": "^4.0.1",
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.9",
+    "extract-zip": "^2.0.1",
+    "minecraft-launcher-core": "^3.18.2",
+    "msmc": "^5.0.5",
+    "node-fetch": "^2.7.0",
+    "rcedit": "^4.0.1",
+    "tar": "^6.2.1"
+  },
+  "devDependencies": {
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3"
+  }
+}
