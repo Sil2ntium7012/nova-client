@@ -2419,6 +2419,9 @@
   <!-- 24-61차 신규: 친구 목록 줄 우클릭 컨텍스트 메뉴 - 커서 위치에 뜨는 절대위치 메뉴 하나를
        재사용(renderer.js의 openFriendContextMenu가 매번 대상만 바꿔서 위치/표시를 갱신함) -->
   <div id="friend-context-menu" class="friend-context-menu" hidden>
+    <!-- 24-71차: "좌클릭=귓속말, 기존 좌클릭 동작(전체 프로필 팝업)은 우클릭 메뉴로" - 예전엔
+         좌클릭이 하던 "프로필 보기"를 여기로 옮김(맨 위 항목, openFriendProfileByAccountId 재사용) -->
+    <button type="button" class="dropdown-select-item" data-friend-ctx-action="profile" data-i18n="friend_ctx_profile">프로필 보기</button>
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="whisper" data-i18n="friend_ctx_whisper">귓속말</button>
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="join" data-i18n="friend_ctx_join">참가하기</button>
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="remove" data-i18n="friend_ctx_remove">친구 삭제하기</button>

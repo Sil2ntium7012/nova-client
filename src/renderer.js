@@ -838,21 +838,16 @@ document.addEventListener("click", (e) => {
   // 띄우고, 그 팝업의 "프로필 보기"를 한 번 더 눌러야 스킨/코인/작성글이 보이는 전체
   // 프로필로 갔음. 이제 친구 이름을 누르면 곧바로 전체 프로필 팝업으로 가고, 서버에서
   // 플레이 중이면 그 팝업에 "참가하기" 버튼이 같이 뜸(openForumUserPopup의 server 인자)
+  // 24-71차: "친구 좌클릭 누르면 귓속말 뜨게 바꿔주고 기존 꺼는 우클릭 눌렀을 때 프로필
+  // 보기 란으로 옮겨줘" - 위 흐름(좌클릭 → 전체 프로필 팝업)은 이제 우클릭 메뉴의 새
+  // "프로필 보기" 항목(friendContextMenu의 data-friend-ctx-action="profile", 아래 참고)으로
+  // 옮기고, 좌클릭은 곧바로 귓속말을 열도록 바꿈
   const friendRow = e.target.closest?.(".friend-row.is-clickable");
   if (friendRow) {
     // 24-23차: 친구 목록의 data-whisper-uuid는 이제 마인크래프트 uuid가 아니라 노바 계정 id임
-    // (friends:list 참고) - openForumUserPopup은 스킨/게시글 조회 때문에 여전히 마인크래프트
-    // uuid가 필요해서, 그 계정에 연동된 대표 마인크래프트 캐릭터를 먼저 찾아서 넘겨줌
     const accountId = friendRow.dataset.whisperUuid;
     const name = friendRow.dataset.whisperName;
-    // 17차: "참가하기"를 문구 파싱이 아니라 statusKind/statusRef로 정확히 판단
-    const playing = buildFriendPlayingInfo(
-      friendRow.dataset.friendStatusKind,
-      friendRow.dataset.friendStatusRef,
-      friendRow.dataset.friendStatusVersion,
-      friendRow.dataset.friendStatus
-    );
-    openFriendProfileByAccountId(accountId, name, playing);
+    if (accountId) openWhisperPopup(accountId, name);
   }
 });
 
@@ -960,6 +955,14 @@ friendContextMenu?.addEventListener("click", async (e) => {
   closeFriendContextMenu();
   if (!target) return;
   const action = btn.dataset.friendCtxAction;
+
+  // 24-71차 신규: "프로필 보기"는 예전에 좌클릭이 하던 동작(전체 프로필 팝업 열기)을
+  // 그대로 옮겨온 것 - 즉시 실행하고 별도 확인창은 없음(원래도 없었음)
+  if (action === "profile") {
+    if (!target.accountId) return;
+    openFriendProfileByAccountId(target.accountId, target.name, target.playing);
+    return;
+  }
 
   // 귓속말은 즉시 실행(요청에서 "귓속말 제외"라고 명시함), 나머지 3개는 실행 전 2차 확인
   if (action === "whisper") {
@@ -1691,6 +1694,15 @@ async function refreshChipActiveStates() {
   const mode = await window.luna.getLaunchMode?.();
   launchModeCache = mode;
   setHeroSideMode(mode);
+  // 24-71차: "다른 버튼으로 바꿨을 때 추가 실행 버튼 색이 빨간색이야" - 이미 게임이 실행
+  // 중인 상태에서(친구 참가하기, 서버/프로필 목록 클릭 등으로) 실행 대상을 서버<->프로필로
+  // 바꾸면 launchModeCache는 여기서 바로 갱신되는데, PLAY 버튼의 빨간 "정지" 스타일
+  // (.is-in-game, setInGameUiState 참고)은 전환 전 모드 기준으로 그대로 남아있어서 라벨
+  // ("추가 실행하기")과 버튼 색이 서로 안 맞는 상태가 됐음. 모드가 바뀔 때마다 여기서
+  // 최신 launchModeCache 기준으로 버튼 색만 다시 맞춰줌(글로우/귓속말 자동 숨김 같은 다른
+  // 부수효과는 실제로 게임을 새로 켤 때만 필요하므로 setInGameUiState를 통째로 다시 부르지
+  // 않고 클래스 토글만 재사용함)
+  btnPlay.classList.toggle("is-in-game", isInGame && launchModeCache !== "profile");
 }
 
 // 10차: 서버 목록과 동일하게 페이지 번호 대신 휠 스크롤 방식으로 바꿈 - "새 프로필 만들기"
@@ -2145,8 +2157,9 @@ async function loadThemeGallery() {
       if (equipped) return;
       const res = await window.luna.equipColor(item.id);
       if (res.ok) {
-        // 17차: 완전 테마를 새로 착용해도 이미 착용 중이던 색상 슬롯은 그대로 유지되므로,
-        // 그 색상 아이템을 같이 찾아서 둘 다 넘겨줌(동시 적용)
+        // 24-72차: 완전 테마를 새로 착용하면 메인 프로세스(shop:equip)가 이전에 써둔
+        // 색상 슬롯을 같이 해제해서 res.equipped가 항상 null로 옴 - 그대로 넘기면
+        // applyThemeColor가 커스텀 포인트색을 덮어쓰지 않아 테마 고유의 기본색이 보임
         const equippedColorItem = res.equipped ? catalog.find((c) => c.id === res.equipped) : null;
         applyThemeColor(equippedColorItem, item);
         loadThemeGallery();
@@ -7320,6 +7333,30 @@ function loaderDisplayName(loader) {
   return "Nova";
 }
 
+// 24-73차: "프로필 리스트 볼 때 이런식으로 있으면 좋을 듯"(참고 스크린샷 - 버전 옆에
+// "2 weeks ago"/"Never played" 같은 마지막 플레이 시각이 같이 보임) - 프로필의
+// lastPlayedAt(ISO 문자열, 한 번도 안 켰으면 null)을 사람이 읽기 편한 상대 시각으로 변환
+function relativeTimeKo(iso) {
+  if (!iso) return "플레이한 적 없음";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "플레이한 적 없음";
+  const diffMs = Date.now() - then;
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "방금 전";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 1) return "오늘";
+  if (day < 7) return `${day}일 전`;
+  const week = Math.floor(day / 7);
+  if (week < 5) return `${week}주 전`;
+  const month = Math.floor(day / 30);
+  if (month < 12) return `${month}개월 전`;
+  const year = Math.floor(day / 365);
+  return `${year}년 전`;
+}
+
 function renderProfileManageGrid() {
   const query = (document.getElementById("profile-manage-search")?.value || "").trim().toLowerCase();
   const sortBtn = document.getElementById("profile-manage-sort-btn");
@@ -7347,10 +7384,22 @@ function renderProfileManageGrid() {
     const iconHtml = p.iconUrl
       ? `<img class="profile-card-icon-img" src="${p.iconUrl}" alt="" />`
       : `<div class="profile-card-icon">${p.name.charAt(0).toUpperCase()}</div>`;
+    // 24-73차: 참고 스크린샷처럼 아직 한 번도 켜본 적 없는 프로필은 이름 옆에 "새 프로필"
+    // 뱃지를, 버전 옆에는 마지막 플레이 상대 시각(또는 "플레이한 적 없음")을 같이 보여줌
+    const newBadgeHtml = p.lastPlayedAt ? "" : `<span class="profile-card-new-badge">새 프로필</span>`;
+    // 24-73차: name-row/version을 .profile-card-info로 한 번 더 묶어서, 목록 보기(가로
+    // 배치, icon 옆에 옴)에서도 이름/부제가 항상 세로로 쌓이도록 함(기본/갤러리 보기는
+    // 카드 자체가 세로 배치라 원래도 자연스럽게 쌓였지만, 목록 보기는 카드가 가로 배치라
+    // 묶어주지 않으면 icon | 이름 | 버전이 옆으로 나란히 벌어져 보였음)
     card.innerHTML = `
       ${iconHtml}
-      <div class="profile-card-name">${escapeHtml(p.name)}</div>
-      <div class="profile-card-version">${escapeHtml(p.mcVersion)} · ${loaderDisplayName(p.loader)}</div>
+      <div class="profile-card-info">
+        <div class="profile-card-name-row">
+          <span class="profile-card-name">${escapeHtml(p.name)}</span>
+          ${newBadgeHtml}
+        </div>
+        <div class="profile-card-version">${escapeHtml(p.mcVersion)} · ${loaderDisplayName(p.loader)} · ${relativeTimeKo(p.lastPlayedAt)}</div>
+      </div>
     `;
     card.addEventListener("click", () => openProfileEdit(p.id));
     grid.appendChild(card);
@@ -8181,6 +8230,24 @@ document.getElementById("btn-author-page-close")?.addEventListener("click", () =
   document.getElementById("author-page-overlay").hidden = true;
 });
 
+// 24-73차: "모드도 사진처럼 색 약간씩 서로 다르게 해서 가독성좀 올려주고" - 아이콘을 못 받아온
+// 모드(수동으로 추가한 jar 등, f.icon이 없는 경우)는 전부 똑같은 회색 바탕에 첫 글자만 다르게
+// 보여서 목록을 훑어볼 때 서로 잘 구분이 안 됐음. 이름을 간단히 해시해서 고정된 팔레트 중
+// 하나를 배경색으로 골라줌 - 같은 이름은 항상 같은 색이 나오므로(매번 다시 그려도 안 흔들림),
+// 실제 색 정보 없이도 항목마다 다른 색으로 시각적 구분이 생김
+const MANAGE_FILE_FALLBACK_PALETTE = [
+  "#e6634f", "#e0964a", "#d9b64a", "#8fb84a", "#4aab7c",
+  "#4aa3b8", "#4a86d9", "#6f6fe0", "#a05fd9", "#d95fa8",
+];
+function fallbackIconColorFor(name) {
+  const str = String(name || "");
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return MANAGE_FILE_FALLBACK_PALETTE[Math.abs(hash) % MANAGE_FILE_FALLBACK_PALETTE.length];
+}
+
 function renderProfileFileListFromCache(kind) {
   const { listElId, countElId, sortElId, selectAllElId } = manageListElIds(kind);
   const listEl = document.getElementById(listElId);
@@ -8241,7 +8308,7 @@ function renderProfileFileListFromCache(kind) {
 
     const iconHtml = f.icon
       ? `<img class="manage-file-icon" src="${f.icon}" alt="" onerror="this.style.visibility='hidden'" />`
-      : `<span class="manage-file-icon manage-file-icon-fallback">${escapeHtml((f.title || f.fileName).charAt(0).toUpperCase())}</span>`;
+      : `<span class="manage-file-icon manage-file-icon-fallback" style="background:${fallbackIconColorFor(f.title || f.fileName)}">${escapeHtml((f.title || f.fileName).charAt(0).toUpperCase())}</span>`;
     const authorHtml = f.author ? `<span class="manage-file-author author-page-link">by ${escapeHtml(f.author)}</span>` : "";
     // 5-9(5차): 참고 스크린샷처럼 Project(아이콘+이름+제작자)/Version(버전 문자열+파일명) 두 열로
     // 정리하고, 활성화/비활성화는 버튼 대신 진짜 토글 스위치로 바꿈
@@ -8382,7 +8449,7 @@ function renderAllProfileFilesList() {
 
     const iconHtml = f.icon
       ? `<img class="manage-file-icon" src="${f.icon}" alt="" onerror="this.style.visibility='hidden'" />`
-      : `<span class="manage-file-icon manage-file-icon-fallback">${escapeHtml((f.title || f.fileName).charAt(0).toUpperCase())}</span>`;
+      : `<span class="manage-file-icon manage-file-icon-fallback" style="background:${fallbackIconColorFor(f.title || f.fileName)}">${escapeHtml((f.title || f.fileName).charAt(0).toUpperCase())}</span>`;
     const authorHtml = f.author ? `<span class="manage-file-author author-page-link">by ${escapeHtml(f.author)}</span>` : "";
     const kindTagHtml = `<span class="manage-file-kind-tag">${MANAGE_KIND_LABEL[kind] || kind}</span>`;
     const versionLineHtml = f.versionNumber
@@ -10350,16 +10417,11 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
   //  작은 영역으로만 잡히는 문제가 있었음)
   // 단, 캔버스가 position:absolute라 뷰포트 기준(clientX/Y) 좌표와 캔버스 자체 좌표계 사이에
   // 오프셋(카드 프레임 여백만큼)이 생길 수 있어서, 그 오프셋을 따로 구해서 보정해줌
-  let offsetX = 0;
-  let offsetY = 0;
   function resize() {
     canvas.width = Math.max(1, Math.round(window.innerWidth * devicePixelRatio));
     canvas.height = Math.max(1, Math.round(window.innerHeight * devicePixelRatio));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(devicePixelRatio, devicePixelRatio);
-    const rect = canvas.getBoundingClientRect();
-    offsetX = rect.left;
-    offsetY = rect.top;
   }
   resize();
   window.addEventListener("resize", resize);
@@ -10369,9 +10431,17 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
   // 멈춘 자리에 점들이 겹겹이 쌓여 밝은 점 하나가 잔상 가운데 남아있는 것처럼 보였음
   let hasMouseMovedThisFrame = false;
 
+  // 24-72차: "잔상이 가끔씩 위치가 이상하게 찍힘" - 위 오프셋을 resize() 안에서만 구해서
+  // 캐싱해뒀었는데, 로그인 전/후 사이드바가 나타나거나 사라질 때처럼(body.is-pre-auth
+  // 토글) 창 크기 자체는 그대로인데 캔버스의 화면상 위치만 바뀌는 경우엔 window의
+  // resize 이벤트가 전혀 안 터져서 오프셋이 오래된(어긋난) 값으로 계속 남아있었음.
+  // 그래서 오프셋을 미리 구해두지 않고, 마우스가 움직일 때마다 그 즉시
+  // getBoundingClientRect()로 새로 구해서 쓰도록 바꿔 어떤 레이아웃 변화가 와도
+  // 항상 정확한 위치를 따라가게 함 (mousemove에서만 호출되므로 매 프레임 비용은 없음).
   document.addEventListener("mousemove", (e) => {
-    mouseX = e.clientX - offsetX;
-    mouseY = e.clientY - offsetY;
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
     hasMouseMovedThisFrame = true;
     if (drawX === null) {
       drawX = mouseX;

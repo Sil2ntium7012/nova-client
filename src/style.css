@@ -220,14 +220,20 @@ body[data-color-theme="aqua"] {
   --bg-3: #145670;
   /* 24-69차: "구분선이나 이런 게 반전색상이 아니거나 잘 안보이는 색이야" - 기존 --border/
      --border-soft가 배경(--bg-1~3)과 명도차가 너무 작아서 거의 안 보였음. 채도/명도를
-     확실히 올려서 어두운 청록 배경 위에서도 선이 또렷이 드러나게 함 */
-  --border: #5fd0ec;
-  --border-soft: #2fa0bf;
+     확실히 올려서 어두운 청록 배경 위에서도 선이 또렷이 드러나게 함
+     24-71차: "아쿠아랑 스카이 구분선이 너무 진해졌어 조금은 잘 어우러지게 해봐바" - 24-69차
+     수정이 과했음. 채도/명도를 한 단계 낮춰서(여전히 배경보다는 또렷하지만) 튀지 않고
+     자연스럽게 녹아들도록 다시 조정함 */
+  --border: #4fb4d1;
+  --border-soft: #2d7f96;
 
-  --accent: #34e2c4;
-  --accent-strong: #6dfbe0;
-  --accent-dim: #157a6c;
-  --accent-ink: #052018;
+  /* 24-71차: "아쿠아는 초록색을 조금 더 빼봐 에메랄드 느낌이 아니라 푸른빛이여야 해" -
+     기존 accent(#34e2c4)는 G(226)가 B(196)보다 커서 스프링그린/에메랄드에 가까웠음.
+     B가 G보다 크도록 바꿔서 같은 밝기의 청록이라도 초록이 아니라 파랑 쪽으로 읽히게 함 */
+  --accent: #2fb8ec;
+  --accent-strong: #5fd4f7;
+  --accent-dim: #0f6a8c;
+  --accent-ink: #041c26;
 
   --text-0: #eaf9fb;
   --text-1: #a9d8de;
@@ -259,7 +265,9 @@ body[data-color-theme="aqua"] {
     radial-gradient(3px 3px at 58% 52%, rgba(255,255,255,0.38), transparent 65%),
     radial-gradient(260px 220px at 88% 82%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 72%),
     radial-gradient(200px 180px at 6% 8%, color-mix(in srgb, var(--accent-strong) 20%, transparent), transparent 72%),
-    linear-gradient(160deg, #03202b 0%, #074861 38%, #0c6e86 68%, #12a08f 100%);
+    /* 24-71차: 마지막 stop(#12a08f)이 G(160)>B(143)라 얕은 바다 쪽이 에메랄드빛으로 보였음.
+       B가 더 크도록 바꿔서(#1499b8) 깊은 남색→청록→파랑으로 이어지는 느낌으로 조정 */
+    linear-gradient(160deg, #03202b 0%, #074861 38%, #0c6e86 68%, #1499b8 100%);
 }
 
 /* 스카이 - 맑은 낮 하늘이 아니라 보라빛이 도는 밤하늘, 은은한 달과 별 몇 개 */
@@ -270,9 +278,11 @@ body[data-color-theme="sky"] {
   --bg-2: #241c54;
   --bg-3: #302668;
   /* 24-69차: 아쿠아와 같은 이유 - --border-soft(#251d55)가 --bg-2(#241c54)와 거의 같은
-     색이라 사실상 안 보이는 수준이었음. 확실히 밝은 라벤더 톤으로 올림 */
-  --border: #b3a4f7;
-  --border-soft: #7566cf;
+     색이라 사실상 안 보이는 수준이었음. 확실히 밝은 라벤더 톤으로 올림
+     24-71차: "구분선이 너무 진해졌어" - 아쿠아와 동일하게 채도/명도를 한 단계 낮춰서 배경과
+     자연스럽게 어우러지도록 다시 조정 */
+  --border: #9c8fd6;
+  --border-soft: #675cb0;
 
   --accent: #a78bfa;
   --accent-strong: #c4b1ff;
@@ -314,6 +324,95 @@ body[data-color-theme="sky"] {
     linear-gradient(160deg, #0a0620 0%, #1b1140 38%, #35235f 68%, #4f2f74 100%);
 }
 
+/* 24-71차 신규: "테마에 마인크래프트랑 꿀벌 테마 추가해주고... 색상만 바꾸지 말고 마크는
+   마크 느낌 확 살아나게 픽셀테마로 꿀벌은 진짜 꿀이 떨어지는 클라이언트처럼 해줘" - 아쿠아/
+   스카이가 "그라데이션+오브제" 컨셉이었다면 이 둘은 한 단계 더 나아가 재질/질감 자체를
+   테마화함. 새 이미지 파일 없이 순수 CSS만 사용(다른 완전 테마들과 동일한 원칙) */
+
+/* 마인크래프트 - 흙/잔디 블록이 쌓인 세계를 위에서 비스듬히 내려다보는 느낌. 그라데이션에
+   격자선을 겹쳐서 "매끈한 그라데이션"이 아니라 "블록이 쌓인 표면"으로 읽히게 하는 게 핵심 */
+body[data-color-theme="minecraft"] {
+  color-scheme: dark;
+  --bg-0: #1b140d;
+  --bg-1: #2b2014;
+  --bg-2: #3c2c1a;
+  --bg-3: #4f3b22;
+  --border: #8b7355;
+  --border-soft: #4a3820;
+
+  --accent: #5eb83a;
+  --accent-strong: #7ed957;
+  --accent-dim: #2f6e1d;
+  --accent-ink: #0d1a06;
+
+  --text-0: #f5f2e8;
+  --text-1: #d2c9b0;
+  --text-2: #9c9078;
+
+  --hero-overlay-inner: rgba(20, 14, 6, 0.32);
+  --hero-overlay-outer: rgba(10, 7, 3, 0.84);
+
+  background:
+    /* 블록 격자선(가로+세로 1px 라인을 일정 간격으로 반복) - 배경 전체를 "매끈한 그라데이션"이
+       아니라 "블록이 쌓인 면"으로 읽히게 하는 핵심 장치. 실제 마인크래프트 텍스처처럼 칸마다
+       미묘하게 밝기가 다르진 않지만, 격자 자체가 이미 강한 "블록" 신호를 줌 */
+    repeating-linear-gradient(rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 15px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 15px),
+    repeating-linear-gradient(rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 16px),
+    /* 태양(둥글지 않은 사각 블록 - 픽셀 느낌을 살리려고 radial이 아니라 solid 사각형으로) */
+    linear-gradient(#fff6c9, #fff6c9),
+    /* 잔디 줄무늬(하늘과 흙 사이 초록 띠) */
+    linear-gradient(to bottom, transparent 0% 21%, #6b9c3f 21% 25%, #588233 25% 27%, transparent 27% 100%),
+    /* 하늘 → 잔디 → 흙으로 이어지는 기본 그라데이션 */
+    linear-gradient(180deg, #6ec8ea 0%, #4f9fd8 16%, #3f6b8a 26%, #4f3b22 40%, #2b2014 72%, #1b140d 100%);
+  background-size: 15px 15px, 15px 15px, 15px 16px, 26px 26px, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 84% 10%, 0 0, 0 0;
+  background-repeat: repeat, repeat, repeat, no-repeat, no-repeat, no-repeat;
+}
+
+/* 꿀벌 - 벌집(육각 격자 패턴)이 은은히 비치는 진한 호박색 배경에, 위에서 꿀이 흘러내리는
+   중인 것처럼 가장자리에 방울(드립)을 매달아둠. 육각 격자는 세 방향 반복 그라데이션을
+   겹치는 잘 알려진 CSS 트릭(각 60도씩 어긋난 얇은 줄무늬 3장이 겹치면 벌집 무늬가 됨) */
+body[data-color-theme="honeybee"] {
+  color-scheme: dark;
+  --bg-0: #2b1704;
+  --bg-1: #3d2205;
+  --bg-2: #542e05;
+  --bg-3: #6b3d08;
+  --border: #d99a2b;
+  --border-soft: #8a5c12;
+
+  --accent: #ffb627;
+  --accent-strong: #ffd166;
+  --accent-dim: #a86a0c;
+  --accent-ink: #2b1704;
+
+  --text-0: #fff3d6;
+  --text-1: #e8c98a;
+  --text-2: #b6934f;
+
+  --hero-overlay-inner: rgba(30, 16, 2, 0.32);
+  --hero-overlay-outer: rgba(18, 9, 1, 0.84);
+
+  background:
+    /* 벌집 육각 격자(60/120/0도 세 방향 줄무늬가 겹쳐 육각형 무늬를 만듦) */
+    repeating-linear-gradient(60deg, rgba(0, 0, 0, 0.12) 0 2px, transparent 2px 34px),
+    repeating-linear-gradient(120deg, rgba(0, 0, 0, 0.12) 0 2px, transparent 2px 34px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0 2px, transparent 2px 34px),
+    /* 흘러내리는 꿀방울 - 위쪽 가장자리에서 아래로 길게 늘어진 타원 여러 개 + 표면에 반짝이는
+       하이라이트 작은 점(젖은 꿀 특유의 광택) */
+    radial-gradient(3px 8px at 17% 1%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(3px 8px at 73% 1%, rgba(255, 255, 255, 0.5), transparent 70%),
+    radial-gradient(10px 38px at 18% 0%, rgba(255, 182, 39, 0.92) 0%, rgba(255, 182, 39, 0.5) 55%, transparent 78%),
+    radial-gradient(7px 26px at 46% 0%, rgba(255, 209, 102, 0.85) 0%, rgba(255, 182, 39, 0.4) 55%, transparent 75%),
+    radial-gradient(12px 44px at 74% 0%, rgba(255, 182, 39, 0.92) 0%, rgba(255, 182, 39, 0.5) 55%, transparent 78%),
+    radial-gradient(6px 22px at 90% 0%, rgba(255, 209, 102, 0.8) 0%, rgba(255, 182, 39, 0.4) 55%, transparent 75%),
+    /* 바닥에 고인 꿀 웅덩이처럼 은은하게 퍼지는 골드 글로우 */
+    radial-gradient(280px 200px at 50% 100%, rgba(255, 182, 39, 0.25), transparent 70%),
+    /* 진한 호박색 기본 그라데이션 */
+    linear-gradient(160deg, #3d2205 0%, #6b3d08 40%, #a3630f 68%, #d99a2b 100%);
+}
+
 /* 두 테마는 배경이 그라데이션+오브제라서 그냥 보여야 의미가 있음 - 본문을 통째로 덮던 불투명
    패널(.content-dock-frame)을 반투명 유리질감으로 바꿔서 뒤로 비쳐 보이게 하고, 대신 그만큼
    또렷함이 줄어드는 걸 보완하려고 그림자로 입체감(붕 뜬 유리판 느낌)을 넣음 - 다른 테마의
@@ -338,6 +437,41 @@ body[data-color-theme="sky"] .settings-popup-box,
 body[data-color-theme="aqua"] .versions-create-card,
 body[data-color-theme="sky"] .versions-create-card {
   box-shadow: 0 24px 54px rgba(0, 0, 0, 0.4);
+}
+
+/* 24-71차 신규: 마인크래프트 테마의 패널은 아쿠아/스카이처럼 반투명 유리가 아니라, 마인크래프트
+   인벤토리 GUI 특유의 각지고 두꺼운 "픽셀 베벨"(왼쪽/위는 밝게, 오른쪽/아래는 어둡게 눌린
+   느낌) 테두리로 입체감을 줌 - 둥근 모서리는 그대로 둬서(다른 화면 요소들과 레이아웃이
+   깨지지 않게) 테두리 질감만 다르게 함 */
+body[data-color-theme="minecraft"] .content-dock-frame,
+body[data-color-theme="minecraft"] .settings-popup-box,
+body[data-color-theme="minecraft"] .versions-create-card {
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.14),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.4),
+    0 16px 34px rgba(0, 0, 0, 0.4);
+}
+body[data-color-theme="minecraft"] .home-hero,
+body[data-color-theme="minecraft"] .home-hero-side {
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.1),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.35),
+    0 14px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* 24-71차 신규: 꿀벌 테마의 패널은 따뜻한 호박색 그림자를 두툼하게 둘러서, 마치 꿀 속에
+   반쯤 잠긴 것처럼 끈적하고 포근한 느낌을 줌 */
+body[data-color-theme="honeybee"] .content-dock-frame,
+body[data-color-theme="honeybee"] .settings-popup-box,
+body[data-color-theme="honeybee"] .versions-create-card {
+  box-shadow:
+    0 24px 50px rgba(59, 32, 4, 0.5),
+    0 0 0 1px rgba(255, 182, 39, 0.16) inset,
+    inset 0 1px 0 rgba(255, 231, 168, 0.12);
+}
+body[data-color-theme="honeybee"] .home-hero,
+body[data-color-theme="honeybee"] .home-hero-side {
+  box-shadow: 0 18px 38px rgba(59, 32, 4, 0.45);
 }
 
 * { box-sizing: border-box; }
@@ -1245,14 +1379,23 @@ body.is-pre-auth .brand-nav {
   background: color-mix(in srgb, var(--bg-2) 55%, transparent);
   border: 1px solid var(--border);
   color: var(--text-1);
+  /* 24-72차: "버튼들에 그림자 넣어야 하는 부분은 넣어서 느낌좀 살려줘 명암을 이용해서" -
+     .btn-primary/.btn-danger-filled 등 채움 버튼들은 이미 위쪽 밝은 하이라이트+아래쪽
+     어두운 그림자로 입체감이 있는데, 제일 흔하게 쓰이는 이 보조 버튼은 완전히 평평했음.
+     같은 명암 언어(위 하이라이트/아래 그림자)를 옅게 줘서 통일함 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .btn-ghost:hover {
   border-color: var(--accent-dim);
   color: var(--text-0);
   background: color-mix(in srgb, var(--accent-dim) 12%, var(--bg-2));
   transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-.btn-ghost:active { transform: translateY(0) scale(0.98); }
+.btn-ghost:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
 
 .btn-small { padding: 7px 12px; font-size: 12.5px; }
 
@@ -1307,7 +1450,13 @@ body.is-pre-auth .brand-nav {
   border-radius: 9px;
   color: var(--text-1);
   cursor: pointer;
-  transition: border-color 0.12s ease, color 0.12s ease;
+  /* 24-72차: "버튼들에 그림자 넣어야 하는 부분은 넣어서 느낌좀 살려줘 명암을 이용해서" -
+     이 버튼은 배경/테두리만 있고 완전히 평평해서 눌러지는 버튼처럼 안 느껴졌음. 위쪽에
+     아주 옅은 밝은 하이라이트(살짝 튀어나온 느낌) + 아래쪽에 옅은 어두운 그림자(바닥에서
+     살짝 뜬 느낌)를 같이 줘서 미세한 입체감을 만듦. 눌렀을 때(:active)는 반대로 안쪽으로
+     파인 그림자를 줘서 실제로 눌리는 느낌이 나게 함 */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 /* 10차 최종 점검(Task 45)에서 발견: .icon-btn도 같은 [hidden] 무시 버그를 갖고 있었음.
    유일하게 이 클래스에서 hidden을 진짜로 토글하는 건 약관 화면의 X버튼(#btn-terms-close) -
@@ -1317,6 +1466,11 @@ body.is-pre-auth .brand-nav {
 .icon-btn:hover {
   border-color: var(--accent-dim);
   color: var(--accent);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.icon-btn:active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  transform: translateY(1px);
 }
 
 .notif-dot {
@@ -3165,6 +3319,18 @@ body.is-pre-auth .brand-nav {
 .site-account-link-form input {
   flex: 1;
   min-width: 0;
+  /* 24-73차: "닉네임 변경 크기가 안맞고" - .setting-input의 기본 margin-top(8px)이
+     align-items:center 정렬 계산에 끼어들어서 입력창이 옆 버튼보다 살짝 아래로
+     치우쳐 보였음(11-6/11-7/24-56차와 같은 계열의 문제) - 이 줄 안에서는 없앰 */
+  margin-top: 0;
+}
+/* 24-73차: 옆 버튼(.btn-small)이 입력창(.setting-input, 9px 12px/13px)보다 세로
+   패딩/글자 크기가 작아서(7px 12px/12.5px) 눈에 띄게 낮아 보였음 - 이 줄 안에서만
+   입력창과 같은 치수로 맞춤 */
+.site-account-link-form .btn {
+  padding: 9px 16px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .setting-row {
@@ -3934,6 +4100,10 @@ body.is-pre-auth .brand-nav {
   padding: 9px 12px;
   font-family: var(--font-body);
   font-size: 13px;
+  /* 24-72차: "명암을 이용해서" - 버튼은 튀어나온 느낌(위 하이라이트/아래 그림자)을 줬는데,
+     입력창은 반대로 안쪽으로 파인(눌려있는) 느낌을 줘야 "입력하는 곳"이라는 게 버튼과
+     구분되어 느껴짐 - 안쪽 위에 옅은 어두운 그림자를 깔음 */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .setting-input::placeholder { color: var(--text-2); }
@@ -3941,7 +4111,7 @@ body.is-pre-auth .brand-nav {
 .setting-input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28), 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .setting-input-small {
@@ -3954,13 +4124,14 @@ body.is-pre-auth .brand-nav {
   font-family: var(--font-body);
   font-size: 13px;
   text-align: center;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .setting-input-small:hover { border-color: var(--accent-dim); }
 .setting-input-small:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28), 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .resolution-control {
   display: flex;
@@ -4168,9 +4339,48 @@ body.is-pre-auth .brand-nav {
   color: var(--text-0);
   text-align: center;
 }
+/* 24-73차: 이름 줄(name-row)+버전 줄을 한 덩어리로 묶어서, 카드가 세로 배치(기본/갤러리)든
+   가로 배치(목록 보기)든 이름/부제는 항상 세로로 쌓이도록 함 */
+.profile-card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+.view-list .profile-card-info { flex: 1; align-items: flex-start; }
+/* 24-73차: 이름 옆에 "새 프로필" 뱃지를 나란히 둘 수 있도록 감싸는 줄 - 기본/갤러리 보기는
+   카드 자체가 가운데 정렬이라 그대로 가운데, 목록 보기는 왼쪽 정렬로 맞춤 */
+.profile-card-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.view-list .profile-card-name-row { justify-content: flex-start; }
+.profile-card-new-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-2));
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
 .profile-card-version {
   font-size: 11px;
   color: var(--text-2);
+  /* 24-73차: 마지막 플레이 상대 시각까지 붙어서 줄이 길어질 수 있어서(예: "1.21.11 · Nova ·
+     플레이한 적 없음"), 좁은 기본/갤러리 카드에서 줄바꿈으로 카드 높이가 들쭉날쭉해지지
+     않도록 한 줄로 자르고 넘치면 말줄임표로 처리 */
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .profile-card-icon-img {
   width: 44px;
@@ -5140,7 +5350,10 @@ body.is-pre-auth .brand-nav {
   justify-content: center;
   font-size: 18px;
   font-weight: 700;
-  color: var(--accent);
+  /* 24-73차: 이제 배경색이 항목마다 다른 팔레트 색으로 채워지므로(renderer.js
+     fallbackIconColorFor), 어떤 배경에서도 항상 또렷하게 읽히도록 흰 글자로 고정 */
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 .manage-file-info {
   flex: 1;
@@ -5408,6 +5621,14 @@ body.is-pre-auth .brand-nav {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 14px;
+}
+/* 24-73차: "포럼에 신고버튼도 크기 안맞고" - 관리자 전용 "신고 목록" 버튼(#btn-forum-open-reports,
+   .btn.btn-ghost.btn-small)이 이 툴바 안에서 검색창(.explore-search-input)/카테고리 드롭다운
+   (.dropdown-select-btn)과 나란히 있는데, .btn-small의 padding(7px 12px)/font-size(12.5px)이
+   둘보다 작아서 눈에 띄게 낮아 보였음 - 이 툴바 안의 버튼만 옆 요소들과 같은 치수로 맞춤 */
+.explore-toolbar .btn {
+  padding: 10px 16px;
+  font-size: 13px;
 }
 .explore-search-input {
   flex: 1;
@@ -6289,8 +6510,15 @@ body.is-pre-auth .brand-nav {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  /* 24-72차: 명암으로 입체감 추가 - .btn-ghost와 같은 언어(위 하이라이트/아래 그림자) */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.dropdown-select-btn:hover { border-color: var(--accent-dim); }
+.dropdown-select-btn:hover {
+  border-color: var(--accent-dim);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.dropdown-select-btn:active { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3); }
 .dropdown-select-btn svg { color: var(--text-2); }
 .dropdown-select-menu {
   position: absolute;

@@ -351,6 +351,8 @@
     hero_share_code_btn: { ko: "프로필 코드 공유", en: "Share Profile Code" },
     hero_shortcut_btn: { ko: "바로가기 만들기", en: "Create Shortcut" },
     // 24-61차 신규: 친구 목록 줄 우클릭 컨텍스트 메뉴 항목
+    // 24-71차 신규: 좌클릭이 하던 "프로필 보기"가 이 메뉴로 옮겨오면서 추가된 항목
+    friend_ctx_profile: { ko: "프로필 보기", en: "View Profile" },
     friend_ctx_whisper: { ko: "귓속말", en: "Whisper" },
     friend_ctx_join: { ko: "참가하기", en: "Join" },
     friend_ctx_remove: { ko: "친구 삭제하기", en: "Remove Friend" },

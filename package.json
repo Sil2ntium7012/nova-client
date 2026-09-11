@@ -1,7 +1,7 @@
 {
   "name": "nova-client",
   "productName": "Nova Client",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "여러 마인크래프트 서버를 골라 접속할 수 있는 커스텀 런처",
   "main": "main.js",
   "author": "Luna World",
@@ -9,8 +9,8 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --publish never",
-    "dist:win": "electron-builder --win nsis --publish never",
-    "dist:win:publish": "electron-builder --win nsis --publish always"
+    "dist:win": "electron-builder --win nsis-web --publish never",
+    "dist:win:publish": "electron-builder --win nsis-web --publish always"
   },
   "build": {
     "appId": "kr.lunarworld.launcher",
@@ -61,11 +61,26 @@
     "afterAllArtifactBuild": "build/afterAllArtifactBuild.js",
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        { "target": "nsis-web", "arch": ["x64"] }
       ],
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "NovaClient-Setup.exe",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nova Client",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp"
+    },
+    "nsisWeb": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,

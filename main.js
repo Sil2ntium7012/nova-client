@@ -197,6 +197,36 @@ SHOP_COLORS.push({
   mode: "sky",
 });
 
+// 24-71차 신규: "테마에 마인크래프트랑 꿀벌 테마 추가해주고 얘네는 가격을 조금 더 비싸게
+// 하고 기존과는 다르게 색상만 바꾸지 말고 마크는 마크 느낌 확 살아나게 픽셀테마로 꿀벌은
+// 진짜 꿀이 떨어지는 클라이언트처럼 해줘" - 기존 4개 완전 테마(블랙&화이트/핑크/아쿠아/
+// 스카이)보다 한 단계 위 상품이라 가격을 올리고(정가 3,900원, 30% 할인 → 2,730원),
+// 배경 그라데이션 수준을 넘어 패널 자체의 질감(마인크래프트: 각진 픽셀 베벨 테두리,
+// 꿀벌: 끈적하게 흘러내리는 웜톤 그림자)까지 다르게 만듦 - style.css의
+// body[data-color-theme="minecraft"/"honeybee"] 참고
+SHOP_COLORS.push({
+  id: "theme-minecraft",
+  name: "마인크래프트",
+  hex: "#5eb83a",
+  plateColor: "#6b4423",
+  price: 2730,
+  originalPrice: 3900,
+  discountPercent: 30,
+  category: "fulltheme",
+  mode: "minecraft",
+});
+SHOP_COLORS.push({
+  id: "theme-honeybee",
+  name: "꿀벌",
+  hex: "#f5a623",
+  plateColor: "#3d2205",
+  price: 2730,
+  originalPrice: 3900,
+  discountPercent: 30,
+  category: "fulltheme",
+  mode: "honeybee",
+});
+
 // 13-2/13-3(4차): "메인 상품" 카드용 플래그. 17차부터는 이 두 featuredMain/featuredSub
 // 아이템(블랙&화이트, 핑크)이 상점 상단의 캐러셀(자동 슬라이드) 2개 슬라이드로 표시됨.
 // featuredPairColorId는 그 슬라이드에 같이 그려질 짝꿍 단색 색상 상품의 id.
@@ -466,6 +496,29 @@ const CHANGELOG = [
       "스킨 미리보기 고정 각도로 변경",
       "홈 배너 애니메이션 추가",
       "테마 색상 버그 수정",
+    ],
+  },
+  {
+    version: "1.0.9",
+    date: "2026-09-11",
+    items: [
+      "추가 실행 버튼 색상이 잘못 표시되던 문제 수정",
+      "친구 좌클릭 시 귓속말이 열리도록 변경(프로필 보기는 우클릭 메뉴로 이동)",
+      "아쿠아/스카이 테마 색감 조정",
+      "상점에 새 완전 테마 2종(마인크래프트/꿀벌) 추가",
+      "마우스 커서 잔상이 가끔 엉뚱한 위치에 찍히던 문제 수정",
+      "완전 테마 착용 시 이전 포인트색이 남아있던 문제 수정(항상 테마 기본색으로)",
+      "버튼/입력창에 입체감(그림자) 추가",
+      "닉네임 변경/포럼 신고 버튼 크기 불일치 수정",
+      "프로필 목록에 마지막 플레이 시각 표시",
+      "모드 목록 아이콘 색상 다양화",
+    ],
+  },
+  {
+    version: "1.0.10",
+    date: "2026-09-11",
+    items: [
+      "자동 업데이트 동작 점검용 테스트 배포",
     ],
   },
 ];
@@ -6841,6 +6894,8 @@ const MODPACK_RESOURCEPACK_MANIFEST = "nova-resourcepacks.json";
 const USER_PREF_FILES = [
   "options.txt",              // 키 설정, 리소스팩, 수직동기화, 전체화면, 음량...
   "optionsshaders.txt",       // 셰이더 선택 (Iris/Oculus 구버전)
+  "servers.dat",              // 서버 목록 - 팩에는 우리 서버만 든 걸 넣고, 이미 목록이
+                              // 있는 사람은 자기 것(다른 서버들)을 그대로 유지합니다
   "config/oculus.properties", // 셰이더 켜짐 여부와 선택한 팩
   "config/iris.properties",
   "config/embeddium-options.json", // 그래픽 세부 설정
@@ -8695,8 +8750,13 @@ ipcMain.handle("shop:equip", (_e, colorId) => {
   // 저장해서 두 개가 항상 동시에 적용됨
   const color = SHOP_COLORS.find((c) => c.id === colorId);
   if (color?.category === "fulltheme") {
+    // 24-72차: "테마 바꿨을 때 항상 테마 기본색으로 바꿔주고" - 17차 때는 완전 테마를 새로
+    // 착용해도 이전에 장착해둔 색상(포인트색)을 그대로 유지했는데, 이제는 완전 테마를 바꾸면
+    // 그 전에 써둔 커스텀 포인트색을 같이 해제해서 항상 새 테마 고유의 기본색이 보이게 함
+    // (포인트색을 다시 쓰고 싶으면 보관함/상점에서 그 색상을 다시 장착하면 됨)
     setPlayerField(uuid, "equippedThemeMode", colorId);
-    return { ok: true, equipped: getPlayerData(uuid).equippedColor || null, equippedMode: colorId };
+    setPlayerField(uuid, "equippedColor", null);
+    return { ok: true, equipped: null, equippedMode: colorId };
   }
   setPlayerField(uuid, "equippedColor", colorId);
   return { ok: true, equipped: colorId, equippedMode: getPlayerData(uuid).equippedThemeMode || null };

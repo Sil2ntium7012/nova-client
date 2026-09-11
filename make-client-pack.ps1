@@ -18,7 +18,21 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Instance,
 
-    [string]$Output = "$PSScriptRoot\hisunlit-client.zip"
+    [string]$Output = "$PSScriptRoot\hisunlit-client.zip",
+
+    # Bump the pack version and rewrite modpack.json in one go, e.g. -Version 1.0.3
+    # (upload the release FIRST, then commit modpack.json - see the notes at the end)
+    [string]$Version,
+
+    # Mods to drop from the pack. Keep this EMPTY unless you know why.
+    #
+    # A mod that registers a network channel must be on both sides, or Forge kicks every
+    # player with "mismatched mod list". This was set to @("securetrade") back at pack
+    # 1.0.2, when the client had securetrade and the server did not. The server runs it
+    # now (it is the one jar kept out of .gitignore on purpose), so dropping it here would
+    # break the pack in the other direction.
+    # Match is a substring of the jar file name, case-insensitive.
+    [string[]]$ExcludeMods = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -66,36 +80,71 @@ foreach ($j in $junk) {
     if (Test-Path -LiteralPath $jp) { Remove-Item -LiteralPath $jp -Force }
 }
 
-# Ship this instance's own settings as the FIRST-RUN defaults: keybinds, enabled resource
-# packs, vsync, fullscreen, shaders. The launcher applies them only on a fresh install - if
-# the player already has these files they are restored after unpacking, so nothing a player
-# changes is ever overwritten by a later modpack update.
-$rootPrefs = @("options.txt", "optionsshaders.txt")
-foreach ($pf in $rootPrefs) {
-    $src = Join-Path $Instance $pf
-    if (Test-Path -LiteralPath $src) {
-        Copy-Item -LiteralPath $src -Destination $staging -Force
-        Write-Host ("  [add ] {0}  (first-run defaults)" -f $pf)
+# We do NOT ship options.txt / optionsshaders.txt.
+#
+# They hold the builder's OWN mouse sensitivity, volumes, FOV, GUI scale and keybinds.
+# The launcher restores an existing player's copy after unpacking, so returning players
+# were fine - but anyone installing for the FIRST time had no file to restore and got the
+# builder's personal settings instead. That is what players reported.
+#
+# The one thing the pack legitimately needs from options.txt is which resource packs are
+# enabled and in what order, and that is exported separately as nova-resourcepacks.json
+# a few lines below.
+foreach ($pf in @("options.txt", "optionsshaders.txt")) {
+    $sp = Join-Path $staging $pf
+    if (Test-Path -LiteralPath $sp) {
+        Remove-Item -LiteralPath $sp -Force
+        Write-Host ("  [drop] {0}  (personal settings - never shipped)" -f $pf) -ForegroundColor Yellow
     }
-}
-if (-not (Test-Path -LiteralPath (Join-Path $Instance "options.txt"))) {
-    Write-Host "  [warn] options.txt not found - run the instance once so it is created" -ForegroundColor Yellow
 }
 
-# Show what the first-run defaults actually are, so you can eyeball them before uploading.
-$optCheck = Join-Path $Instance "options.txt"
-if (Test-Path -LiteralPath $optCheck) {
-    foreach ($k in @("fullscreen", "enableVsync")) {
-        $hit = Select-String -LiteralPath $optCheck -Pattern ("^" + $k + ":") | Select-Object -First 1
-        if ($hit) { Write-Host ("         {0}" -f $hit.Line) -ForegroundColor DarkGray }
+# Personal / machine-specific / runtime leftovers that ride along inside config\.
+# None of these are pack settings; they are either the builder's own taste, tied to the
+# builder's hardware, or logs that regrow on their own.
+$stripConfig = @(
+    "config\embeddium-fingerprint.json",        # hash of the BUILDER's GPU+driver
+    "config\extremesoundmuffler-client.toml",   # builder's muffled-sound list (volumes)
+    "config\voicechat\player-volumes.properties",   # per-player voice volumes
+    "config\voicechat\category-volumes.properties",
+    "config\voicechat\username-cache.json",
+    "config\CSC\CSC_Warn.log",                 # anticheat logs + playtime counters
+    "config\CSC\Log\CSC_Record.log",
+    "config\CSC\Data\variables.data"
+)
+foreach ($rel in $stripConfig) {
+    $sp = Join-Path $staging $rel
+    if (Test-Path -LiteralPath $sp) {
+        Remove-Item -LiteralPath $sp -Recurse -Force
+        Write-Host ("  [drop] {0}" -f $rel) -ForegroundColor Yellow
     }
-    $keyCount = (Select-String -LiteralPath $optCheck -Pattern "^key_").Count
-    Write-Host ("         keybinds: {0}" -f $keyCount) -ForegroundColor DarkGray
 }
+# Any other *.log that slipped in with config\.
+Get-ChildItem -LiteralPath (Join-Path $staging "config") -Filter *.log -Recurse -File -ErrorAction SilentlyContinue |
+    ForEach-Object {
+        Remove-Item -LiteralPath $_.FullName -Force
+        Write-Host ("  [drop] {0}" -f $_.FullName.Substring($staging.Length + 1)) -ForegroundColor Yellow
+    }
+
+# servers.dat - the server list. We ship a clean one holding ONLY our server, built from
+# nova-servers.dat next to this script (never the builder's own list, which would leak and
+# overwrite every other server a player has saved). main.js keeps servers.dat in its
+# USER_PREF_FILES, so a player who already has a list keeps it on later pack updates;
+# only a fresh install gets ours.
+$serversSrc = Join-Path $PSScriptRoot "nova-servers.dat"
+if (Test-Path -LiteralPath $serversSrc) {
+    Copy-Item -LiteralPath $serversSrc -Destination (Join-Path $staging "servers.dat") -Force
+    Write-Host "  [add ] servers.dat  (our server only)" -ForegroundColor Green
+}
+else {
+    Write-Host "  [warn] nova-servers.dat not found next to this script - servers.dat not shipped" -ForegroundColor Yellow
+}
+
+# Report the shader state the pack carries (config\oculus.properties IS shipped on purpose -
+# the shader choice is a pack decision, and the launcher restores a player's own file).
 $oculus = Join-Path $Instance "config\oculus.properties"
 if (Test-Path -LiteralPath $oculus) {
-    $sp = Select-String -LiteralPath $oculus -Pattern "^(shaderPack|enableShaders)="
-    foreach ($l in $sp) { Write-Host ("         {0}" -f $l.Line) -ForegroundColor DarkGray }
+    $sp2 = Select-String -LiteralPath $oculus -Pattern "^(shaderPack|enableShaders)="
+    foreach ($l in $sp2) { Write-Host ("         {0}" -f $l.Line) -ForegroundColor DarkGray }
 }
 else {
     Write-Host "  [warn] config\oculus.properties not found - shader state may not carry over" -ForegroundColor Yellow
@@ -128,7 +177,24 @@ else {
     Write-Host "  [warn] options.txt not found - run the instance once so it is created" -ForegroundColor Yellow
 }
 
-$modCount = (Get-ChildItem -LiteralPath (Join-Path $staging "mods") -Filter *.jar -File).Count
+# Drop the mods the server does not run (see -ExcludeMods above).
+$stagedMods = Join-Path $staging "mods"
+foreach ($ex in $ExcludeMods) {
+    if ([string]::IsNullOrWhiteSpace($ex)) { continue }
+    $hits = Get-ChildItem -LiteralPath $stagedMods -Filter *.jar -File |
+            Where-Object { $_.Name -like ("*" + $ex + "*") }
+    if ($hits) {
+        foreach ($h in $hits) {
+            Remove-Item -LiteralPath $h.FullName -Force
+            Write-Host ("  [drop] {0}  (excluded: {1})" -f $h.Name, $ex) -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host ("  [drop] nothing matched '{0}' - already gone?" -f $ex) -ForegroundColor DarkGray
+    }
+}
+
+$modCount = (Get-ChildItem -LiteralPath $stagedMods -Filter *.jar -File).Count
 
 if (Test-Path -LiteralPath $Output) { Remove-Item -LiteralPath $Output -Force }
 
@@ -146,9 +212,39 @@ Write-Host ("  File : {0}" -f $Output)
 Write-Host ("  Size : {0} MB" -f $sizeMB)
 Write-Host ("  Mods : {0}" -f $modCount)
 Write-Host ""
+if ($Version) {
+    # The launcher reads modpack.json from the repo (raw.githubusercontent .../main/modpack.json)
+    # and falls back to the values baked into main.js. Bumping it here is what makes every
+    # player re-download the pack on their next launch.
+    $mpPath = Join-Path $PSScriptRoot "modpack.json"
+    $url = "https://github.com/Sil2ntium7012/nova-client/releases/download/pack-hisunlit-$Version/hisunlit-client.zip"
+    $mp = @{}
+    if (Test-Path -LiteralPath $mpPath) {
+        $existing = Get-Content -LiteralPath $mpPath -Raw | ConvertFrom-Json
+        foreach ($prop in $existing.PSObject.Properties) {
+            $mp[$prop.Name] = @{ version = $prop.Value.version; url = $prop.Value.url }
+        }
+    }
+    $mp["hisunlit"] = @{ version = $Version; url = $url }
+    $json = $mp | ConvertTo-Json -Depth 5
+    # No BOM - this file is fetched and parsed as JSON by the launcher.
+    [System.IO.File]::WriteAllText($mpPath, $json, (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host ("  modpack.json -> hisunlit {0}" -f $Version) -ForegroundColor Green
+    Write-Host ("  url          -> {0}" -f $url) -ForegroundColor DarkGray
+    Write-Host ""
+}
+
 Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "  1. GitHub -> Sil2ntium7012/nova-client -> Releases -> Draft a new release"
-Write-Host "  2. Tag it  pack-hisunlit-1.0.0  and attach this zip"
-Write-Host "  3. Check that modpack.url in main.js matches the uploaded asset URL"
-Write-Host "  4. When you change mods later, bump modpack.version too"
+if ($Version) {
+    Write-Host ("  2. Tag it  pack-hisunlit-{0}  and attach this zip" -f $Version)
+    Write-Host "  3. AFTER the upload finishes, commit and push modpack.json"
+    Write-Host "     (push it earlier and every launcher will try to download a file that is not there yet)"
+}
+else {
+    Write-Host "  2. Tag it  pack-hisunlit-<version>  and attach this zip"
+    Write-Host "  3. AFTER the upload finishes, set that version+url in modpack.json and push"
+    Write-Host "     (or just rerun this script with  -Version <version>  and it writes modpack.json for you)"
+}
+Write-Host "  4. Players pick it up on their next launch - no launcher update needed"
 Write-Host ""
