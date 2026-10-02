@@ -3,22 +3,22 @@
 // ============================================================================
 
 // ---- 타이틀바 버튼 -----------------------------------------------------
-document.getElementById("btn-min").addEventListener("click", () => window.luna.minimize());
-document.getElementById("btn-close").addEventListener("click", () => window.luna.close());
+document.getElementById("btn-min").addEventListener("click", () => window.nova.minimize());
+document.getElementById("btn-close").addEventListener("click", () => window.nova.close());
 
 // 17차: "전체화면 지원을 다시 켜주고, 창 크기에 비례해서 박스들이 여백 없이 늘어나게 해줘" -
 // 리사이즈/최대화는 여전히 막혀있지만(main.js 참고), 전체화면(F11/버튼)만 별도로 다시 허용함.
 // body에 data-fullscreen 플래그를 달아서, 전체화면일 때만 필요한 미세 조정을 CSS에서 걸 수
 // 있게 해둠(대부분의 레이아웃은 이미 flex/grid 기반이라 창이 커져도 자동으로 늘어남)
-document.getElementById("btn-fullscreen")?.addEventListener("click", () => window.luna.toggleFullscreen?.());
-window.luna.onFullscreenChanged?.((isFullscreen) => {
+document.getElementById("btn-fullscreen")?.addEventListener("click", () => window.nova.toggleFullscreen?.());
+window.nova.onFullscreenChanged?.((isFullscreen) => {
   document.body.classList.toggle("is-fullscreen", !!isFullscreen);
 });
-window.luna.isFullscreen?.().then((res) => {
+window.nova.isFullscreen?.().then((res) => {
   if (res?.fullscreen) document.body.classList.add("is-fullscreen");
 });
 // 10차 "미래 준비": 후원 사이트 주소가 아직 없어서, 자리만 미리 만들어두고 누르면 안내
-// 토스트만 뜨게 함. 실제 사이트가 생기면 이 안을 window.luna.openExternal?.("실제 URL")로
+// 토스트만 뜨게 함. 실제 사이트가 생기면 이 안을 window.nova.openExternal?.("실제 URL")로
 // 바꾸기만 하면 됨
 document.getElementById("btn-donate")?.addEventListener("click", () => {
   showToast("후원 사이트는 아직 준비 중이에요. 조금만 기다려주세요!");
@@ -68,6 +68,14 @@ function mountSlidingPill(container, extraClass) {
     // mountSlidingPill 사용처에서는 이미 붙어있으니 이 검사가 그냥 통과됨)
     if (!container.contains(pill)) {
       container.insertBefore(pill, container.firstChild);
+    }
+    // 24-(모드 49-139): "표시만 오류" - 애니메이션(늘어남→줄어듦) 도중에 목록이 다시 그려지면
+    // 이전 애니메이션의 settle 타이머(130ms 뒤)가 나중에 터져서 pill을 옛 자리(예전에 고른 칸)로
+    // 되돌려 놓았다. 즉시 이동/숨김 전에 남은 타이머를 먼저 끈다.
+    if (pill._settleTimer && (instant || !activeEl || !activeEl.offsetWidth)) {
+      clearTimeout(pill._settleTimer);
+      pill._settleTimer = null;
+      pill.classList.remove("is-stretching", "is-settling");
     }
     if (!activeEl || !activeEl.offsetWidth) {
       // 컨테이너가 아직 숨겨져 있거나(화면 전환 전) 선택된 게 없으면 그냥 숨겨둠
@@ -129,21 +137,21 @@ function mountSlidingPill(container, extraClass) {
 // 지원 안 함 - skinview3d(three.js 기반 3D 뷰어, MIT 라이선스, src/vendor에 로컬 번들)로
 // 직접 그리는 걸로 바꿈. 실제 스킨/망토 PNG URL은 Mojang 세션 서버에서 받아와야 하는데
 // CSP(connect-src 'self')에 막혀 렌더러에서 직접 fetch 못 해서 main.js가 대신 조회해줌
-// (window.luna.getSkinTextures). 캔버스 하나당 SkinViewer 인스턴스를 하나만 만들어 재사용해서
+// (window.nova.getSkinTextures). 캔버스 하나당 SkinViewer 인스턴스를 하나만 만들어 재사용해서
 // WebGL 컨텍스트가 팝업 열 때마다 새로 생기지 않게 함. 실패하면(라이브러리 로드 실패, 네트워크
 // 오류 등) 그냥 조용히 손을 떼고 - 호출부에서 이미 채워둔 crafatar <img>가 폴백으로 그대로 보임
 const skinViewerInstances = new Map(); // canvas -> skinview3d.SkinViewer
 async function mountSkinViewer(canvasEl, imgEl, uuid, size) {
   if (!canvasEl || !imgEl || !uuid) return;
   if (typeof skinview3d === "undefined") {
-    window.luna?.logClient?.("[3D스킨] mountSkinViewer: skinview3d 전역이 undefined - 번들 로드 실패");
+    window.nova?.logClient?.("[3D스킨] mountSkinViewer: skinview3d 전역이 undefined - 번들 로드 실패");
     return;
   }
-  if (!window.luna?.getSkinTextures) return;
+  if (!window.nova?.getSkinTextures) return;
   try {
-    const tex = await window.luna.getSkinTextures(uuid);
+    const tex = await window.nova.getSkinTextures(uuid);
     if (!tex?.ok || !tex.skinUrl) {
-      window.luna?.logClient?.(`[3D스킨] mountSkinViewer: getSkinTextures 실패/skinUrl 없음 uuid=${uuid} ok=${tex?.ok}`);
+      window.nova?.logClient?.(`[3D스킨] mountSkinViewer: getSkinTextures 실패/skinUrl 없음 uuid=${uuid} ok=${tex?.ok}`);
       return; // crafatar <img> 폴백 유지
     }
 
@@ -183,7 +191,49 @@ async function mountSkinViewer(canvasEl, imgEl, uuid, size) {
     // 24-54차: 예전엔 여기서 조용히 손을 떼서(crafatar 폴백만 보임) 원인을 알 방법이 없었음 -
     // 이제 실패 이유를 launcher.log에 남겨서, 다음에 "3D로 안 보여요"라는 얘기가 나오면 로그로
     // 바로 원인(라이브러리 예외/텍스처 로드 실패/캔버스 오염 등)을 확인할 수 있게 함
-    window.luna?.logClient?.(`[3D스킨] mountSkinViewer 예외 uuid=${uuid}: ` + (err?.message || err));
+    window.nova?.logClient?.(`[3D스킨] mountSkinViewer 예외 uuid=${uuid}: ` + (err?.message || err));
+  }
+}
+
+// 24-156차: 세션 서버 대신 "로그인한 계정 자체"에 등록된 스킨/망토로 3D 뷰어를 띄운다.
+// (마크 런처에서 등록한 스킨과 완전히 같은 출처라, 세션 서버 캐시/지연/차단의 영향을 안 받음)
+async function mountSkinViewerFromAccount(canvasEl, imgEl, size) {
+  if (!canvasEl || typeof skinview3d === "undefined") return;
+  try {
+    const res = capeProfileCache?.ok ? capeProfileCache : await window.nova.getAccountSkinProfile?.();
+    if (!res?.ok) return;
+    capeProfileCache = res;
+    const skin = (res.skins || []).find((x) => x.state === "ACTIVE") || (res.skins || [])[0];
+    if (!skin) return;
+    const cape = (res.capes || []).find((x) => x.state === "ACTIVE") || null;
+    const skinSrc = skin.dataUrl || skin.url;
+    const capeSrc = cape ? cape.dataUrl || cape.url : null;
+
+    let viewer = skinViewerInstances.get(canvasEl);
+    if (!viewer) {
+      viewer = new skinview3d.SkinViewer({
+        canvas: canvasEl,
+        width: size.w,
+        height: size.h,
+        skin: skinSrc,
+        model: skin.variant === "slim" ? "slim" : "default",
+      });
+      viewer.controls.enableZoom = false;
+      viewer.controls.enablePan = false;
+      viewer.controls.enableRotate = false;
+      viewer.autoRotate = false;
+      viewer.playerObject.rotation.y = -Math.PI / 5;
+      skinViewerInstances.set(canvasEl, viewer);
+    } else {
+      await viewer.loadSkin(skinSrc, { model: skin.variant === "slim" ? "slim" : "default" });
+    }
+    if (capeSrc) await viewer.loadCape(capeSrc);
+    else viewer.loadCape(null);
+
+    canvasEl.hidden = false;
+    if (imgEl) imgEl.hidden = true;
+  } catch (err) {
+    window.nova?.logClient?.("[3D스킨] 계정 프로필 기반 마운트 실패: " + (err?.message || err));
   }
 }
 
@@ -239,14 +289,34 @@ function disposeSkinViewersIn(container) {
 // (skinview3d)는 이 img가 다 뜬 다음 조용히 교체되는 점진적 개선이라(위 mountSkinViewer
 // 참고), 스피너는 img의 load/error 시점까지만 있으면 충분함 - 그 이후엔 이미 img(최소한
 // crafatar 2D 렌더)가 화면에 떠 있어서 빈 화면으로 보일 일이 없음
+// 24-150차: "친구 프로필 스킨 로딩할 때 로딩창으로 보여주고 공백으로 이상한 거 띄우지 말고"
+// 예전엔 스피너만 띄우고 <img> 는 그대로 뒀다. 그래서 (1) 직전에 본 사람의 스킨이 잠깐 그대로
+// 남아있었고, (2) src 가 비거나 실패하면 브라우저가 깨진 이미지 자리(빈 네모/아이콘)를 그렸다.
+// 이제 로딩을 시작할 때 이미지와 3D 캔버스를 투명하게 숨기고 src 를 떼어낸 뒤, load 가 왔을
+// 때만 다시 보여준다. 실패하면 이미지는 계속 숨긴 채 스피너를 조용한 표시로 바꾼다.
 function bindSkinLoadingSpinner(imgEl, spinnerEl) {
   if (!imgEl || !spinnerEl) return;
-  const hide = () => { spinnerEl.hidden = true; };
-  imgEl.addEventListener("load", hide);
-  imgEl.addEventListener("error", hide);
+  imgEl.addEventListener("load", () => {
+    spinnerEl.hidden = true;
+    spinnerEl.classList.remove("is-failed");
+    imgEl.classList.remove("is-loading");
+  });
+  imgEl.addEventListener("error", () => {
+    imgEl.classList.add("is-loading");
+    spinnerEl.hidden = false;
+    spinnerEl.classList.add("is-failed");
+  });
 }
-function showSkinLoadingSpinner(spinnerEl) {
-  if (spinnerEl) spinnerEl.hidden = false;
+function showSkinLoadingSpinner(spinnerEl, imgEl, canvasEl) {
+  if (spinnerEl) {
+    spinnerEl.hidden = false;
+    spinnerEl.classList.remove("is-failed");
+  }
+  if (imgEl) {
+    imgEl.classList.add("is-loading");
+    imgEl.removeAttribute("src");
+  }
+  if (canvasEl) canvasEl.hidden = true;
 }
 
 // ---- 약관 동의 화면 (첫 실행 + 설정에서 다시 보기) -----------------------------
@@ -256,7 +326,7 @@ const btnTermsAgree = document.getElementById("btn-terms-agree");
 const termsLicenseEl = document.getElementById("terms-license");
 const btnTermsClose = document.getElementById("btn-terms-close");
 
-window.luna.getLicense?.().then((text) => {
+window.nova.getLicense?.().then((text) => {
   if (termsLicenseEl && text) termsLicenseEl.textContent = text;
 });
 
@@ -297,7 +367,7 @@ termsCheckbox?.addEventListener("change", () => {
   btnTermsAgree.disabled = !termsCheckbox.checked;
 });
 btnTermsAgree?.addEventListener("click", async () => {
-  await window.luna.agreeTerms();
+  await window.nova.agreeTerms();
   termsOverlay.hidden = true;
   setSidebarLockedForTerms(false);
   await maybeShowThemeOnboarding();
@@ -317,16 +387,16 @@ document.getElementById("btn-view-terms")?.addEventListener("click", () => {
 const themeOnboardingOverlay = document.getElementById("theme-onboarding-overlay");
 async function maybeShowThemeOnboarding() {
   if (!themeOnboardingOverlay) return;
-  const seen = await window.luna.getThemeOnboardingSeen?.();
+  const seen = await window.nova.getThemeOnboardingSeen?.();
   if (!seen) themeOnboardingOverlay.hidden = false;
 }
 document.getElementById("btn-theme-onboarding-done")?.addEventListener("click", async () => {
-  await window.luna.setThemeOnboardingSeen?.();
+  await window.nova.setThemeOnboardingSeen?.();
   if (themeOnboardingOverlay) themeOnboardingOverlay.hidden = true;
 });
 
 (async () => {
-  const agreed = await window.luna.getTermsAgreed();
+  const agreed = await window.nova.getTermsAgreed();
   if (!agreed) {
     showTerms({ alreadyAgreed: false });
   } else {
@@ -397,6 +467,14 @@ let currentSiteAccount = null;
 function normalizeUuidForCompare(u) {
   return String(u || "").replace(/-/g, "").toLowerCase();
 }
+// 24-173차: "내 계정에 분명 마크 계정이 로그인이 돼있는데 로그인할 때 한번 더 하라고 하네?
+// 마크 계정이 연동이 안돼있을 때만 떠야 하는 거 아냐?"
+// 맞는 지적이다. hasLinkedMcAccount()는 "이 기기에서 지금 쓸 수 있는 마인크래프트 세션"이
+// 있는지를 보는 것이라(게임을 켜려면 실제 토큰이 필요하니 이 조건 자체는 맞다), 연동은
+// 멀쩡한데 이 기기의 토큰만 만료돼도 똑같이 "연동해주세요" 화면이 떴다. 두 경우를 구분한다.
+function siteAccountMcLinks() {
+  return (currentSiteAccount?.links || []).filter((l) => l.provider === "minecraft" || l.provider === "mc");
+}
 function hasLinkedMcAccount() {
   if (!currentProfile?.uuid) return false;
   const links = currentSiteAccount?.links || [];
@@ -417,7 +495,7 @@ async function trySwitchToAnotherLinkedAccount(account) {
   if (mcLinks.length === 0) return null;
   let localAccounts = [];
   try {
-    localAccounts = (await window.luna.listAccounts()) || [];
+    localAccounts = (await window.nova.listAccounts()) || [];
   } catch (_) {
     return null;
   }
@@ -426,7 +504,7 @@ async function trySwitchToAnotherLinkedAccount(account) {
     const local = localAccounts.find((a) => normalizeUuidForCompare(a.uuid) === linkUuid);
     if (!local) continue;
     try {
-      const res = await window.luna.switchAccount(local.uuid);
+      const res = await window.nova.switchAccount(local.uuid);
       if (res.ok) {
         currentProfile = res.profile;
         updateProfileClusterDisplay();
@@ -447,8 +525,12 @@ async function trySwitchToAnotherLinkedAccount(account) {
 // 경고 토스트를 보여줌.
 async function refreshSiteLinkStateAfterMcLogin(res) {
   if (res?.siteLinkWarning) showToast(res.siteLinkWarning, "error");
+  // 24-112차: 이 마인크래프트 계정을 다른 기기가 쓰고 있었으면, 그 기기는 곧 로그아웃됨
+  if (res?.kickedPreviousDevice) {
+    showToast(`${res.kickedPreviousDevice}에서 쓰던 마인크래프트 로그인은 곧 풀려요`);
+  }
   try {
-    const siteRes = await window.luna.getSiteAccount();
+    const siteRes = await window.nova.getSiteAccount();
     // 24-16차: "로그인하고 마크 로그인했는데 안돼" - account:get-site-account는 메인
     // 프로세스의 세션 캐시가 일시적으로 비어있어도(예: 방금 로그인 직후 타이밍, 네트워크
     // 지연 등) ok:true와 함께 account:null을 돌려줄 수 있음. 예전엔 이걸 "로그아웃됨"으로
@@ -469,16 +551,71 @@ async function refreshSiteLinkStateAfterMcLogin(res) {
 // 사이트 계정 닉네임, 아래 작은 줄은 실제 마인크래프트 닉네임을 보여줌(예전엔 아래 줄이
 // "Nova · Fabric" 고정 문구였음). currentProfile/currentSiteAccount가 바뀔 때마다 다시
 // 불러서 최신 상태를 반영함(showHome 안 + 사이트 로그인/연동 성공 직후 등)
+// 24-142차: 사이트 계정에서 화면에 보여줄 이름 하나를 고름(설정 패널과 같은 우선순위)
+function siteAccountDisplayName(account) {
+  // 24-214차: "오른쪽 위 프로필에 닉네임이 안뜨고 플레이어라고 떠"
+  // 계정 JSON 의 이름 칸이 비어 있으면 그대로 빈 문자열이 되어 "플레이어"까지 흘러내려갔다.
+  // 쓸 수 있는 이름 칸을 모두 훑는다.
+  return (
+    account?.login_id ||
+    account?.display_name ||
+    account?.nickname ||
+    account?.username ||
+    account?.name ||
+    account?.email ||
+    ""
+  );
+}
+
+// 24-214차: 마인크래프트 닉네임도 못 읽는 경우가 있어서(프로필 객체의 모양이 상황에 따라
+// 다름) 런처가 들고 있는 계정 목록에서 한 번 더 찾아 둔다.
+let lastKnownMcNick = "";
+function currentMcNick() {
+  return (
+    currentProfile?.name ||
+    currentProfile?.mcName ||
+    currentProfile?.profile?.name ||
+    lastKnownMcNick ||
+    ""
+  );
+}
+async function refreshKnownMcNick() {
+  try {
+    const list = (await window.nova.listAccounts?.()) || [];
+    const mine =
+      list.find((a) => normalizeUuidForCompare(a.uuid) === normalizeUuidForCompare(currentProfile?.uuid)) ||
+      list.find((a) => a.selected) ||
+      list[0];
+    const nick = mine?.name || mine?.mcName || "";
+    if (nick && nick !== lastKnownMcNick) {
+      lastKnownMcNick = nick;
+      updateProfileClusterDisplay();
+    }
+  } catch (_) {}
+}
+
 function updateProfileClusterDisplay() {
   const t = window.NovaI18n?.t;
   const profileMcVersionEl = document.getElementById("profile-mc-version");
   if (currentProfile) {
-    const mcNick = currentProfile.name || t?.("home_default_name") || "플레이어";
-    const accountNick = currentSiteAccount?.nickname || mcNick;
+    const mcNick = currentMcNick() || t?.("home_default_name") || "플레이어";
+    if (!currentMcNick()) refreshKnownMcNick(); // 비어 있으면 계정 목록에서 한 번 더 찾아본다
+    // 24-142차: "닉네임을 바꿨는데 오른쪽 위에는 안바뀌었어"
+    // 사이트 계정 JSON 에는 nickname 이라는 필드가 아예 없음(login_id / display_name 뿐).
+    // 그래서 항상 undefined 로 떨어져 마크 닉네임이 대신 보였고, 닉네임을 바꿔도 그대로였음.
+    // 설정 화면(renderSiteAccountPanel)은 처음부터 login_id/display_name 을 쓰고 있었어서
+    // 거기만 제대로 바뀌던 것 - 같은 기준으로 맞춤
+    const accountNick = siteAccountDisplayName(currentSiteAccount) || mcNick;
     if (profileNameEl) profileNameEl.textContent = accountNick;
     if (profileMcVersionEl) profileMcVersionEl.textContent = mcNick;
+    // 24-214차: 내 티어 배지 - 마크 uuid 로 찾는다
+    const slot = document.getElementById("profile-tier-slot");
+    if (slot && currentProfile?.uuid) {
+      slot.dataset.tierKey = currentProfile.uuid;
+      paintTiers();
+    }
   } else {
-    const accountNick = currentSiteAccount?.nickname || t?.("home_login_required") || "로그인이 필요해요";
+    const accountNick = siteAccountDisplayName(currentSiteAccount) || t?.("home_login_required") || "로그인이 필요해요";
     if (profileNameEl) profileNameEl.textContent = accountNick;
     if (profileMcVersionEl) profileMcVersionEl.textContent = t?.("home_guest_name") || "게스트";
   }
@@ -495,9 +632,9 @@ function updateProfileClusterDisplay() {
 // 공용 함수로 빼서, 앱이 처음 뜰 때 홈으로 들어가는 시점(showHome)에도 항상 똑같이 적용되게 함
 async function applyEquippedShopTheme() {
   try {
-    const state = await window.luna.getShopState();
+    const state = await window.nova.getShopState();
     if (state?.equipped || state?.equippedMode) {
-      const catalog = await window.luna.getShopCatalog();
+      const catalog = await window.nova.getShopCatalog();
       const color = state.equipped ? catalog.find((c) => c.id === state.equipped) : null;
       const mode = state.equippedMode ? catalog.find((c) => c.id === state.equippedMode) : null;
       applyThemeColor(color, mode);
@@ -512,6 +649,7 @@ async function applyEquippedShopTheme() {
 function showHome(profile) {
   currentProfile = profile;
   applyEquippedShopTheme();
+  setTimeout(maybeRequireEmailVerify, 600); // 24-240차
   // 24-13차: "그 계정 바꿀 때 이렇게 떠(사진처럼)" - 여기서 view-login/view-home 둘만 직접
   // 토글했었는데, 계정을 "프로필 관리"(view-profile-manage) 등 다른 화면을 보던 중에 바꾸면
   // 그 화면이 안 닫힌 채로 새로 켜진 view-home과 같은 자리에(둘 다 position:absolute) 겹쳐서
@@ -535,11 +673,13 @@ function showHome(profile) {
         ? t("home_welcome", { name: `<span id="home-greeting-name" class="home-greeting-wave">${escapeHtml(displayName)}</span>` })
         : `환영합니다, <span id="home-greeting-name" class="home-greeting-wave">${escapeHtml(displayName)}</span>님!`;
     }
+    avatarEl.classList.remove("is-photo");
     if (profile.uuid) {
       avatarEl.innerHTML = `<img src="https://mc-heads.net/avatar/${profile.uuid}/64" alt="${profile.name}" />`;
     } else {
       avatarEl.textContent = (profile.name || "?").charAt(0).toUpperCase();
     }
+    applyClientAvatar(); // 24-225차: 올린 사진이 있으면 그걸로 덮는다
   } else {
     // 24-15차: "게스트 없애라고" - 마인크래프트 계정이 연동 안 된 상태로는 애초에 이
     // 화면까지 오지 못하고 showAppPanel이 view-mc-gate로 되돌리므로, 이 분기는 사실상
@@ -554,19 +694,22 @@ function showHome(profile) {
     avatarEl.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.6 4.6-5.5 7.5-5.5s6.1 1.9 7.5 5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
+  // 24-85차: 가입 축하 선물 - 홈까지 온 뒤 한 번만 확인함(함수 안에서 세션당 1회로 막음)
+  syncWelcomeGift?.();
+
   loadHomeNewsCards();
   refreshFriends();
   if (profile?.uuid) sendFriendsHeartbeat();
 
-  // 2-6(7차): "업데이트 연동"이 켜진 공유받은 프로필들을 앱 시작 시 한 번 조용히 최신화
-  // (실패해도 화면엔 영향 없게 fire-and-forget)
-  window.luna.checkShareUpdates?.().catch(() => {});
+  // 2-6(7차) → 24-100차: 공유받은 프로필의 업데이트 신호 확인(앱 시작 때 + 10분마다).
+  // 예전처럼 조용히 덮어쓰지 않고, 새 버전이 있으면 받을지 고르는 창을 띄움
+  startSharedProfileUpdateWatch();
 }
 
 async function loadHomeNewsCards() {
   const gridEl = document.getElementById("home-news-grid");
   if (!gridEl || gridEl.dataset.loaded) return;
-  const changelog = await window.luna.getChangelog();
+  const changelog = await window.nova.getChangelog();
   const recent = (changelog || []).slice(-6).reverse(); // 최신 6개까지만
   gridEl.innerHTML = "";
   recent.forEach((entry) => {
@@ -576,7 +719,13 @@ async function loadHomeNewsCards() {
     // 23차: "업데이트 내용을 더 많이 보여주던가" - 카드가 grid-auto-rows:1fr로 세로로
     // 늘어나면서(style.css .home-news-grid 참고) 항목 하나짜리 요약만으론 카드 아래쪽이
     // 휑하게 비어 보였음. 첫 항목 하나 대신 최대 4개까지 불릿으로 보여줌
-    const descText = (entry.items || []).slice(0, 4).map((it) => `• ${it}`).join("\n");
+    // 24-116차: 패치노트를 "## 새로운 기능" 같은 소제목으로 묶었는데, 홈 카드 요약에
+    // 소제목이 섞이면 4줄을 제목이 잡아먹어버려서 실제 항목만 골라 보여줌
+    const descText = (entry.items || [])
+      .filter((it) => !String(it).startsWith("## "))
+      .slice(0, 4)
+      .map((it) => `• ${it}`)
+      .join("\n");
     el.innerHTML = `
       <div class="home-news-card-head">
         <span class="home-news-card-version">v${entry.version}</span>
@@ -649,6 +798,10 @@ document.querySelectorAll(".home-friends-tab").forEach((tab) => {
 
 // 지금 게임이 실제로 실행 중인지 (친구 목록에 "OO 플레이 중"으로 보여주는 데 씀)
 let isInGame = false;
+// 24-149차: 지금 켜져 있는 게임 목록 [{ pid, profileId, mode }] - main 의 runningInstances 사본.
+// PLAY / 추가 실행하기 / STOP 중 무엇을 띄울지는 이 목록과 "지금 고른 프로필"로 정한다.
+let runningInstances = [];
+let selectedProfileIdCache = null;
 
 // 친구에게 보여줄 내 상태 문구 계산 - 게임 중이면 서버/프로필 이름과 함께, 아니면 대기 중으로
 // 17차: 문구(text)뿐 아니라 kind("server"|"profile")/ref(서버 또는 프로필 id)/version(마크 버전)도
@@ -657,9 +810,9 @@ async function getMyStatus() {
   if (!currentProfile?.uuid) return { text: "", kind: null, ref: null, version: null };
   if (!isInGame) return { text: "런처에서 대기 중", kind: null, ref: null, version: null };
   try {
-    const mode = await window.luna.getLaunchMode?.();
+    const mode = await window.nova.getLaunchMode?.();
     // 17차: "친구에게 상태 공유 안 함"이 켜져 있으면, 온라인 표시는 유지하되 뭘 하는지는 숨김
-    const settings = await window.luna.getSettings?.();
+    const settings = await window.nova.getSettings?.();
     if (settings?.hidePresence) return { text: "런처 사용 중", kind: null, ref: null, version: null };
     if (mode === "profile") {
       const p = lastProfilesData.find((x) => x.selected);
@@ -679,7 +832,7 @@ async function getMyStatusText() {
 }
 async function sendFriendsHeartbeat() {
   const s = await getMyStatus();
-  window.luna.friendsHeartbeat?.(s.text, s.kind, s.ref, s.version);
+  window.nova.friendsHeartbeat?.(s.text, s.kind, s.ref, s.version);
 }
 
 // 17차: 온라인/자리비움/오프라인 3단계 점 색(요청대로 초록/노랑/빨강)
@@ -700,6 +853,353 @@ function friendSortRank(entry) {
   if (presence === "away") return 2; // 잠수
   return 3; // 오프라인
 }
+
+
+// ============================================================================
+// 24-214차: 티어 배지 (아이언 → 브론즈 → 실버 → 골드 → 플래티넘 → 다이아몬드)
+// 24-215차: 시작 티어는 아이언
+// 점수는 main 이 매긴다(게시글/댓글/런처를 켜 둔 시간). 여기서는 그리기만 한다.
+//
+// 목록을 다시 그리지 않고도 배지가 붙도록, 이름 앞에 빈 자리(.tier-slot)만 심어두고
+// 나중에 paintTiers() 가 그 자리를 채운다. 티어를 못 읽어와도 화면은 그대로다.
+// ============================================================================
+const TIER_META = {
+  iron: { label: "아이언", a: "#c2c8ce", b: "#6a737c" },
+  bronze: { label: "브론즈", a: "#e0a070", b: "#8a4f22" },
+  silver: { label: "실버", a: "#e6edf5", b: "#8d9aa8" },
+  gold: { label: "골드", a: "#ffd978", b: "#c88a0c" },
+  platinum: { label: "플래티넘", a: "#b9fff0", b: "#35b6a2" },
+  diamond: { label: "다이아몬드", a: "#cfe6ff", b: "#4b93ff" },
+};
+// 보석 하나. 티어가 올라갈수록 면이 하나씩 늘고, 위 두 티어는 은은하게 빛난다.
+// 24-218차: "너무 멋이 없어 약간 6각형 이런식으로 앰블러처럼 만들어줘"
+// 보석 대신 육각 방패(앰블럼). 테두리 - 안쪽 면 - 가운데 표식 세 겹이라 작게 줄여도 모양이
+// 살아 있고, 티어가 오를수록 가운데 표식이 한 단계씩 늘어난다.
+function tierBadgeSvg(key) {
+  const m = TIER_META[key] || TIER_META.iron;
+  const id = "tg_" + key;
+  const HEX = "M12 2.2 20.5 7v10L12 21.8 3.5 17V7L12 2.2Z";
+  // 가운데 표식 - 아이언은 가로줄 하나, 올라갈수록 뾰족한 산이 쌓인다
+  const MARK = {
+    iron: '<path d="M8.4 12.6h7.2" stroke="rgba(0,0,0,.45)" stroke-width="1.6" stroke-linecap="round"/>',
+    bronze: '<path d="M8 14.2 12 9.4l4 4.8" stroke="rgba(0,0,0,.45)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" fill="none"/>',
+    silver:
+      '<path d="M7.6 14.8 12 9.2l4.4 5.6" stroke="rgba(0,0,0,.45)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>' +
+      '<path d="M9.4 16.4h5.2" stroke="rgba(0,0,0,.35)" stroke-width="1.3" stroke-linecap="round"/>',
+    gold:
+      '<path d="M7.4 15.2 12 8.6l4.6 6.6" stroke="rgba(0,0,0,.45)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>' +
+      '<path d="M9 16.8h6" stroke="rgba(0,0,0,.35)" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<circle cx="12" cy="6.6" r="1.1" fill="rgba(255,255,255,.85)"/>',
+    platinum:
+      '<path d="M7 15.4 10.3 10l1.7 2.6L13.7 10 17 15.4" stroke="rgba(0,0,0,.45)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>' +
+      '<path d="M8.8 17h6.4" stroke="rgba(0,0,0,.35)" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<circle cx="12" cy="6.8" r="1.1" fill="rgba(255,255,255,.9)"/>',
+    diamond:
+      '<path d="M7 15.4 10.3 10l1.7 2.6L13.7 10 17 15.4" stroke="rgba(0,0,0,.45)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>' +
+      '<path d="M8.8 17h6.4" stroke="rgba(0,0,0,.35)" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<path d="M12 4.6 13.1 6.6 12 8.6 10.9 6.6 12 4.6Z" fill="rgba(255,255,255,.95)"/>',
+  };
+  return `<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${m.a}"/><stop offset="1" stop-color="${m.b}"/>
+    </linearGradient></defs>
+    <path d="${HEX}" fill="url(#${id})" stroke="rgba(0,0,0,.45)" stroke-width="1" stroke-linejoin="round"/>
+    <path d="${HEX}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8" stroke-linejoin="round" transform="translate(12 12) scale(.78) translate(-12 -12)"/>
+    ${MARK[key] || MARK.iron}
+  </svg>`;
+}
+
+// 24-224차: "어디는 검정색티어로 보이다 갑자기 브론즈가 나오고 그래 / 아이언 시작이라니까?"
+// 표에 줄이 없거나 모르는 이름이면 빈 칸(검게 보임)이 되거나 기본값이 브론즈로 떨어졌다.
+// 모르면 무조건 아이언이다 - 시작 티어니까.
+function tierBadgeHtml(key) {
+  const k = TIER_META[key] ? key : "iron";
+  const m = TIER_META[k];
+  return `<span class="tier-badge is-${k}" title="${escapeHtml(m.label)}">${tierBadgeSvg(k)}</span>`;
+}
+// 이름 앞에 심어두는 빈 자리
+function tierSlot(key) {
+  return key ? `<span class="tier-slot" data-tier-key="${escapeHtml(String(key))}"></span>` : "";
+}
+
+const tierCache = new Map(); // key(마크 uuid 또는 노바 계정 id) → 티어 이름
+const tierAvatars = new Map(); // 같은 키 → 클라이언트 프로필 사진 주소(24-224차)
+let tierFetching = false;
+const faceCheckedAt = new Map(); // 24-228차: 사진을 마지막으로 확인한 때
+const tierInfoCache = new Map(); // 24-229차: key → { tier, score, avatar, mcName, mcUuid, frame, themeBg, themeAccent }
+// 24-229차: 프로필 테두리 - .has-frame.frame-<값> (style.css)
+function setFrameClass(el, frame) {
+  if (!el) return;
+  const want = frame ? "frame-" + frame : "";
+  const have = [...el.classList].find((c) => c.startsWith("frame-")) || "";
+  if (want === have && el.classList.contains("has-frame") === !!frame) return;
+  if (have) el.classList.remove(have);
+  el.classList.toggle("has-frame", !!frame);
+  if (want) el.classList.add(want);
+}
+async function paintTiers() {
+  const slots = [
+    ...document.querySelectorAll(".tier-slot[data-tier-key]"),
+    ...document.querySelectorAll("[data-face-key]"),
+  ];
+  if (!slots.length) return;
+  // 먼저 이미 아는 것부터 채운다
+  const unknown = new Set();
+  slots.forEach((el) => {
+    const k = el.dataset.tierKey || el.dataset.faceKey;
+    if (!k) return;
+    if (!el.dataset.tierKey) {
+      // 24-228차: 사진은 티어를 이미 알아도 따로 확인한다(1분에 한 번)
+      if (!tierCache.has(k) || (!tierAvatars.has(k) && Date.now() - (faceCheckedAt.get(k) || 0) > 60000)) unknown.add(k);
+      return; // 사진 자리는 아래에서 따로 채운다
+    }
+    if (tierCache.has(k)) {
+      const html = tierBadgeHtml(tierCache.get(k));
+      if (el.innerHTML !== html) el.innerHTML = html;
+    } else {
+      // 24-224차: 받아오기 전에도 일단 아이언을 띄워 둔다(빈 칸이 검게 비어 보이지 않게)
+      if (!el.innerHTML) el.innerHTML = tierBadgeHtml("iron");
+      unknown.add(k);
+    }
+  });
+  // 24-224차: 사진 자리도 아는 만큼 먼저 채운다
+  // 24-236차: span 은 그대로 두고 안에 사진만 넣는다(테두리 ::before 가 사진에도 붙게)
+  document.querySelectorAll(".forum-face[data-face-key]").forEach((el) => {
+    const v = tierAvatars.get(el.dataset.faceKey);
+    if (!v || el.dataset.src === v) return;
+    el.dataset.src = v;
+    const img = document.createElement("img");
+    img.src = v;
+    img.loading = "lazy";
+    img.alt = "";
+    img.onerror = () => {
+      img.remove();
+      el.classList.add("is-default");
+    };
+    el.innerHTML = "";
+    el.appendChild(img);
+    el.classList.remove("is-default");
+  });
+  // 24-229차: 남의 프로필 테두리도 얼굴에 입힌다
+  document.querySelectorAll(".forum-face[data-face-key]").forEach((el) => {
+    setFrameClass(el, tierInfoCache.get(el.dataset.faceKey)?.frame || null);
+  });
+  if (!unknown.size || tierFetching) return;
+  tierFetching = true;
+  try {
+    const keys = [...unknown];
+    const res = await window.nova.tierLookup?.({ mcUuids: keys, accountIds: keys });
+    if (res?.ok) {
+      keys.forEach((k) => {
+        tierCache.set(k, res.tiers?.[k]?.tier || "iron");
+        if (res.tiers?.[k]) tierInfoCache.set(k, res.tiers[k]); // 24-229차: 카드용
+        faceCheckedAt.set(k, Date.now());
+        if (res.tiers?.[k]?.avatar) tierAvatars.set(k, res.tiers[k].avatar);
+      });
+      if (keys.some((k) => tierAvatars.has(k))) setTimeout(paintTiers, 0); // 사진 바로 칠하기
+      // 받아온 걸로 다시 한 번 칠한다
+      document.querySelectorAll(".tier-slot[data-tier-key]").forEach((el) => {
+        el.innerHTML = tierBadgeHtml(tierCache.get(el.dataset.tierKey) || "iron");
+      });
+    }
+  } catch (_) {
+  } finally {
+    tierFetching = false;
+  }
+}
+// 24-224차: "로딩이 너무 느려 더 빠르게 티어는 바로바로 보이게"
+// 목록이 그려지는 즉시 칠하도록 DOM 변화를 지켜본다(2.5초 주기만으로는 늦게 보였다).
+const tierPaintObserver = new MutationObserver(() => {
+  clearTimeout(tierPaintObserver._t);
+  tierPaintObserver._t = setTimeout(paintTiers, 60);
+});
+document.addEventListener("DOMContentLoaded", () => {
+  tierPaintObserver.observe(document.body, { childList: true, subtree: true });
+});
+tierPaintObserver.observe(document.documentElement, { childList: true, subtree: true });
+setInterval(paintTiers, 4000);
+
+
+// ============================================================================
+// 24-214차: 새 공지사항이 올라오면 커뮤니티 아이콘에 빨간 점
+// "공지사항 올라오면 커뮤니티에 빨간색 점 뜨게 해주고"
+// 마지막으로 본 공지의 시각을 기억해 두고, 그보다 새 공지가 있으면 점을 켠다.
+// 커뮤니티 화면을 열면 본 것으로 치고 끈다.
+// ============================================================================
+const NOTICE_SEEN_KEY = "nova_last_seen_notice";
+let latestNoticeAt = null;
+function noticeSeenAt() {
+  try {
+    return localStorage.getItem(NOTICE_SEEN_KEY) || "";
+  } catch (_) {
+    return "";
+  }
+}
+function renderNoticeDot() {
+  const dot = document.getElementById("forum-notif-dot");
+  if (!dot) return;
+  // 24-243차: 구독한 사람이 새 글을 올려도 빨간 점
+  const subPosts = Number(window.NovaSubNewPostCount) || 0;
+  dot.hidden = !((latestNoticeAt && latestNoticeAt > noticeSeenAt()) || subPosts > 0);
+}
+async function refreshNoticeDot() {
+  try {
+    const res = await window.nova.forumLatestNotice?.();
+    if (res?.ok) {
+      latestNoticeAt = res.notice?.created_at || null;
+      renderNoticeDot();
+    }
+  } catch (_) {}
+}
+function markNoticesSeen() {
+  if (!latestNoticeAt) return;
+  try {
+    localStorage.setItem(NOTICE_SEEN_KEY, latestNoticeAt);
+  } catch (_) {}
+  renderNoticeDot();
+}
+setTimeout(refreshNoticeDot, 4000);
+setInterval(refreshNoticeDot, 5 * 60 * 1000);
+
+
+// ============================================================================
+// 24-221차: 친구 폴더
+// 폴더는 내 컴퓨터에만 남는 "묶음"이라(main.js 참고) 친구 목록을 다시 받아올 필요가 없다.
+// 접힘 상태도 여기서만 기억한다.
+// ============================================================================
+let friendFolders = [];
+// 24-229차: 친구 메모 { 친구계정id: 글 } - 내 컴퓨터에만
+let friendMemos = {};
+window.nova.friendMemos?.().then((r) => { if (r?.ok) friendMemos = r.memos || {}; }).catch(() => {});
+let friendFolderMap = {};
+const friendFolderClosed = new Set();
+function loadFriendFolderClosed() {
+  try {
+    (JSON.parse(localStorage.getItem("nova_friend_folders_closed") || "[]") || []).forEach((id) =>
+      friendFolderClosed.add(id)
+    );
+  } catch (_) {}
+}
+function saveFriendFolderClosed() {
+  try {
+    localStorage.setItem("nova_friend_folders_closed", JSON.stringify([...friendFolderClosed]));
+  } catch (_) {}
+}
+loadFriendFolderClosed();
+
+async function refreshFriendFolders() {
+  const res = await window.nova.friendFolders?.().catch(() => null);
+  if (res?.ok) {
+    friendFolders = res.folders || [];
+    friendFolderMap = res.map || {};
+  }
+}
+
+// 폴더 머리줄 - 누르면 접히고, 오른쪽에 이름 바꾸기/지우기
+function friendFolderHeadHtml(folder, count) {
+  const closed = friendFolderClosed.has(folder.id);
+  return `
+    <div class="home-friends-folder${closed ? " is-closed" : ""}" data-folder-id="${escapeHtml(folder.id)}">
+      <button type="button" class="home-friends-folder-head" data-folder-toggle="${escapeHtml(folder.id)}">
+        <svg class="home-friends-folder-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="home-friends-folder-name">${escapeHtml(folder.name)}</span>
+        <span class="home-friends-folder-count">${count}</span>
+      </button>
+      <span class="home-friends-folder-actions">
+        <button type="button" data-folder-rename="${escapeHtml(folder.id)}" title="이름 바꾸기">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" data-folder-delete="${escapeHtml(folder.id)}" title="폴더 지우기">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </span>
+    </div>`;
+}
+
+// 폴더 머리/이름바꾸기/지우기 - 목록을 다시 그려도 살아남게 위임으로 건다
+document.getElementById("home-friends-list")?.addEventListener("click", async (e) => {
+  const toggle = e.target.closest?.("[data-folder-toggle]");
+  if (toggle) {
+    const id = toggle.dataset.folderToggle;
+    if (friendFolderClosed.has(id)) friendFolderClosed.delete(id);
+    else friendFolderClosed.add(id);
+    saveFriendFolderClosed();
+    refreshFriends();
+    return;
+  }
+  const ren = e.target.closest?.("[data-folder-rename]");
+  if (ren) {
+    e.stopPropagation();
+    const folder = friendFolders.find((f) => f.id === ren.dataset.folderRename);
+    const name = await showPrompt?.("폴더 이름", folder?.name || "", "바꾸기");
+    if (!name) return;
+    const res = await window.nova.friendFolderRename?.(ren.dataset.folderRename, name);
+    if (!res?.ok) showToast(res?.error || "바꾸지 못했어요", "error");
+    await refreshFriendFolders();
+    refreshFriends();
+    return;
+  }
+  const del = e.target.closest?.("[data-folder-delete]");
+  if (del) {
+    e.stopPropagation();
+    const folder = friendFolders.find((f) => f.id === del.dataset.folderDelete);
+    const ok = await showConfirm(
+      `"${folder?.name || ""}" 폴더를 지울까요? 안에 있던 친구는 일반으로 돌아가요.`,
+      "폴더 지우기",
+      "취소"
+    );
+    if (!ok) return;
+    await window.nova.friendFolderRemove?.(del.dataset.folderDelete);
+    await refreshFriendFolders();
+    refreshFriends();
+  }
+});
+
+// 24-223차: 친구 검색 - 목록을 다시 받아올 필요 없이 이미 받아둔 목록에서 걸러낸다.
+// 검색 중에는 폴더를 접어두고 결과만 한 줄로 보여준다(폴더 안에 있든 없든 다 나와야 하니까).
+let friendSearchText = "";
+const friendSearchInput = document.getElementById("friend-search-input");
+friendSearchInput?.addEventListener("input", () => {
+  friendSearchText = friendSearchInput.value.trim().toLowerCase();
+  refreshFriends();
+});
+friendSearchInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeFriendSearch();
+});
+// 24-226차: 검색칸은 돋보기 아이콘을 눌렀을 때만 펼쳐진다. ✕ 를 누르면 지우고 접는다.
+function closeFriendSearch() {
+  if (!friendSearchInput) return;
+  const had = !!friendSearchText;
+  friendSearchInput.value = "";
+  friendSearchText = "";
+  document.getElementById("home-friends-search").hidden = true;
+  document.getElementById("btn-friend-search-toggle")?.classList.remove("is-on");
+  if (had) refreshFriends();
+}
+document.getElementById("btn-friend-search-toggle")?.addEventListener("click", () => {
+  const box = document.getElementById("home-friends-search");
+  if (!box) return;
+  if (box.hidden) {
+    box.hidden = false;
+    document.getElementById("btn-friend-search-toggle").classList.add("is-on");
+    friendSearchInput?.focus();
+  } else {
+    closeFriendSearch();
+  }
+});
+document.getElementById("btn-friend-search-clear")?.addEventListener("click", closeFriendSearch);
+
+document.getElementById("btn-friend-folder-new")?.addEventListener("click", async () => {
+  const name = await showPrompt?.("새 폴더 이름", "", "만들기");
+  if (!name) return;
+  const res = await window.nova.friendFolderCreate?.(name);
+  if (!res?.ok) {
+    showToast(res?.error || "폴더를 만들지 못했어요", "error");
+    return;
+  }
+  await refreshFriendFolders();
+  refreshFriends();
+});
 
 function friendRowHtml(entry, kind, unreadUuids) {
   const presence = kind === "friend" ? entry.presence || (entry.online ? "online" : "offline") : null;
@@ -729,9 +1229,9 @@ function friendRowHtml(entry, kind, unreadUuids) {
         )}" data-friend-status-kind="${escapeHtml(entry.statusKind || "")}" data-friend-status-ref="${escapeHtml(entry.statusRef || "")}" data-friend-status-version="${escapeHtml(entry.statusVersion || "")}"`
       : "";
   return `
-    <div class="friend-row${kind === "friend" ? " is-clickable" : ""}"${clickableAttrs}>
+    <div class="friend-row${kind === "friend" ? " is-clickable" : ""}"${clickableAttrs}${kind === "friend" ? ` data-presence="${escapeHtml(presence || "offline")}"` : ""}>
       <span class="friend-row-main">
-        <span class="friend-row-name"><span class="${dotClass}"></span>${escapeHtml(entry.name || "")}${kind === "outgoing" ? " (대기 중)" : ""}${hasUnread ? `<span class="friend-row-unread-dot" title="안 읽은 귓속말이 있어요"></span>` : ""}</span>
+        <span class="friend-row-name"><span class="${dotClass}"></span>${tierSlot(entry.uuid)}${escapeHtml(entry.name || "")}${kind === "outgoing" ? " (대기 중)" : ""}${hasUnread ? `<span class="friend-row-unread-dot" title="안 읽은 귓속말이 있어요"></span>` : ""}</span>
         ${statusLine}
       </span>
       ${actions ? `<span class="friend-row-actions">${actions}</span>` : ""}
@@ -756,7 +1256,7 @@ function blockedRowHtml(entry) {
 
 async function refreshFriends() {
   if (!currentProfile?.uuid || !homeFriendsList) return;
-  const { friends, incoming, outgoing, blocked } = await window.luna.friendsList();
+  const { friends, incoming, outgoing, blocked } = await window.nova.friendsList();
 
   if (homeFriendsOnlineEl) homeFriendsOnlineEl.textContent = friends.filter((f) => f.online).length;
 
@@ -782,7 +1282,7 @@ async function refreshFriends() {
   try {
     const friendUuids = friends.map((f) => f.uuid).filter(Boolean);
     if (friendUuids.length) {
-      const unread = await window.luna.whisperUnreadSenders?.(friendUuids);
+      const unread = await window.nova.whisperUnreadSenders?.(friendUuids);
       if (Array.isArray(unread)) unreadUuids = new Set(unread);
     }
   } catch (_) {
@@ -794,34 +1294,90 @@ async function refreshFriends() {
 
   // 24-69차: "온라인 오프라인으로 나눠주고 플레이중, 런처 대기중, 잠수, 오프라인 순으로"
   const sortedFriends = [...friends].sort((a, b) => friendSortRank(a) - friendSortRank(b));
-  const onlineFriends = sortedFriends.filter((f) => friendSortRank(f) < 3);
-  const offlineFriends = sortedFriends.filter((f) => friendSortRank(f) === 3);
-  homeFriendsList.innerHTML = [
-    onlineFriends.length ? `<div class="home-friends-list-title">온라인</div>` : "",
-    ...onlineFriends.map((f) => friendRowHtml(f, "friend", unreadUuids)),
-    offlineFriends.length ? `<div class="home-friends-list-title">오프라인</div>` : "",
-    ...offlineFriends.map((f) => friendRowHtml(f, "friend", unreadUuids)),
-  ].join("");
+
+  // 24-221차: 폴더가 하나라도 있으면 폴더별로 묶어서 보여준다(없으면 예전 그대로 온/오프라인).
+  await refreshFriendFolders();
+  const byOnOff = (list) => [
+    list.filter((f) => friendSortRank(f) < 3),
+    list.filter((f) => friendSortRank(f) === 3),
+  ];
+  const groupHtml = (list) => {
+    const [on, off] = byOnOff(list);
+    return [
+      on.length ? `<div class="home-friends-list-title">온라인</div>` : "",
+      ...on.map((f) => friendRowHtml(f, "friend", unreadUuids)),
+      off.length ? `<div class="home-friends-list-title">오프라인</div>` : "",
+      ...off.map((f) => friendRowHtml(f, "friend", unreadUuids)),
+    ].join("");
+  };
+
+  // 24-223차: 검색 중에는 폴더를 접고 걸린 사람만 한 줄로
+  if (friendSearchText) {
+    const hit = sortedFriends.filter((f) => String(f.name || "").toLowerCase().includes(friendSearchText));
+    homeFriendsList.innerHTML = hit.length
+      ? `<div class="home-friends-list-title">검색 결과 ${hit.length}</div>` +
+        hit.map((f) => friendRowHtml(f, "friend", unreadUuids)).join("")
+      : `<div class="home-friends-folder-empty">"${escapeHtml(friendSearchText)}" 와 맞는 친구가 없어요</div>`;
+  } else if (!friendFolders.length) {
+    homeFriendsList.innerHTML = groupHtml(sortedFriends);
+  } else {
+    const parts = [];
+    friendFolders.forEach((folder) => {
+      const mine = sortedFriends.filter((f) => friendFolderMap[f.uuid] === folder.id);
+      parts.push(friendFolderHeadHtml(folder, mine.length));
+      // 24-224차: "친구 폴더 비어있으면 그냥 아무것도 표시 X 글도 적지마"
+      if (!friendFolderClosed.has(folder.id) && mine.length) {
+        parts.push(
+          `<div class="home-friends-folder-body">${mine
+            .map((f) => friendRowHtml(f, "friend", unreadUuids))
+            .join("")}</div>`
+        );
+      }
+    });
+    // 어느 폴더에도 안 넣은 친구
+    const rest = sortedFriends.filter((f) => {
+      const fid = friendFolderMap[f.uuid];
+      return !fid || !friendFolders.some((x) => x.id === fid);
+    });
+    // 24-224차: "일반 글 삭제" - 제목 없이 그냥 이어서 보여준다
+    if (rest.length) parts.push(groupHtml(rest));
+    homeFriendsList.innerHTML = parts.join("");
+  }
 
   // 24-53차: "친구" 섹션이 요청 목록과 분리됐으니, 여기 빈 상태는 이제 친구 수만 기준으로 판단
-  homeFriendsEmpty.hidden = friends.length !== 0;
+  homeFriendsEmpty.hidden = friends.length !== 0 || !!friendSearchText;
+
+  // 24-200차: 알림함은 이 함수가 만든 점들을 그대로 읽으므로, 갱신 직후 바로 다시 센다
+  try {
+    window.NovaNotifyRefresh?.();
+  } catch (_) {}
 }
 
 async function handleFriendAction(action, id) {
   if (action === "accept") {
-    const res = await window.luna.friendsAccept(id);
+    const res = await window.nova.friendsAccept(id);
     if (res.ok) showToast("친구 요청을 수락했어요");
   } else if (action === "unfriend") {
     // 17-3(4차): 친구 삭제는 바로 실행하지 않고, 다른 곳에서 쓰는 것과 같은 확인창을 먼저 띄움
     const confirmed = await showConfirm("정말 친구를 삭제할까요?", "삭제", "취소");
     if (!confirmed) return;
-    const res = await window.luna.friendsRemove(id);
+    const res = await window.nova.friendsRemove(id);
     if (res.ok) showToast("친구를 삭제했어요");
+  } else if (action === "cancel") {
+    // 24-142차: "보낸 친구요청도 친구추가 밑에 따로 떠서 취소할 수 있게 해줘"
+    // 목록 자체는 원래도 "보낸 친구 요청" 제목 아래에 떠 있었지만, 취소 버튼이 아무 말 없이
+    // friendsRemove 만 부르고 끝나서 눌러도 아무 일도 안 일어난 것처럼 보였음.
+    // 확인창과 결과 알림을 붙여서 동작이 눈에 보이게 함
+    const confirmed = await showConfirm("보낸 친구 요청을 취소할까요?", "요청 취소", "닫기");
+    if (!confirmed) return;
+    const res = await window.nova.friendsRemove(id);
+    if (res.ok) showToast("친구 요청을 취소했어요");
+    else showToast(res.error || "요청을 취소하지 못했어요", "error");
   } else if (action === "unblock") {
-    const res = await window.luna.friendsRemove(id);
+    const res = await window.nova.friendsRemove(id);
     if (res.ok) showToast("차단을 해제했어요");
   } else {
-    await window.luna.friendsRemove(id);
+    await window.nova.friendsRemove(id);
   }
   refreshFriends();
 }
@@ -858,7 +1414,7 @@ async function openFriendProfileByAccountId(accountId, name, playing) {
   if (!accountId) return;
   let resolved = null;
   try {
-    resolved = await window.luna.resolveAccountMinecraft?.(accountId);
+    resolved = await window.nova.resolveAccountMinecraft?.(accountId);
   } catch (_) {
     resolved = null;
   }
@@ -923,6 +1479,25 @@ function openFriendContextMenu(row, x, y) {
   const joinItem = friendContextMenu.querySelector('[data-friend-ctx-action="join"]');
   if (joinItem) joinItem.hidden = !playing || playing.type === "profile-missing";
 
+  // 24-221차: 지금 있는 폴더들을 메뉴에 채운다. 폴더가 없으면 "폴더 만들기"만 보여준다.
+  // 24-224차: 처음엔 접어두고 "폴더로 옮기기"를 눌러야 펼쳐진다.
+  const foldersEl = document.getElementById("friend-ctx-folders");
+  if (foldersEl) {
+    foldersEl.hidden = true;
+    const here = friendFolderMap[friendContextMenuTarget.accountId] || null;
+    foldersEl.innerHTML =
+      friendFolders
+        .map(
+          (f) =>
+            `<button type="button" class="dropdown-select-item${f.id === here ? " is-active" : ""}" data-folder-put="${escapeHtml(
+              f.id
+            )}">${escapeHtml(f.name)}</button>`
+        )
+        .join("") +
+      (here ? `<button type="button" class="dropdown-select-item" data-folder-put="">폴더에서 빼기</button>` : "") +
+      `<button type="button" class="dropdown-select-item" data-folder-put="__new">+ 새 폴더</button>`;
+  }
+
   friendContextMenu.hidden = false;
   // 24-21차 창 모서리 처리(.confirm-overlay 등)와 동일하게 body가 기준 좌표계(position:relative)
   // 라서, 메뉴가 그 오른쪽/아래쪽 경계를 넘어가지 않도록 보정함
@@ -933,6 +1508,67 @@ function openFriendContextMenu(row, x, y) {
   friendContextMenu.style.left = `${left}px`;
   friendContextMenu.style.top = `${top}px`;
 }
+
+// ============================================================================
+// 24-224차: "친구 좌클릭으로 클릭+드레그로 폴더로 옮길 수 있게 하고 가져다 대면 항상 표시"
+// 마우스를 누른 채 조금이라도 움직이면 끌기가 시작된다(그냥 클릭은 지금처럼 귓속말).
+// 끄는 동안 폴더 머리 위에 올리면 그 폴더가 밝아지고, 놓으면 거기로 들어간다.
+// ============================================================================
+let friendDrag = null; // { uuid, name, ghost, startX, startY, moved }
+document.addEventListener("mousedown", (e) => {
+  if (e.button !== 0) return;
+  const row = e.target.closest?.(".friend-row.is-clickable");
+  if (!row || !row.closest(".home-friends")) return;
+  if (e.target.closest("button")) return;
+  friendDrag = {
+    uuid: row.dataset.whisperUuid,
+    name: row.dataset.whisperName,
+    startX: e.clientX,
+    startY: e.clientY,
+    moved: false,
+    ghost: null,
+    row,
+  };
+});
+document.addEventListener("mousemove", (e) => {
+  if (!friendDrag) return;
+  if (!friendDrag.moved) {
+    if (Math.abs(e.clientX - friendDrag.startX) + Math.abs(e.clientY - friendDrag.startY) < 5) return;
+    friendDrag.moved = true;
+    document.body.classList.add("is-friend-dragging");
+    const ghost = document.createElement("div");
+    ghost.className = "friend-drag-ghost";
+    ghost.textContent = friendDrag.name || "";
+    document.body.appendChild(ghost);
+    friendDrag.ghost = ghost;
+  }
+  friendDrag.ghost.style.left = `${e.clientX + 12}px`;
+  friendDrag.ghost.style.top = `${e.clientY + 12}px`;
+  // 지금 가리키고 있는 폴더 표시
+  const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".home-friends-folder");
+  document.querySelectorAll(".home-friends-folder.is-drop").forEach((el) => {
+    if (el !== over) el.classList.remove("is-drop");
+  });
+  if (over) over.classList.add("is-drop");
+});
+document.addEventListener("mouseup", async (e) => {
+  const drag = friendDrag;
+  friendDrag = null;
+  if (!drag) return;
+  drag.ghost?.remove();
+  document.body.classList.remove("is-friend-dragging");
+  document.querySelectorAll(".home-friends-folder.is-drop").forEach((el) => el.classList.remove("is-drop"));
+  if (!drag.moved) return; // 그냥 클릭이었다 - 원래 동작(귓속말)에 맡긴다
+  const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".home-friends-folder");
+  const list = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("#home-friends-list");
+  if (!over && !list) return;
+  const folderId = over?.dataset.folderId || null; // 폴더 밖에 놓으면 폴더에서 뺀다
+  if (!drag.uuid) return;
+  await window.nova.friendFolderAssign?.(drag.uuid, folderId);
+  await refreshFriendFolders();
+  refreshFriends();
+  showToast(folderId ? `${drag.name} → ${friendFolders.find((f) => f.id === folderId)?.name || ""}` : `${drag.name} 폴더에서 뺐어요`);
+}, true);
 
 document.addEventListener("contextmenu", (e) => {
   const row = e.target.closest?.(".friend-row.is-clickable");
@@ -947,6 +1583,37 @@ document.addEventListener("click", (e) => {
 });
 // 메뉴가 떠 있는 동안 창 크기가 바뀌면(예: 전체화면 전환) 좌표가 어긋나므로 그냥 닫음
 window.addEventListener("resize", closeFriendContextMenu);
+
+// 24-224차: "폴더로 옮기기"를 누르면 그때 목록이 펼쳐진다
+document.getElementById("btn-friend-ctx-folder")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const el = document.getElementById("friend-ctx-folders");
+  if (el) el.hidden = !el.hidden;
+  document.getElementById("btn-friend-ctx-folder")?.classList.toggle("is-open", el && !el.hidden);
+});
+
+// 24-221차: 폴더로 옮기기
+friendContextMenu?.addEventListener("click", async (e) => {
+  const put = e.target.closest?.("[data-folder-put]");
+  if (!put) return;
+  const target = friendContextMenuTarget;
+  closeFriendContextMenu();
+  if (!target?.accountId) return;
+  let folderId = put.dataset.folderPut;
+  if (folderId === "__new") {
+    const name = await showPrompt("새 폴더 이름", "", "만들기");
+    if (!name) return;
+    const made = await window.nova.friendFolderCreate?.(name);
+    if (!made?.ok) {
+      showToast(made?.error || "폴더를 만들지 못했어요", "error");
+      return;
+    }
+    folderId = made.folder.id;
+  }
+  await window.nova.friendFolderAssign?.(target.accountId, folderId || null);
+  await refreshFriendFolders();
+  refreshFriends();
+});
 
 friendContextMenu?.addEventListener("click", async (e) => {
   const btn = e.target.closest?.("[data-friend-ctx-action]");
@@ -971,6 +1638,19 @@ friendContextMenu?.addEventListener("click", async (e) => {
     return;
   }
 
+  // 24-229차: 친구 메모 - 내 컴퓨터에만 남는다
+  if (action === "memo") {
+    if (!target.accountId) return;
+    const text = await showPrompt(`${target.name} 메모`, friendMemos[target.accountId] || "", "저장", "취소", 80);
+    if (text === null) return;
+    const res = await window.nova.friendMemoSet?.(target.accountId, text);
+    if (res?.ok) {
+      friendMemos = res.memos || {};
+      showToast(text ? "메모 저장" : "메모 삭제");
+    }
+    return;
+  }
+
   if (action === "join") {
     if (!target.playing) return;
     // 24-63차: "참가하기 누르면 PLAY를 누르는 게 아니라 참가하시겠습니까 이거 뜨게 해줘
@@ -983,7 +1663,7 @@ friendContextMenu?.addEventListener("click", async (e) => {
     let switched = false;
     try {
       if (target.playing.type === "server") {
-        const res = await window.luna.selectServer(target.playing.server.id);
+        const res = await window.nova.selectServer(target.playing.server.id);
         if (res.ok) {
           if (serverChipName) serverChipName.textContent = res.server.name;
           updateMcVersionLabel(res.server.version);
@@ -994,7 +1674,7 @@ friendContextMenu?.addEventListener("click", async (e) => {
           showToast(res.error || "참가에 실패했어요.", "error");
         }
       } else if (target.playing.type === "profile") {
-        const res = await window.luna.selectProfile(target.playing.profile.id);
+        const res = await window.nova.selectProfile(target.playing.profile.id);
         if (res.ok) {
           if (profileChipName) profileChipName.textContent = res.profile.name;
           updateMcVersionLabel(res.profile.mcVersion);
@@ -1017,7 +1697,7 @@ friendContextMenu?.addEventListener("click", async (e) => {
     // 17-3(4차)에서 이미 쓰던 것과 같은 확인 문구/버튼 라벨을 그대로 재사용
     const confirmed = await showConfirm("정말 친구를 삭제할까요?", "삭제", "취소");
     if (!confirmed) return;
-    const res = await window.luna.friendsRemove(target.id);
+    const res = await window.nova.friendsRemove(target.id);
     if (res.ok) showToast("친구를 삭제했어요");
     refreshFriends();
     return;
@@ -1027,7 +1707,7 @@ friendContextMenu?.addEventListener("click", async (e) => {
     if (!target.name) return;
     const confirmed = await showConfirm(`${target.name}님을 차단할까요? 차단하면 친구 목록에서 사라지고, 서로 친구 요청도 보낼 수 없어요.`, "차단", "취소");
     if (!confirmed) return;
-    const res = await window.luna.friendsBlock(target.name);
+    const res = await window.nova.friendsBlock(target.name);
     if (res.ok) showToast(`${target.name}님을 차단했어요`);
     else showToast(res.error || "차단에 실패했어요.", "error");
     refreshFriends();
@@ -1043,7 +1723,7 @@ async function submitFriendAdd() {
     homeFriendAddError.textContent = "로그인 후 이용할 수 있어요.";
     return;
   }
-  const res = await window.luna.friendsAdd(name);
+  const res = await window.nova.friendsAdd(name);
   if (res.ok) {
     homeFriendAddInput.value = "";
     showToast(res.accepted ? `${name}님과 친구가 되었어요!` : `${name}님에게 친구 요청을 보냈어요`);
@@ -1068,7 +1748,7 @@ async function submitFriendBlock() {
     if (homeFriendBlockError) homeFriendBlockError.textContent = "로그인 후 이용할 수 있어요.";
     return;
   }
-  const res = await window.luna.friendsBlock(name);
+  const res = await window.nova.friendsBlock(name);
   if (res.ok) {
     homeFriendBlockInput.value = "";
     showToast(`${name}님을 차단했어요`);
@@ -1088,6 +1768,37 @@ setInterval(async () => {
   sendFriendsHeartbeat();
   refreshFriends();
 }, 45000);
+
+// 24-187차: "친구 초대가 왔을 때랑 귓속말 왔을 때 바로바로 안보여"
+// 위 45초 새로고침은 그대로 두고(친구 온라인 상태·상태메시지 갱신용), 새 친구 요청이나
+// 귓속말이 실제로 왔을 때는 메인 프로세스가 보내주는 신호(social:signal - main.js의
+// checkSocialSignal 참고)로 그 자리에서 한 번 더 새로고침한다. 무거운 friends:list 를
+// 짧은 간격으로 돌리지 않고도 바로 뜨게 하려는 것.
+window.nova.onSocialSignal?.((sig) => {
+  if (!sig) return;
+  refreshFriends();
+  if (sig.friendRequest) {
+    showToast(
+      sig.friendRequest.name
+        ? `${sig.friendRequest.name}님이 친구 요청을 보냈어요`
+        : "새 친구 요청이 왔어요"
+    );
+  }
+  if (sig.whisper) {
+    const from = normalizeUuidForCompare(sig.whisper.from);
+    const openWith = whisperTarget ? normalizeUuidForCompare(whisperTarget.uuid) : null;
+    if (openWith && openWith === from) {
+      // 그 친구와의 창을 이미 열어둔 상태 - 4초 폴링을 기다리지 않고 바로 받아온다
+      loadWhisperMessages(true);
+    } else {
+      showToast(
+        sig.whisper.name
+          ? `${sig.whisper.name}님에게서 귓속말이 왔어요`
+          : "새 귓속말이 왔어요"
+      );
+    }
+  }
+});
 
 // ---- 시작 시 캐시된 사이트 계정 로그인 확인 --------------------------------
 // 24-4차: "클라이언트도 사이트처럼 전용 계정 로그인통해서 하게 할 거고" - 이제 첫 화면
@@ -1110,28 +1821,40 @@ setInterval(async () => {
 // 이미 사이트 계정으로 출석을 받았어도 "아직 안 받음(canClaimToday:true)"으로 잘못
 // 계산되고, 그 뒤로 아무도 다시 refreshCoins()를 안 불러주면 그 빨간 점이 그대로 남아있게
 // 됨. 이 확인이 끝났다는 걸 다른 시작 코드가 기다릴 수 있도록 Promise를 변수에 저장해둠
+// 24-79차: 부팅 중 세션이 거부됐는지 표시해두는 플래그(토스트는 부팅 가림막을 걷은 뒤에 띄움)
+let sessionKickedOnBoot = false;
 const siteAccountReadyPromise = (async () => {
   try {
-    const siteRes = await window.luna.getCachedSiteAccount();
+    const siteRes = await window.nova.getCachedSiteAccount();
     if (siteRes?.ok && siteRes.account) {
       currentSiteAccount = siteRes.account;
-      const cached = await window.luna.getCachedProfile();
+      const cached = await window.nova.getCachedProfile();
       showHome(cached || null); // 마인크래프트 계정은 아직 없어도(게스트) 일단 홈은 보여줌
       startSiteHeartbeat();
     } else {
       currentSiteAccount = null;
       showLogin();
+      // 24-79차: 앱을 켰을 때 저장된 세션이 서버에서 거부된 경우(= 그 사이 다른 기기에서
+      // 로그인해 세션이 교체됨)와, 애초에 로그인한 적이 없는 경우를 지금까지 똑같이
+      // 취급해서 아무 설명 없이 로그인 화면만 보여줬음. 전자는 사용자 입장에서 "이유 없이
+      // 로그아웃됨"으로 느껴지므로 왜 그런지 알려줌. 단, 이 시점엔 아직 부팅 가림막
+      // (#boot-gate)이 덮여 있어서 토스트가 가려지므로, 가림막을 걷은 뒤에 띄움(아래 finally)
+      if (siteRes?.sessionInvalid) sessionKickedOnBoot = true;
     }
   } catch (err) {
     currentSiteAccount = null;
     showLogin();
   } finally {
     document.getElementById("boot-gate")?.setAttribute("hidden", "");
+    // 가림막을 걷은 다음에야 토스트가 실제로 보임
+    if (sessionKickedOnBoot) {
+      showToast("다른 기기에서 로그인해서 이 기기는 로그아웃됐어요. 다시 로그인해주세요.", "error");
+    }
     // 24-35차: "처음에 로딩시간 무조건 걸어둔 거 그 시간 없애고 그 시간에 마크 계정
     // 로딩해봐" - 스플래시(main.js)가 예전엔 이 작업과 무관하게 고정 3.2초를 기다렸는데,
     // 이제 바로 이 시점(사이트 계정 확인 + 마인크래프트 계정 자동 로그인이 실제로 끝난
     // 시점)을 메인 프로세스에 알려서, 그 신호가 올 때까지만 스플래시가 떠 있게 함
-    window.luna.notifyBootReady?.();
+    window.nova.notifyBootReady?.();
   }
 })();
 
@@ -1153,11 +1876,48 @@ function setSiteLoginMode(mode) {
   // 24-10차: 회원가입은 웹사이트 가입과 똑같이 이메일이 추가로 필요함(로그인은 이메일 또는
   // 닉네임 아무거나로 되니 그대로 아이디 입력칸 하나만 씀).
   if (siteLoginEmailInput) siteLoginEmailInput.hidden = mode !== "register";
+  const codeInput = document.getElementById("site-login-code"); // 24-239차
+  if (codeInput) codeInput.hidden = mode !== "register";
   if (siteLoginIdInput) {
     siteLoginIdInput.placeholder = mode === "login" ? "이메일 또는 아이디(닉네임)" : "닉네임 (아이디, 2~16자)";
   }
   if (siteLoginError) siteLoginError.textContent = "";
+  // 24-169차: 아이디/비밀번호 찾기 링크는 로그인 탭에서만 의미가 있음
+  const loginHelpEl = document.getElementById("site-login-help");
+  if (loginHelpEl) loginHelpEl.hidden = mode !== "login";
 }
+// 24-239차: 회원가입 이메일 인증 코드 받기(60초에 한 번)
+let siteCodeWaitTimer = null;
+document.getElementById("btn-site-send-code")?.addEventListener("click", async () => {
+  const btn = document.getElementById("btn-site-send-code");
+  if (!btn || btn.disabled) return;
+  if (siteLoginError) siteLoginError.textContent = "";
+  const email = siteLoginEmailInput?.value || "";
+  btn.disabled = true;
+  btn.textContent = "보내는 중";
+  const res = await window.nova.siteSendSignupCode?.(email).catch(() => null);
+  if (!res?.ok) {
+    btn.disabled = false;
+    btn.textContent = "코드 받기";
+    if (siteLoginError) siteLoginError.textContent = res?.error || "인증 코드를 보내지 못했어요.";
+    return;
+  }
+  showToast("인증 코드를 메일로 보냈어요");
+  document.getElementById("site-login-code")?.focus();
+  let left = 60;
+  clearInterval(siteCodeWaitTimer);
+  btn.textContent = `다시 받기 ${left}`;
+  siteCodeWaitTimer = setInterval(() => {
+    left -= 1;
+    if (left <= 0) {
+      clearInterval(siteCodeWaitTimer);
+      btn.disabled = false;
+      btn.textContent = "다시 받기";
+    } else {
+      btn.textContent = `다시 받기 ${left}`;
+    }
+  }, 1000);
+});
 siteLoginTabLogin?.addEventListener("click", () => setSiteLoginMode("login"));
 siteLoginTabRegister?.addEventListener("click", () => setSiteLoginMode("register"));
 // 로그인 화면은 앱을 켜자마자(로그인 여부 확인 전에) 바로 보이는 화면이라, 첫 탭(로그인)
@@ -1177,12 +1937,20 @@ siteLoginForm?.addEventListener("submit", async (e) => {
   await withBusyButton(btnSiteLoginSubmit, siteLoginMode === "login" ? "로그인 중..." : "회원가입 중...", async () => {
     const res =
       siteLoginMode === "login"
-        ? await window.luna.siteLogin(id, pw)
-        : await window.luna.siteRegister(email, id, pw);
+        ? await window.nova.siteLogin(id, pw)
+        : await window.nova.siteRegister(email, id, pw, document.getElementById("site-login-code")?.value || "");
     if (res.ok) {
       currentSiteAccount = res.account;
       if (siteLoginPasswordInput) siteLoginPasswordInput.value = "";
-      const cached = await window.luna.getCachedProfile();
+      let cached = await window.nova.getCachedProfile();
+      // 24-173차: 이 기기의 마인크래프트 세션이 없거나, 있어도 이 노바 계정에 연동된 계정이
+      // 아니면, 연동돼 있으면서 이 PC에 토큰이 남아있는 다른 계정으로 조용히 전환해본다.
+      // (예전엔 곧바로 "마인크래프트 계정을 연동해주세요" 화면으로 보내버렸음)
+      currentProfile = cached || null;
+      if (!hasLinkedMcAccount() && siteAccountMcLinks().length) {
+        const switched = await trySwitchToAnotherLinkedAccount(res.account);
+        if (switched) cached = switched;
+      }
       showHome(cached || null);
       startSiteHeartbeat();
     } else if (siteLoginError) {
@@ -1199,7 +1967,7 @@ let siteHeartbeatTimer = null;
 function startSiteHeartbeat() {
   if (siteHeartbeatTimer) return;
   siteHeartbeatTimer = setInterval(async () => {
-    const res = await window.luna.siteHeartbeat();
+    const res = await window.nova.siteHeartbeat();
     if (res?.kicked) {
       // 24-16차: "다른 창 눌렀는데 이렇게 됐잖아 이게 아니라 창은 유지하고 경고글만
       // 날려주면 되지" - 예전엔 여기서 곧바로 currentSiteAccount/currentProfile을 지우고
@@ -1211,6 +1979,25 @@ function startSiteHeartbeat() {
       // 로그인이 필요한 동작(PLAY 등)을 시도할 때 그 시점의 서버 응답이 자연스럽게 알려줌.
       stopSiteHeartbeat();
       showToast(`다른 기기(${res.device || "다른 기기"})에서 로그인했을 수 있어요. 계속 문제가 있으면 다시 로그인해주세요.`, "error");
+      return;
+    }
+    // 24-112차: "마크 계정은 한 곳에서 로그인하면 이전 기기가 로그아웃" - 다른 기기가 가져간
+    // 마인크래프트 계정은 메인 프로세스가 이미 이 기기에서 지웠고, 여기선 알려주기만 함.
+    // 지금 쓰던 계정이었으면 마인크래프트 연동 화면으로 돌려보냄(게임 실행도 막힘).
+    if (Array.isArray(res?.mcKicked) && res.mcKicked.length) {
+      const names = res.mcKicked.map((m) => m.name).filter(Boolean).join(", ");
+      const device = res.mcKicked.find((m) => m.device)?.device || "다른 기기";
+      showToast(
+        names
+          ? `${device}에서 로그인해서 "${names}" 마인크래프트 계정이 이 기기에서 로그아웃됐어요`
+          : `${device}에서 로그인해서 마인크래프트 계정이 이 기기에서 로그아웃됐어요`,
+        "error"
+      );
+      if (res.mcActiveRemoved) {
+        currentProfile = null;
+        updateProfileClusterDisplay();
+        showAppPanel("view-mc-gate");
+      }
     }
   }, 45000);
 }
@@ -1230,7 +2017,7 @@ function stopSiteHeartbeat() {
 // 노바 로그인 화면(view-login)으로 돌아가게 바꿈(아래 siteLogoutAndReturnToLogin 재사용)
 btnLogout.addEventListener("click", async () => {
   document.getElementById("account-menu")?.setAttribute("hidden", "");
-  await window.luna.logout(); // 마인크래프트 쪽 로컬 세션도 같이 정리
+  await window.nova.logout(); // 마인크래프트 쪽 로컬 세션도 같이 정리
   await siteLogoutAndReturnToLogin();
 });
 
@@ -1240,11 +2027,38 @@ btnLogout.addEventListener("click", async () => {
 // 패널(loadSiteAccountPanel/renderSiteAccountPanel)에서 호출함.
 async function siteLogoutAndReturnToLogin() {
   stopSiteHeartbeat();
-  await window.luna.siteLogout();
+  await window.nova.siteLogout();
   currentSiteAccount = null;
   currentProfile = null;
   closeSettings();
   showLogin();
+}
+
+// 24-173차: 게이트 화면 문구를 상황에 맞게 바꾼다.
+//  · 연동된 계정이 아예 없음      -> "연동해주세요" (원래 문구)
+//  · 연동은 돼 있는데 토큰이 만료 -> "다시 로그인해주세요" + 그 계정 이름을 보여줌
+function refreshMcGateWording() {
+  const links = siteAccountMcLinks();
+  const titleEl = document.querySelector("#view-mc-gate .mc-gate-title");
+  const textEl = document.querySelector("#view-mc-gate .mc-gate-text");
+  const btnEl = document.getElementById("btn-mc-gate-login");
+  if (!titleEl || !textEl || !btnEl) return;
+
+  if (links.length) {
+    const names = links.map((l) => l.provider_name).filter(Boolean).join(", ");
+    titleEl.textContent = "마인크래프트 로그인이 만료됐어요";
+    textEl.innerHTML = names
+      ? `이 계정에는 <b>${escapeHtml(names)}</b> 이(가) 이미 연동돼 있어요.<br />이 기기의 마인크래프트 로그인만 풀렸으니 다시 로그인해주세요.`
+      : "연동은 그대로예요. 이 기기의 마인크래프트 로그인만 풀렸으니 다시 로그인해주세요.";
+    btnEl.textContent = "마인크래프트 다시 로그인";
+    btnEl.removeAttribute("data-i18n");
+    textEl.querySelectorAll("[data-i18n]").forEach((el) => el.removeAttribute("data-i18n"));
+  } else {
+    titleEl.textContent = window.NovaI18n?.t?.("mc_gate_title") || "마지막 한 단계만 더 하면 돼요";
+    textEl.innerHTML =
+      "이 계정에서 사용할 마인크래프트 계정으로 로그인해주세요.<br />로그인하면 이 사이트 계정에 자동으로 연동돼요.";
+    btnEl.textContent = window.NovaI18n?.t?.("mc_gate_login_btn") || "마인크래프트 계정으로 로그인";
+  }
 }
 
 // ---- 마인크래프트 계정 연동 화면 (view-mc-gate) ------------------------------
@@ -1260,7 +2074,7 @@ document.getElementById("btn-mc-gate-login")?.addEventListener("click", async (e
   // 24-61차: 마이크로소프트 로그인 창과 씨름하는 동안(초 단위로 걸릴 수 있음) 버튼만
   // disabled로 굳어있던 걸, 다른 로딩 버튼들과 같은 스피너+문구로 통일
   await withBusyButton(e.target, "로그인 창 여는 중...", async () => {
-    const res = await window.luna.login();
+    const res = await window.nova.login();
     if (res.ok) {
       currentProfile = res.profile;
       await refreshSiteLinkStateAfterMcLogin(res);
@@ -1282,6 +2096,11 @@ document.getElementById("btn-mc-gate-logout")?.addEventListener("click", async (
 let downloadDotsTimer = null;
 let currentDownloadPercent = null;
 
+// 24-155차: "실행할 때 다운로드 위치에 실행중이 뜨고 아래 뜨면 안되지" - 24-149차엔 버튼
+// 아래 캡션에 "실행 중..."을 띄웠는데, 거기는 원래 진짜 다운로드 상세가 나오는 자리였다.
+// 이제 버튼 안 글자(=DOWNLOADING 이 뜨던 자리)를 기본 "실행 중"으로 두고, 진짜 큰
+// 다운로드가 시작되면(big) 그때만 DOWNLOADING 으로 바뀐다. 캡션은 big 일 때만 쓴다.
+let launchBusyWord = "실행 중";
 function startDownloadDots() {
   let dotCount = 1;
   stopDownloadDots();
@@ -1289,7 +2108,7 @@ function startDownloadDots() {
     dotCount = (dotCount % 3) + 1;
     const dots = ".".repeat(dotCount);
     const pctText = currentDownloadPercent === null ? "" : ` ${currentDownloadPercent}%`;
-    btnPlayLabel.textContent = `DOWNLOADING${pctText}${dots}`;
+    btnPlayLabel.textContent = `${launchBusyWord}${pctText}${dots}`;
   }, 450);
 }
 function stopDownloadDots() {
@@ -1305,10 +2124,91 @@ function stopDownloadDots() {
 // 복제 실행 버튼을 없애는 대신, 프로필 모드에서 이미 실행 중일 땐 PLAY 버튼 자체가
 // "추가 실행하기"로 바뀌어 그 자리에서 같은 프로필을 하나 더 실행하는 용도를 겸함
 // (아래 btnPlay 클릭 핸들러 참고). 서버 모드는 기존과 동일하게 STOP으로 표시됨
-function playIdleLabel() {
-  if (!isInGame) return "PLAY";
-  return launchModeCache === "profile" ? "추가 실행하기" : "STOP";
+// 24-149차: "프로필 바꾸면 추가 실행이 아니라 PLAY가 떠야 하는데 안그러고, 2개 켜놓고
+// 하나 끄면 PLAY가 뜨고" - 예전엔 isInGame(참/거짓) 하나만 봐서 어떤 프로필이 켜져 있든
+// 프로필 모드면 무조건 "추가 실행하기"였다. 이제는 "지금 고른 그 프로필"이 실제로 켜져
+// 있을 때만 추가 실행으로 보여준다.
+function isSelectedProfileRunning() {
+  if (!selectedProfileIdCache) return false;
+  return runningInstances.some((i) => i.profileId === selectedProfileIdCache);
 }
+
+function hasRunningServerInstance() {
+  return runningInstances.some((i) => i.mode === "server");
+}
+
+// 24-194차: "플레이중인 프로필이나 서버엔 표시 따로 해주고"
+// 히어로 칸 전체가 빛나는 글로우만으로는 "여러 개 중 어떤 게 켜져 있는지"를 알 수 없었다.
+// 목록의 그 줄에 직접 "플레이 중" 알약을 붙인다(여러 개 켜두면 개수도 같이).
+function runningCountForProfile(profileId) {
+  if (!profileId) return 0;
+  return runningInstances.filter((i) => i.profileId === profileId).length;
+}
+function runningCountForServer(serverId) {
+  if (!serverId) return 0;
+  return runningInstances.filter((i) => i.mode === "server" && i.serverId === serverId).length;
+}
+function playingPillHtml(count) {
+  if (!count) return "";
+  const label = wgT("launch_list_playing", "플레이 중");
+  return `<span class="launch-item-playing" title="${escapeHtml(label)}"><i></i>${escapeHtml(label)}${
+    count > 1 ? ` <b>${count}</b>` : ""
+  }</span>`;
+}
+
+function playIdleLabel() {
+  if (launchModeCache === "profile") {
+    return isSelectedProfileRunning() ? "추가 실행하기" : "PLAY";
+  }
+  return hasRunningServerInstance() ? "STOP" : "PLAY";
+}
+
+// 24-154차: "추가 실행은 색 조금 다르게 하기" - PLAY 와 똑같은 초록이라 지금 누르면 새로
+// 켜지는 건지 하나 더 켜지는 건지 구분이 안 됐다. 추가 실행일 때만 .is-duplicate 를 붙여
+// 한 톤 가라앉은 색으로 바꾼다(style.css 참고).
+// 같이: "추가 실행 옆에 종료 버튼" - 실행 중인 게 있을 때만 보이고, 2개 이상이면 개수도 표시.
+const btnStopOldest = document.getElementById("btn-stop-oldest");
+const btnStopOldestCount = document.getElementById("btn-stop-oldest-count");
+
+// 24-155차: "다른 프로필로 바꾸면 종료 버튼도 안보여야지, 그 프로필 종료가 아니니까" -
+// 종료 버튼은 "지금 고른 대상"이 실제로 켜져 있을 때만 보여준다(개수도 그 대상 것만 셈).
+function runningForCurrentTarget() {
+  if (launchModeCache === "profile") {
+    if (!selectedProfileIdCache) return [];
+    return runningInstances.filter((i) => i.profileId === selectedProfileIdCache);
+  }
+  return runningInstances.filter((i) => i.mode === "server");
+}
+
+function refreshPlayButtonLook() {
+  if (btnPlay.classList.contains("is-downloading")) return;
+  const label = playIdleLabel();
+  btnPlayLabel.textContent = label;
+  btnPlay.classList.toggle("is-duplicate", label === "추가 실행하기");
+  // 24-190차: 빨간 정지 모양은 정확히 "글자가 STOP일 때"만. 글자(playIdleLabel)는 이미
+  // "지금 고른 대상이 켜져 있나"를 보므로, 모양과 글자가 어긋날 일이 없어진다.
+  btnPlay.classList.toggle("is-in-game", label === "STOP");
+  if (btnStopOldest) {
+    const mine = runningForCurrentTarget();
+    const n = mine.length;
+    btnStopOldest.hidden = n === 0;
+    if (btnStopOldestCount) btnStopOldestCount.textContent = n > 1 ? String(n) : "";
+    btnStopOldest.title = n > 1 ? `가장 먼저 켠 게임 종료 (${n}개 실행 중)` : "게임 종료";
+  }
+}
+
+btnStopOldest?.addEventListener("click", async () => {
+  btnStopOldest.disabled = true;
+  try {
+    const res = await window.nova.stopOldestLaunch?.({
+      mode: launchModeCache === "profile" ? "profile" : "server",
+      profileId: selectedProfileIdCache,
+    });
+    if (!res?.ok) showToast(res?.error || "종료하지 못했어요", "error");
+  } finally {
+    btnStopOldest.disabled = false;
+  }
+});
 
 function setDownloadingState(isDownloading) {
   btnPlay.classList.toggle("is-downloading", isDownloading);
@@ -1317,55 +2217,150 @@ function setDownloadingState(isDownloading) {
     stopDownloadDots();
     currentDownloadPercent = null;
     btnPlayFill.style.width = "0%";
-    btnPlayLabel.textContent = playIdleLabel();
+    refreshPlayButtonLook();
     progressCaption.textContent = "";
+    launchCaptionShown = false; // 24-107차: 다음 실행은 다시 "큰 다운로드일 때만"
+    // 24-140차: 다음 실행을 위해 진행률 최고값과 캡션 대기열도 비움
+    stopLaunchSmoothing(); // 24-157차: 부드러운 보간/속도/남은시간 상태도 같이 초기화
+    launchMaxPercent = 0;
+    pendingCaptionText = "";
+    if (captionFlushTimer) {
+      clearTimeout(captionFlushTimer);
+      captionFlushTimer = null;
+    }
+  } else {
+    launchMaxPercent = 0;
   }
 }
 
 // 10-1: 게임이 실행 중일 때 Play → Stop 으로 바꾸고, 켜져 있는 서버/프로필 쪽을 빛나게 함
 // 14차: 새로고침 트리거 버튼이 없어져서, 빛나는 대상을 버튼이 아니라 바깥 박스 자체로 옮김
 function setInGameUiState(active) {
-  // 24-54차: 프로필 모드에서는 이미 실행 중이어도 "정지"가 아니라 "추가 실행하기"로
-  // 동작하므로, 빨간 정지 버튼 스타일(.is-in-game)은 서버 모드일 때만 입힘 - 프로필
-  // 모드는 그대로 초록 PLAY 모양을 유지한 채 글자만 바뀜(playIdleLabel 참고)
-  btnPlay.classList.toggle("is-in-game", active && launchModeCache !== "profile");
+  // 24-190차: "프로필 플레이중일 때 서버로 바꾸면 갑자기 스탑이 떠"
+  // 빨간 정지 모양(.is-in-game)을 여기서 "뭐라도 켜져 있나(active)"로만 걸고 있었다.
+  // 그래서 프로필로 켜둔 채 서버로 바꾸면, 서버로 켠 건 하나도 없는데도 버튼이 빨간
+  // 정지 모양(아이콘도 네모)으로 바뀌었다 - 글자는 PLAY인데 모양만 정지라 더 헷갈렸다.
+  // 이제 버튼 모양은 글자와 똑같은 기준 한 곳(refreshPlayButtonLook - 글자가 STOP일
+  // 때만 빨갛게)에서만 정하고, 여기서는 글로우와 귓속말 자동 숨김만 맡는다.
   const heroBlockServer = document.getElementById("hero-side-block-server");
   const heroBlockProfile = document.getElementById("hero-side-block-profile");
-  const activeBlock = launchModeCache === "profile" ? heroBlockProfile : heroBlockServer;
-  [heroBlockServer, heroBlockProfile].forEach((el) => el?.classList.remove("is-playing-glow"));
-  if (active) activeBlock?.classList.add("is-playing-glow");
+  // 글로우도 "지금 보고 있는 칸"이 아니라 "실제로 켜져 있는 쪽"에 준다. 프로필로 켜두고
+  // 서버 칸을 보고 있으면 빛나야 하는 건 프로필 칸이다(예전엔 전환할 때마다 따라 옮겨갔음).
+  heroBlockServer?.classList.toggle(
+    "is-playing-glow",
+    runningInstances.some((i) => i.mode === "server")
+  );
+  heroBlockProfile?.classList.toggle(
+    "is-playing-glow",
+    runningInstances.some((i) => i.mode === "profile")
+  );
   // 롤 채팅창처럼: Launch(게임 실행) 나가면 귓속말 창은 자동으로 숨김
   if (active) closeWhisperPopup();
 }
+
+// 24-149차: main 이 알려준 실행 목록을 그대로 반영한다. 버튼 글자/글로우/친구 목록의
+// "플레이 중" 표시가 전부 여기 한 곳에서 갈린다.
+function applyRunningState(state) {
+  runningInstances = Array.isArray(state?.instances) ? state.instances : [];
+  isInGame = runningInstances.length > 0;
+  setInGameUiState(isInGame);
+  // 다운로드 중이거나 "접속 중..." 표시 중이면 그 글자를 덮어쓰지 않는다
+  refreshPlayButtonLook();
+  // 24-194차: 목록의 "플레이 중" 알약은 이 목록을 보고 그리므로 같이 다시 그린다
+  // (서버/프로필 데이터를 다시 받아올 필요는 없어서 그리기만 한다)
+  try {
+    if (typeof lastServersData !== "undefined" && lastServersData) renderServerListItems();
+    if (typeof lastProfilesData !== "undefined" && lastProfilesData) renderProfileListItems();
+  } catch (_) {}
+  try {
+    sendFriendsHeartbeat();
+  } catch (_) {}
+}
+
+window.nova.onRunningChanged?.(applyRunningState);
+window.nova.getRunningState?.().then(applyRunningState).catch(() => {});
+// 창으로 돌아올 때도 한 번 맞춰본다(이벤트를 놓쳤을 경우의 자가 복구)
+window.addEventListener("focus", () => {
+  window.nova.getRunningState?.().then(applyRunningState).catch(() => {});
+});
 
 // 24-63차: "참가하기 누르면 PLAY를 누르는 게 아니라 참가하시겠습니까 이거 뜨게 해줘 누르면
 // 바로 들어가지고" - 원래 PLAY 버튼 클릭 핸들러 안에만 있던 실행 로직(로그인/연동 확인,
 // 다운로드 진행률 표시, 실행 중이면 추가 실행 등 전부 포함)을 이름 있는 함수로 뽑아서,
 // 친구 프로필 팝업/친구 우클릭 메뉴의 "참가하기"에서도 (서버/프로필로 전환한 다음) 그대로
 // 재사용할 수 있게 함 - PLAY를 직접 누른 것과 100% 동일하게 동작함
+// 24-140차: "추가 실행하기" 를 누른 뒤 마인크래프트 창이 실제로 뜰 때까지의 공백을 채움.
+// 버튼을 "접속 중..."으로 바꿔두고 그 동안은 다시 눌리지 않게 잠금.
+const DUPLICATE_BUSY_HOLD_MS = 6000;
+let duplicateBusyTimer = null;
+
+function startDuplicateBusy() {
+  if (duplicateBusyTimer) {
+    clearTimeout(duplicateBusyTimer);
+    duplicateBusyTimer = null;
+  }
+  btnPlay.disabled = true;
+  // 24-149차: "추가 실행도 눌렀을 때 게이지가 보여야지" - 메인 실행과 똑같이 버튼 자체를
+  // 진행률 바로 쓴다(.is-downloading 이 버튼 바탕을 어둡게 해서 채움이 보이게 함).
+  btnPlay.classList.add("is-downloading");
+  launchMaxPercent = 0;
+  btnPlayFill.style.width = "0%";
+  btnPlayLabel.textContent = pmT("play_connecting", "접속 중...");
+}
+
+function holdDuplicateBusy(ms) {
+  if (duplicateBusyTimer) clearTimeout(duplicateBusyTimer);
+  duplicateBusyTimer = setTimeout(endDuplicateBusy, ms);
+}
+
+function endDuplicateBusy() {
+  if (duplicateBusyTimer) {
+    clearTimeout(duplicateBusyTimer);
+    duplicateBusyTimer = null;
+  }
+  btnPlay.disabled = false;
+  btnPlay.classList.remove("is-downloading");
+  btnPlayFill.style.width = "0%";
+  launchMaxPercent = 0;
+  progressCaption.textContent = "";
+  // 그 사이에 게임이 꺼졌거나 모드가 바뀌었을 수 있으니 지금 기준으로 다시 씀
+  refreshPlayButtonLook();
+}
+
 async function handlePlayClick() {
-  // 게임이 이미 실행 중이면...
-  if (isInGame) {
+  // 24-149차: 이미 켜진 게 있을 때의 처리.
+  //  · 서버 모드  : 서버로 켜둔 게 있으면 STOP(종료)
+  //  · 프로필 모드: 뭐라도 켜져 있으면 launch:start-duplicate 로 보냄. 메인 실행(launch:start)은
+  //    gameProcess/진행률/디스코드 상태를 하나만 추적하도록 짜여 있어서, 이미 켜진 게 있는데
+  //    또 부르면 앞 인스턴스 추적이 덮어써진다. 버튼 글자는 "고른 프로필이 켜져 있으면 추가
+  //    실행하기 / 아니면 PLAY"로 나뉘지만(playIdleLabel), 실제 실행 경로는 둘 다 여기로 온다.
+  if (launchModeCache === "profile" ? runningInstances.length > 0 : hasRunningServerInstance()) {
     // 24-54차: 프로필 모드에서는 더 이상 "정지"가 아니라 "추가 실행하기" - 이미 실행
     // 중인 PLAY 버튼을 한 번 더 눌러서 같은 프로필을 하나 더 켬(24-51차 launch:start-duplicate
     // 핸들러를 그대로 재사용 - 기존 gameProcess/진행률/디스코드 상태는 안 건드림). 서버
     // 모드는 기존과 동일하게 "정지"로 취급함
     if (launchModeCache === "profile") {
-      btnPlay.disabled = true;
+      // 24-140차: "추가 실행은 마크 켜지는데 좀 걸리니까 몇초 뒤에 켜지고 그 전에는
+      // 접속중 이라고 뜨게 해줘" - 예전엔 IPC 가 끝나자마자 버튼이 곧장 "추가 실행하기"로
+      // 돌아와서, 마인크래프트 창이 뜨기 전까지 아무 일도 안 일어난 것처럼 보였음.
+      // 이제 누르는 즉시 "접속 중..."으로 바뀌고, 실행이 접수된 뒤에도 몇 초 더 유지함
+      startDuplicateBusy();
       try {
-        const res = await window.luna.startDuplicateLaunch();
+        const res = await window.nova.startDuplicateLaunch();
         if (res.ok) {
-          showToast("추가로 실행했어요");
-        } else if (!res.aborted) {
-          showToast(res.error || "추가 실행에 실패했어요", "error");
+          holdDuplicateBusy(DUPLICATE_BUSY_HOLD_MS);
+        } else {
+          endDuplicateBusy();
+          if (!res.aborted) showToast(res.error || "실행에 실패했어요", "error");
         }
-      } finally {
-        btnPlay.disabled = false;
+      } catch (err) {
+        endDuplicateBusy();
+        showToast("실행에 실패했어요", "error");
       }
       return;
     }
     btnPlay.disabled = true;
-    const res = await window.luna.stopLaunch();
+    const res = await window.nova.stopLaunch();
     btnPlay.disabled = false;
     if (!res.ok) showToast(res.error || "게임을 종료하지 못했어요", "error");
     return;
@@ -1400,37 +2395,212 @@ async function handlePlayClick() {
   cancelReconnectPrompt();
   setDownloadingState(true);
   currentDownloadPercent = null;
+  launchBusyWord = "실행 중"; // 24-155차: 큰 다운로드가 실제로 시작되면 DOWNLOADING 으로 바뀜
   startDownloadDots();
 
-  const res = await window.luna.startLaunch();
+  const res = await window.nova.startLaunch();
 
   if (!res.ok) {
     setDownloadingState(false);
-    if (!res.aborted) {
+    if (res.needsServerProfile) {
+      // 24-94차: 서버에 들어갈 프로필이 아직 연결 안 됨 - 오류가 아니라 설정이 필요한 것이라
+      // 빨간 오류 문구 대신 서버 설정 창을 바로 열어줌
+      openServerProfileSettings(res.serverId, { reason: "play" });
+    } else if (!res.aborted) {
       gameError.textContent = "실행에 실패했습니다: " + (res.error || "알 수 없는 오류");
     }
   } else {
     isInGame = true; // 친구 목록에 "OO 플레이 중"으로 보이게
     sendFriendsHeartbeat();
-    setDownloadingState(false); // 다운로드 표시는 끄고, Play 버튼을 Stop 모양으로
+    // 24-149차: launch:running-changed 와 이 응답의 도착 순서가 보장되지 않으므로 한 번 더 확인
+    await window.nova.getRunningState?.().then(applyRunningState).catch(() => {});
+    setDownloadingState(false); // 다운로드 표시는 끄고, 버튼 글자를 지금 상태로
     setInGameUiState(true);
   }
 }
 btnPlay.addEventListener("click", handlePlayClick);
 
 // ---- 진행률 이벤트 ---------------------------------------------------------
-window.luna.onProgress(({ phase, percent, detail }) => {
-  btnPlayFill.style.width = percent + "%";
-  currentDownloadPercent = percent;
-  progressCaption.textContent = `${PHASE_LABELS[phase] || phase}${detail ? " · " + detail : ""}`;
+// 24-107차: "PLAY 눌러서 들어갈 때 큰 다운로드 아니면 그냥 따로 밑에 ~~다운로드중 이거 뜨지 않게"
+// 매번 도는 짧은 확인 단계(자바 확인, Fabric 준비, 파일 확인 등)는 글을 안 띄우고, main이
+// big 표시를 붙인 진짜 다운로드/설치일 때만 PLAY 아래에 글을 띄움. 한 번 뜨면 그 실행이 끝날
+// 때까지 계속 갱신(깜빡이지 않게). 버튼 채움 막대는 그대로 움직임.
+let launchCaptionShown = false;
+// 24-140차: "다운로드할 때 퍼센트가 뒤로가거나 밑에 글이 난장판을 치는데"
+//  · 퍼센트가 뒤로 가던 이유: 진행률은 단계(phase) 가중치로 계산하는데, 모드 단계에서
+//    노바 모드 -> Fabric API -> Mod Menu 를 차례로 넣으면서 같은 단계를 0% 부터 다시
+//    보고함. 그때마다 전체 퍼센트가 앞 단계 기준으로 되돌아갔음.
+//    -> 한 번 실행하는 동안에는 퍼센트가 절대 줄어들지 않게 최고값을 기억함.
+//  · 글이 난장판이던 이유: detail 에 파일 이름 같은 긴 문자열이 초당 수십 번 바뀌는데
+//    글자 수 제한도, 줄바꿈 금지도 없어서 캡션이 두 줄로 늘었다 줄었다 하며 떨렸음.
+//    -> 갱신을 0.15초에 한 번으로 묶고, CSS 에서 한 줄 + 말줄임으로 고정함(style.css).
+let launchMaxPercent = 0;
+let lastCaptionAt = 0;
+let pendingCaptionText = "";
+let captionFlushTimer = null;
+
+function flushCaption() {
+  captionFlushTimer = null;
+  lastCaptionAt = Date.now();
+  progressCaption.textContent = pendingCaptionText;
+}
+
+function setProgressCaption(text) {
+  pendingCaptionText = text;
+  const since = Date.now() - lastCaptionAt;
+  if (since >= 150) {
+    flushCaption();
+  } else if (!captionFlushTimer) {
+    captionFlushTimer = setTimeout(flushCaption, 150 - since);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 24-157차: "퍼센트가 100 찍고 그대로 몇 분이 걸리고 그래. 0~100까지 잘 올라가는 것처럼
+//            보이게 해주고, 속도랑 예측 시간도 옆에 표시해줘"
+//  · 퍼센트 자체는 main.js 가 종류별 비중으로 다시 계산해서 보내준다(거기 주석 참고).
+//    여기서는 그 값(target)으로 곧장 점프하지 않고 부드럽게 따라가고, 이벤트가 잠깐 끊겨도
+//    아주 천천히 기어가게(creep) 해서 "멈춘 것처럼" 보이지 않게 한다.
+//  · 남은 시간은 "퍼센트가 오르는 속도"로 계산한다. 다운로드뿐 아니라 압축 해제/검증 같은
+//    단계도 함께 포함되므로 바이트 기준보다 실제 체감에 가깝다.
+// ────────────────────────────────────────────────────────────────────────────
+let launchTargetPercent = 0;
+let launchShownPercent = 0;
+let launchSmoothTimer = null;
+let launchSpeedBps = 0;
+let launchEtaSec = null;
+let etaRateEma = 0;            // 초당 퍼센트 증가율
+let etaLastPct = 0;
+let etaLastAt = 0;
+
+function formatBytesPerSec(bps) {
+  if (!bps || bps < 1024) return "";
+  if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(0)} KB/s`;
+  return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
+}
+
+function formatEtaKo(sec) {
+  if (sec == null || !isFinite(sec) || sec <= 0) return "";
+  const s = Math.round(sec);
+  if (s < 10) return "곧 완료";
+  if (s < 60) return `약 ${Math.ceil(s / 5) * 5}초 남음`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m < 60) return r >= 30 ? `약 ${m}분 30초 남음` : `약 ${m}분 남음`;
+  return `약 ${Math.floor(m / 60)}시간 ${m % 60}분 남음`;
+}
+
+function renderLaunchProgressUi(phase, detail) {
+  btnPlayFill.style.width = launchShownPercent.toFixed(1) + "%";
+  currentDownloadPercent = Math.floor(launchShownPercent);
+  if (!launchCaptionShown) return;
+  // 24-158차: "앞에 마인크래프트 파일 다운로드 중은 없애줘" - 단계 이름(PHASE_LABELS)은
+  // 빼고, 실제로 뭘 받고 있는지(detail)와 속도/남은 시간만 남긴다
+  const bits = [];
+  if (detail) bits.push(detail);
+  const speed = formatBytesPerSec(launchSpeedBps);
+  if (speed) bits.push(speed);
+  const eta = formatEtaKo(launchEtaSec);
+  if (eta) bits.push(eta);
+  setProgressCaption(bits.join(" · "));
+}
+
+function startLaunchSmoothing() {
+  if (launchSmoothTimer) return;
+  launchSmoothTimer = setInterval(() => {
+    const gap = launchTargetPercent - launchShownPercent;
+    if (gap > 0.05) {
+      // 남은 차이의 일부씩 따라감(가까워질수록 천천히)
+      launchShownPercent += Math.max(0.08, gap * 0.14);
+      if (launchShownPercent > launchTargetPercent) launchShownPercent = launchTargetPercent;
+    } else if (launchTargetPercent < 96) {
+      // 이벤트가 잠깐 끊겨도 아주 조금씩은 움직이게(최대 target+3, 96 까지만)
+      const ceiling = Math.min(launchTargetPercent + 3, 96);
+      if (launchShownPercent < ceiling) launchShownPercent += 0.03;
+    }
+    launchMaxPercent = launchShownPercent;
+
+    // 남은 시간: 퍼센트 증가율의 지수이동평균으로 추정
+    const now = Date.now();
+    if (etaLastAt) {
+      const dt = (now - etaLastAt) / 1000;
+      if (dt >= 1) {
+        const rate = (launchShownPercent - etaLastPct) / dt; // %/초
+        etaRateEma = etaRateEma ? etaRateEma * 0.7 + rate * 0.3 : rate;
+        etaLastPct = launchShownPercent;
+        etaLastAt = now;
+        launchEtaSec = etaRateEma > 0.05 ? (100 - launchShownPercent) / etaRateEma : null;
+      }
+    } else {
+      etaLastPct = launchShownPercent;
+      etaLastAt = now;
+    }
+    renderLaunchProgressUi(lastProgressPhase, lastProgressDetail);
+  }, 120);
+}
+
+function stopLaunchSmoothing() {
+  if (launchSmoothTimer) {
+    clearInterval(launchSmoothTimer);
+    launchSmoothTimer = null;
+  }
+  launchTargetPercent = 0;
+  launchShownPercent = 0;
+  launchSpeedBps = 0;
+  launchEtaSec = null;
+  etaRateEma = 0;
+  etaLastPct = 0;
+  etaLastAt = 0;
+}
+
+let lastProgressPhase = "";
+let lastProgressDetail = "";
+
+window.nova.onProgress(({ phase, percent, detail, big, bytesPerSec, final }) => {
+  const p = Math.max(0, Math.min(100, Number(percent) || 0));
+  // 뒤로 가지 않게: 이번 실행에서 본 최고값 아래로는 안 내려감
+  launchTargetPercent = Math.max(launchTargetPercent, p);
+  if (final) {
+    launchTargetPercent = 100;
+    launchShownPercent = 100;
+    launchEtaSec = null;
+    // 24-160차: "실행중에는 플레이 밑에 뭐 뜨지 않게 해줘" - 게임이 실제로 뜬 순간부터는
+    // 아래 글을 완전히 비운다(진행 글이 잔상처럼 남아있지 않게)
+    launchCaptionShown = false;
+    pendingCaptionText = "";
+    if (captionFlushTimer) {
+      clearTimeout(captionFlushTimer);
+      captionFlushTimer = null;
+    }
+    progressCaption.textContent = "";
+  }
+  launchSpeedBps = Number(bytesPerSec) || launchSpeedBps;
+  lastProgressPhase = phase;
+  lastProgressDetail = detail || "";
+  if (big) {
+    launchCaptionShown = true;
+    launchBusyWord = "DOWNLOADING"; // 24-155차: 진짜 다운로드가 시작된 순간부터만
+  }
+  startLaunchSmoothing();
+  renderLaunchProgressUi(phase, detail);
 });
 
 // ---- 게임 종료 후 런처 복귀 -------------------------------------------------
-window.luna.onGameClosed(async ({ code } = {}) => {
-  isInGame = false;
-  setInGameUiState(false);
+// 24-133차: 메인 프로세스에서 온 알림을 그대로 토스트로 띄움
+window.nova.onNotice?.(({ text, type } = {}) => {
+  if (text) showToast(text, type === "error" ? "error" : undefined);
+});
+
+window.nova.onGameClosed(async ({ code } = {}) => {
+  // 24-149차: 여기서 무조건 isInGame=false 로 내려버려서, 두 개 켜놓고 하나만 꺼도 버튼이
+  // 곧바로 PLAY 로 돌아갔다. 실제 상태는 launch:running-changed(applyRunningState)가
+  // 관리하므로 여기서는 강제로 내리지 않고, 혹시 이벤트를 놓쳤을 때를 대비해 한 번 물어본다.
+  window.nova.getRunningState?.().then(applyRunningState).catch(() => {});
   setDownloadingState(false);
   sendFriendsHeartbeat();
+  // (모드 49-139) 게임을 끄는 도중에 서버/프로필을 바꾸면 목록의 선택 표시가 옛 것으로 남았다
+  // (실제 실행 대상은 맞음 - 표시만 틀림). 끝나면 두 목록과 모드를 main 기준으로 다시 맞춘다.
+  refreshLaunchTargetLists().then(refreshChipActiveStates).catch(() => {});
   if (code === 0) {
     startReconnectPrompt();
   }
@@ -1442,14 +2612,32 @@ window.luna.onGameClosed(async ({ code } = {}) => {
 // 확인한 결과(servers:status-all)를 id별로 저장해뒀다가 목록을 다시 그릴 때 씀
 let launchModeCache = "server";
 let serverStatusById = {};
-window.luna.onServersStatusAll((results) => {
+// 24-80차: 서버가 보내주는 진짜 아이콘(64x64 server-icon.png)을 id별로 기억해둠.
+// 상태 결과와 따로 보관하는 이유: 서버가 잠깐 꺼지면 API가 아이콘을 안 주는데, 그때마다
+// 아이콘이 앞글자로 바뀌었다 돌아오면 깜빡여서 보기 나쁨. 한 번 받은 아이콘은 계속 씀.
+let serverIconById = {};
+// 외부 API가 준 문자열이 그대로 img src로 들어가므로, 형식이 확실한 것만 통과시킴
+// (base64 PNG/JPEG data URI 외에는 전부 버리고 앞글자로 되돌림)
+const SERVER_ICON_DATA_URI_RE = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/;
+function rememberServerIcon(serverId, icon) {
+  if (typeof icon === "string" && SERVER_ICON_DATA_URI_RE.test(icon)) {
+    serverIconById[serverId] = icon;
+  }
+}
+function applyServerStatuses(results) {
+  if (!Array.isArray(results)) return;
   const map = {};
-  (results || []).forEach((r) => {
+  results.forEach((r) => {
     map[r.serverId] = r;
+    rememberServerIcon(r.serverId, r.icon);
   });
   serverStatusById = map;
   renderServerListItems();
-});
+}
+window.nova.onServersStatusAll(applyServerStatuses);
+// 24-101차: 앱 시작 때 main이 이미 확인해둔 결과를 바로 가져옴(방송을 기다리면 첫 결과를
+// 놓쳐서 30초 동안 "확인 중/오프라인"으로 남았음)
+window.nova.getServerStatusNow?.().then(applyServerStatuses).catch(() => {});
 
 // ---- 서버 선택 -----------------------------------------------------------
 // 14차: 새로고침 트리거 버튼 자체를 없애서 관련 DOM 참조도 함께 제거함(주기적 상태 폴링이
@@ -1531,15 +2719,161 @@ document.getElementById("profile-list-items")?.addEventListener("scroll", (e) =>
 document.getElementById("account-menu-list")?.addEventListener("scroll", (e) => updateHeroListScrollFade(e.target));
 document.getElementById("settings-content")?.addEventListener("scroll", (e) => updateHeroListScrollFade(e.target));
 
+// 24-85차: 인원수 앞에 붙는 아주 작은 사람 아이콘 - 숫자만 있으면 "3/20"이 무슨 숫자인지
+// 바로 안 읽혀서 붙임
+const SERVER_PLAYERS_ICON_SVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.3-3.4 4.1-5.2 7-5.2s5.7 1.8 7 5.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+// ════════════════════════════════════════════════════════════════════════════
+// 24-95차: 서버 카드 / 24-96차: 한 단으로 줄임
+// "여기쪽 UI도 예쁘게 좀 꾸며주라 디테일도 살려주고" → "너무 크다 접속 프로필을 어디 빈곳으로 옮기던가 해서 줄이고"
+//
+//  ┌──────────────────────────────────────────────────────────────────┐
+//  │ [아이콘●] 너굴마을 [26.1.2] 서버 소개(MOTD)…    [🟩 너굴마을 ›] [⚙] │  (⚙ = 그 프로필 수정)
+//  │           👤 12/2,000 ▁▁  ▂▄▆ 34ms   (꺼져 있으면: [오프라인])     │
+//  (주소는 이름에 마우스를 올리면 / MOTD가 없으면 MOTD 자리에)
+//  └──────────────────────────────────────────────────────────────────┘
+//
+// 전부 이미 주기적으로 받고 있던 상태 조회 결과(online/인원/핑/아이콘/MOTD)로만 그림 -
+// 추가 요청 없음. 아직 첫 조회 전이면 "확인 중", 꺼져 있으면 인원/핑 대신 "오프라인".
+// ════════════════════════════════════════════════════════════════════════════
+function setLaunchListCount(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = String(n);
+  el.hidden = !n;
+}
+const SERVER_PING_ICON_BARS = 3;
+function serverPingLevel(ms) {
+  // 막대 3칸 기준: 빠름 3칸 / 보통 2칸 / 느림 1칸
+  if (!Number.isFinite(ms)) return 0;
+  if (ms < 80) return 3;
+  if (ms < 160) return 2;
+  return 1;
+}
+function renderServerCardHtml(s, status) {
+  const t = (k, fb, v) => wgT(k, fb, v);
+  const state = !status ? "checking" : status.online ? "online" : "offline";
+  const stateLabel =
+    state === "online" ? t("server_state_online", "온라인")
+    : state === "offline" ? t("server_state_offline", "오프라인")
+    : t("server_state_checking", "확인 중");
+
+  // 아이콘: 서버가 보내준 진짜 아이콘(64x64 픽셀아트)이 있으면 그걸, 없으면 이름 앞글자
+  const serverIcon = serverIconById[s.id];
+  const iconHtml = serverIcon
+    ? `<img src="${serverIcon}" class="server-card-icon-img" alt="" onerror="this.remove()" />`
+    : `<span class="server-card-icon-letter">${escapeHtml((s.name || "?").slice(0, 1))}</span>`;
+
+  // 서버 소개(MOTD) 첫 줄 - 외부 서버가 준 문자열이라 반드시 escape
+  const motd = state === "online" && typeof status.motd === "string" ? status.motd.trim() : "";
+
+  // 인원 + 채움 막대(최대 인원 대비). 0.6%처럼 아주 작아도 막대가 보이도록 최소 폭을 둠
+  let playersHtml = "";
+  if (state === "online" && Number.isFinite(status.playersOnline)) {
+    const max = Number.isFinite(status.playersMax) && status.playersMax > 0 ? status.playersMax : null;
+    const pct = max ? Math.max(3, Math.min(100, Math.round((status.playersOnline / max) * 100))) : 0;
+    playersHtml = `
+      <span class="server-card-stat server-card-players" title="${escapeHtml(
+        t("server_players_tip", "접속 중인 인원")
+      )}">
+        ${SERVER_PLAYERS_ICON_SVG}
+        <b>${status.playersOnline.toLocaleString()}</b>${max ? `<span class="server-card-dim">/${max.toLocaleString()}</span>` : ""}
+        ${max ? `<span class="server-card-cap"><span style="width:${pct}%"></span></span>` : ""}
+      </span>`;
+  }
+
+  // 핑(런처가 직접 잰 연결 시간) - 막대 3칸 + ms
+  let pingHtml = "";
+  if (state === "online" && Number.isFinite(status.pingMs)) {
+    const lv = serverPingLevel(status.pingMs);
+    const bars = Array.from({ length: SERVER_PING_ICON_BARS }, (_, i) =>
+      `<i class="${i < lv ? "on" : ""}" style="height:${4 + i * 3}px"></i>`
+    ).join("");
+    pingHtml = `
+      <span class="server-card-stat server-card-ping lv-${lv}" title="${escapeHtml(
+        t("server_ping_tip", "응답 속도")
+      )}">
+        <span class="server-card-ping-bars">${bars}</span>${status.pingMs}ms
+      </span>`;
+  }
+
+  // 24-96차: "너무 크다 접속 프로필을 어디 빈곳으로 옮기던가 해서 줄이고" - 아랫단 한 줄을
+  // 통째로 쓰던 "접속 프로필"을 오른쪽 빈자리(톱니 옆)의 작은 알약으로 옮기고, 카드를 한 단으로.
+  const linked = s.linkedProfileName;
+  const profileTip = linked
+    ? t("server_profile_tip_linked", `접속 프로필: ${linked} (눌러서 변경)`, { profile: linked })
+    : t("server_profile_tip_unset", `${s.versionLabel || s.version} 프로필을 골라주세요`, { version: s.versionLabel || s.version });
+  const linkIcon = linked
+    ? s.linkedProfileIconUrl
+      ? `<img src="${s.linkedProfileIconUrl}" alt="" />`
+      : `<span>${escapeHtml(linked.slice(0, 1))}</span>`
+    : `<span>+</span>`;
+  const linkHtml = `
+    <button type="button" class="server-card-profile${linked ? "" : " is-unset"}" data-act="server-settings" title="${escapeHtml(profileTip)}">
+      <span class="server-card-profile-icon">${linkIcon}</span>
+      <span class="server-card-profile-name">${escapeHtml(linked || t("server_profile_choose_short", "프로필 고르기"))}</span>
+      <svg class="server-card-profile-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>`;
+
+  return `
+    <span class="server-card-icon">
+      ${iconHtml}
+      <span class="server-card-dot"></span>
+    </span>
+    <span class="server-card-main">
+      <span class="server-card-title">
+        <b class="server-box-name" title="${escapeHtml(s.host || "")}">${escapeHtml(s.name)}</b>
+        <span class="server-card-version">${escapeHtml(s.versionLabel || s.version)}</span>
+        ${playingPillHtml(runningCountForServer(s.id))}
+        ${
+          // 이름 뒤 남는 자리: 서버 소개(MOTD)가 있으면 그걸, 없으면 주소를 옅게
+          motd
+            ? `<span class="server-card-motd" title="${escapeHtml(motd)}">${escapeHtml(motd)}</span>`
+            : `<span class="server-card-motd is-host">${escapeHtml(s.host || "")}</span>`
+        }
+      </span>
+      <span class="server-card-stats">
+        ${
+          // 온라인이면 인원/응답 속도, 아니면 그 자리에 상태(오프라인/확인 중).
+          // 온라인 여부는 아이콘 모서리 점(물결)이 이미 보여줘서 "온라인" 글자는 따로 안 씀
+          state === "online" && (playersHtml || pingHtml)
+            ? playersHtml + pingHtml
+            : `<span class="server-card-state">${escapeHtml(stateLabel)}</span>`
+        }
+      </span>
+    </span>
+    ${linkHtml}
+    ${
+      // 24-97차: "설정이랑 프로필이랑 누르면 같은 거 뜨잖아 ... 저거 누르면 프로필 수정으로 들어가던가"
+      // 톱니는 이제 "이 서버에 쓰는 프로필"의 수정 화면(모드/메모리/리소스팩 등)으로 바로 감.
+      // 어떤 프로필로 들어갈지 고르기/바꾸기는 옆의 프로필 알약이 전담. 연결 전엔 고칠 프로필이
+      // 없으니 톱니를 아예 안 그림.
+      // 24-177차: 유저가 직접 추가한 서버만 삭제할 수 있음(기본 서버는 못 지움)
+      s.custom
+        ? `<button type="button" class="server-box-remove" data-act="server-remove" title="${escapeHtml(s.name)} 삭제">
+      <svg width="12" height="12" viewBox="0 0 10 10" aria-hidden="true"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.5"/></svg>
+          </button>`
+        : ""
+    }
+    ${
+      s.linkedProfileId
+        ? `<button type="button" class="server-box-gear" data-act="profile-edit" title="${escapeHtml(
+            t("server_profile_edit_tip", `${linked} 프로필 수정`, { profile: linked })
+          )}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>`
+        : ""
+    }
+  `;
+}
+
 function renderServerListItems() {
   // 24-14차: "고른 프로필 맨 위로 하는 거 취소할게 그거 돌려놓고" - 24-11차에서 추가했던
   // "선택된 항목 항상 맨 위" 정렬을 요청에 따라 되돌림. 다시 최근 플레이순 정렬만 씀
-  const servers = lastServersData.slice().sort((a, b) => {
-    const at = a.lastPlayedAt ? new Date(a.lastPlayedAt).getTime() : 0;
-    const bt = b.lastPlayedAt ? new Date(b.lastPlayedAt).getTime() : 0;
-    return bt - at;
-  });
+  // 24-241차: 최근 플레이순 대신 main 이 정한 순서(직접 추가 → 너굴마을 → 하이픽셀 → 온리소드, 끌어서 바꾼 순서)
+  const servers = lastServersData.slice();
 
+  setLaunchListCount("server-list-count", servers.length); // 24-95차: 칸 제목 옆 개수
   serverListItemsEl.innerHTML = "";
   if (servers.length === 0) {
     serverListItemsEl.innerHTML = `<div class="mini-list-empty">서버가 없어요</div>`;
@@ -1548,21 +2882,41 @@ function renderServerListItems() {
   }
 
   servers.forEach((s) => {
+    // 24-95차: "여기쪽 UI도 예쁘게 좀 꾸며주라 디테일도 살려주고" - 서버 칸이 넓어진 만큼
+    // 한 줄짜리 목록 항목 대신 "서버 카드"로 바꿈(renderServerCardHtml 참고).
+    // 클래스 server-box-item은 그대로 둠 - 선택 잔상/선택 표시를 찾는 기존 코드가 이 이름을 봄.
     const item = document.createElement("div");
-    item.className = "server-box-item" + (s.selected ? " is-selected" : "");
-    // 13차: "오프라인" 글자 대신 아이콘 모서리에 작은 빛 점으로 온라인/오프라인/확인중 표시
+    item.className = "server-box-item server-card" + (s.selected ? " is-selected" : "");
+    item.dataset.reorderId = s.id; // 24-241차
     const status = serverStatusById[s.id];
-    const dotClass = !status ? "is-checking" : status.online ? "" : "offline";
-    item.innerHTML = `
-      <span class="server-box-icon-wrap">
-        <span class="server-box-icon">${escapeHtml((s.name || "?").slice(0, 1))}</span>
-        <span class="server-item-dot ${dotClass}"></span>
-      </span>
-      <span class="server-box-info">
-        <b class="server-box-name">${escapeHtml(s.name)}</b>
-        <span class="server-box-version">Minecraft용 ${escapeHtml(s.version)} · Nova</span>
-      </span>
-    `;
+    item.dataset.state = !status ? "checking" : status.online ? "online" : "offline";
+    item.innerHTML = renderServerCardHtml(s, status);
+    item.querySelectorAll('[data-act="server-settings"]').forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation(); // 줄 클릭(서버 선택)으로 번지지 않게
+        openServerProfileSettings(s.id);
+      });
+    });
+    // 24-97차: 톱니 → 연결된 프로필 수정 화면(프로필 관리 > 그 프로필)으로 바로 이동
+    item.querySelector('[data-act="server-remove"]')?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const ok = await showConfirm(`"${s.name}" 서버를 목록에서 지울까요?`, "삭제");
+      if (!ok) return;
+      const res = await window.nova.removeServer(s.id);
+      if (res?.ok) {
+        showToast(`${s.name} 서버를 지웠어요`);
+        await refreshLaunchTargetLists();
+      } else {
+        showToast(res?.error || "지우지 못했어요", "error");
+      }
+    });
+    item.querySelector('[data-act="profile-edit"]')?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!s.linkedProfileId) return;
+      setActiveSidebarIcon("profile");
+      await openProfileList();
+      await openProfileEdit(s.linkedProfileId);
+    });
     if (!s.selected) {
       item.addEventListener("click", async () => {
         if (isSwitchingLaunchTarget) return;
@@ -1570,7 +2924,7 @@ function renderServerListItems() {
         serverListPill.update(item, false);
         setLaunchControlsLocked(true);
         try {
-          const res = await window.luna.selectServer(s.id);
+          const res = await window.nova.selectServer(s.id);
           if (res.ok) {
             if (serverChipName) serverChipName.textContent = res.server.name;
             updateMcVersionLabel(res.server.version);
@@ -1590,13 +2944,14 @@ function renderServerListItems() {
       });
     }
     serverListItemsEl.appendChild(item);
+    makeReorderable(item, serverListItemsEl, "server"); // 24-241차
   });
   serverListPill.update(serverListItemsEl.querySelector(".server-box-item.is-selected"), true);
   updateHeroListScrollFade(serverListItemsEl);
 }
 
 async function loadServerList() {
-  const servers = await window.luna.listServers();
+  const servers = await window.nova.listServers();
   lastServersData = servers;
   const selected = servers.find((s) => s.selected);
   if (selected) {
@@ -1608,6 +2963,254 @@ async function loadServerList() {
 
 // 시작할 때 서버 목록을 바로 로드해서 항상 펼쳐진 목록으로 보여줌
 loadServerList();
+
+// ────────────────────────────────────────────────────────────────────────────
+// 24-177차: 서버 직접 추가 - "주소 입력하면 나머지는 클라쪽에서 알아서 해주는"
+// 1단계에서 주소만 받아 실제로 한 번 찔러보고(servers:probe), 알아낸 이름/버전/아이콘을
+// 보여준 뒤 2단계에서 확인하고 저장한다. 포트를 안 적으면 SRV 레코드까지 찾아본다.
+// ────────────────────────────────────────────────────────────────────────────
+const serverAddOverlay = document.getElementById("server-add-overlay");
+const serverAddError = document.getElementById("server-add-error");
+let serverAddProbed = null; // 마지막으로 확인에 성공한 결과
+
+function closeServerAdd() {
+  if (serverAddOverlay) serverAddOverlay.hidden = true;
+}
+function openServerAdd() {
+  if (!serverAddOverlay) return;
+  serverAddOverlay.hidden = false;
+  serverAddProbed = null;
+  serverAddError.textContent = "";
+  document.getElementById("server-add-found").hidden = true;
+  ["server-add-address", "server-add-name", "server-add-version"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  document.getElementById("server-add-address")?.focus();
+}
+
+document.getElementById("btn-server-add")?.addEventListener("click", openServerAdd);
+document.getElementById("btn-server-add-close")?.addEventListener("click", closeServerAdd);
+serverAddOverlay?.addEventListener("click", (e) => {
+  if (e.target === serverAddOverlay) closeServerAdd();
+});
+
+async function probeServerAddress() {
+  const btn = document.getElementById("btn-server-probe");
+  const address = (document.getElementById("server-add-address").value || "").trim();
+  const found = document.getElementById("server-add-found");
+  serverAddError.textContent = "";
+  if (!address) {
+    serverAddError.textContent = "서버 주소를 입력해주세요";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "확인하는 중...";
+  try {
+    const res = await window.nova.probeServer?.(address);
+    if (!res?.ok) {
+      found.hidden = true;
+      serverAddProbed = null;
+      serverAddError.textContent = res?.error || "서버를 찾지 못했어요";
+      return;
+    }
+    serverAddProbed = res;
+    found.hidden = false;
+
+    const iconEl = document.getElementById("server-add-icon");
+    if (res.icon) {
+      iconEl.src = res.icon;
+      iconEl.hidden = false;
+    } else {
+      iconEl.removeAttribute("src");
+      iconEl.hidden = true;
+    }
+    document.getElementById("server-add-motd").textContent = res.motd || res.host;
+    const bits = [`${res.host}:${res.port}`];
+    if (res.srvUsed) bits.push("SRV 자동");
+    if (res.versionName) bits.push(res.versionName);
+    if (typeof res.playersOnline === "number") bits.push(`${res.playersOnline}/${res.playersMax ?? "?"}명`);
+    if (typeof res.pingMs === "number") bits.push(`${res.pingMs}ms`);
+    document.getElementById("server-add-meta").textContent = bits.join("  ·  ");
+
+    document.getElementById("server-add-name").value = res.motd ? res.motd.slice(0, 40) : res.host;
+    document.getElementById("server-add-version").value = res.version || "";
+    if (!res.version) {
+      serverAddError.textContent = "버전을 자동으로 알아내지 못했어요. 직접 입력해주세요";
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = window.NovaI18n?.t?.("server_add_probe") || "서버 확인";
+  }
+}
+
+document.getElementById("btn-server-probe")?.addEventListener("click", probeServerAddress);
+document.getElementById("server-add-address")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") probeServerAddress();
+});
+
+document.getElementById("btn-server-add-save")?.addEventListener("click", async () => {
+  const btn = document.getElementById("btn-server-add-save");
+  const address = (document.getElementById("server-add-address").value || "").trim();
+  const name = (document.getElementById("server-add-name").value || "").trim();
+  const version = (document.getElementById("server-add-version").value || "").trim();
+  serverAddError.textContent = "";
+  if (!/^\d+\.\d+(\.\d+)?$/.test(version)) {
+    serverAddError.textContent = "버전은 1.21.11 처럼 입력해주세요";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "추가하는 중...";
+  try {
+    const res = await window.nova.addServer?.(address, name, version);
+    if (res?.ok) {
+      closeServerAdd();
+      showToast(`${res.server.name} 서버를 추가했어요`);
+      await refreshLaunchTargetLists();
+    } else {
+      serverAddError.textContent = res?.error || "추가하지 못했어요";
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = window.NovaI18n?.t?.("server_add_save") || "목록에 추가";
+  }
+});
+
+// ---- 24-94차: 서버 설정 - 이 서버에 어떤 프로필로 들어갈지 ----------------------------
+// "서버를 고르고 그 서버 버전에 맞는 프로필을 선택해서 들어가는 식으로 ... 서버는 설정 눌러서
+//  무슨 프로필로 들어갈건지 설정하게 하고"
+// 서버 줄의 톱니/연결 프로필 이름을 누르거나, 연결 없이 PLAY를 누르면 뜸.
+// 고르는 즉시 저장하고 닫음. 목록은 서버 버전과 같은 프로필만 main.js가 걸러서 줌.
+const serverProfileOverlay = document.getElementById("server-profile-overlay");
+let serverProfileEditingId = null;
+// 이 창에서 "프로필 만들기"로 넘어갔다면 { serverId, version } - 만들고 나면 그 서버에 바로 연결함
+// (let은 선언 전에 쓰면 에러라서 위의 만들기 제출/닫기 코드보다 먼저 실행되는 이 자리에 둠)
+let pendingServerProfileLink = null;
+
+function closeServerProfileSettings() {
+  if (serverProfileOverlay) serverProfileOverlay.hidden = true;
+  serverProfileEditingId = null;
+}
+
+async function openServerProfileSettings(serverId, { reason } = {}) {
+  if (!serverProfileOverlay) return;
+  const res = await window.nova.serverProfileOptions?.(serverId).catch(() => null);
+  if (!res?.ok) {
+    showToast(res?.error || "서버 정보를 불러오지 못했어요", "error");
+    return;
+  }
+  serverProfileEditingId = serverId;
+  const { server, linkedProfileId } = res;
+  // 연결된 프로필이 맨 위, 나머지는 최근 플레이순(프로필 목록과 같은 규칙)
+  const options = (res.options || []).slice().sort((a, b) => {
+    if (a.id === linkedProfileId) return -1;
+    if (b.id === linkedProfileId) return 1;
+    const at = a.lastPlayedAt ? new Date(a.lastPlayedAt).getTime() : 0;
+    const bt = b.lastPlayedAt ? new Date(b.lastPlayedAt).getTime() : 0;
+    return bt - at;
+  });
+
+  document.getElementById("server-profile-title").textContent = wgT(
+    "server_profile_title", `${server.name} 설정`, { name: server.name }
+  );
+  // PLAY를 눌렀는데 연결이 없어서 열린 경우엔 왜 떴는지부터 알려줌
+  document.getElementById("server-profile-desc").textContent =
+    reason === "play"
+      ? wgT("server_profile_desc_play", `${server.name}에 들어갈 프로필을 먼저 골라주세요. ${server.version} 프로필만 고를 수 있어요.`, { name: server.name, version: server.version })
+      : wgT("server_profile_desc", `이 서버에 들어갈 때 쓸 프로필을 골라주세요. ${server.version} 프로필만 고를 수 있어요.`, { version: server.version });
+
+  const listEl = document.getElementById("server-profile-list");
+  const emptyEl = document.getElementById("server-profile-empty");
+  listEl.innerHTML = "";
+  emptyEl.hidden = options.length > 0;
+  if (!options.length) {
+    emptyEl.textContent = wgT("server_profile_empty", `아직 ${server.version} 프로필이 없어요. 아래에서 바로 만들 수 있어요.`, { version: server.version });
+  }
+  options.forEach((p) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    const isLinked = p.id === linkedProfileId;
+    row.className = "server-profile-option" + (isLinked ? " is-linked" : "");
+    const iconHtml = p.iconUrl
+      ? `<img src="${p.iconUrl}" class="server-box-icon-img" alt="" />`
+      : `<span class="server-box-icon">${escapeHtml((p.name || "?").slice(0, 1))}</span>`;
+    row.innerHTML = `
+      ${iconHtml}
+      <span class="server-profile-option-info">
+        <b>${escapeHtml(p.name)}</b>
+        <span>${escapeHtml(p.mcVersion)} · ${escapeHtml(loaderDisplayName(p.loader))}</span>
+      </span>
+      ${isLinked ? `<span class="server-profile-option-check">${escapeHtml(wgT("server_profile_current", "사용 중"))}</span>` : ""}
+      ${isLinked ? `<span class="server-profile-option-unlink" role="button" tabindex="0" title="${escapeHtml(wgT("server_profile_unlink_title", "연결 해제"))}">${escapeHtml(wgT("server_profile_unlink", "해제"))}</span>` : ""}
+    `;
+    // 24-191차: "프로필을 서버에서 해제시켜도 그 프로필로 들어가면 서버가 바로 들어가져"
+    // 원인: 이 창에 "해제"가 아예 없었다. 연결된 프로필 줄을 누르면(사용 중) 그냥 창만
+    // 닫혀서, 누른 사람은 해제된 줄 알지만 연결은 그대로 남아 있었다 - 그래서 그 서버로
+    // 들어가면 당연히 계속 그 서버에 접속됐다. main 쪽은 원래부터 해제를 지원하고 있었고
+    // (servers:set-profile 에 profileId 를 안 주면 연결을 지움), 부르는 데가 없었을 뿐이다.
+    const unlinkEl = row.querySelector(".server-profile-option-unlink");
+    unlinkEl?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const r = await window.nova.setServerProfile(server.id, null);
+      if (!r?.ok) {
+        showToast(r?.error || "연결을 해제하지 못했어요", "error");
+        return;
+      }
+      showToast(wgT("server_profile_unlinked", `${server.name} 연결을 해제했어요`, { server: server.name }));
+      await refreshLaunchTargetLists();
+      // 창은 열어둔 채 목록만 다시 그려서, 바로 다른 프로필을 고를 수 있게 한다
+      openServerProfileSettings(server.id);
+    });
+    unlinkEl?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        unlinkEl.click();
+      }
+    });
+    row.addEventListener("click", async () => {
+      if (isLinked) {
+        closeServerProfileSettings();
+        return;
+      }
+      const r = await window.nova.setServerProfile(server.id, p.id);
+      if (!r?.ok) {
+        showToast(r?.error || "프로필을 연결하지 못했어요", "error");
+        return;
+      }
+      showToast(wgT("server_profile_saved", `${server.name}에 "${p.name}" 프로필로 들어가요`, { server: server.name, profile: p.name }));
+      closeServerProfileSettings();
+      await refreshLaunchTargetLists();
+    });
+    listEl.appendChild(row);
+  });
+
+  const createBtn = document.getElementById("btn-server-profile-create");
+  createBtn.textContent = wgT("server_profile_create_btn", `+ ${server.createVersion || server.version} 프로필 만들기`, { version: server.createVersion || server.version });
+  createBtn.dataset.serverId = server.id;
+  createBtn.dataset.version = server.createVersion || server.version; // 24-241차: 범위 서버는 최신 버전으로
+  // 고를 게 없으면 만들기가 유일한 길이라 눈에 띄게
+  createBtn.classList.toggle("btn-primary", options.length === 0);
+  createBtn.classList.toggle("btn-ghost", options.length > 0);
+
+  serverProfileOverlay.hidden = false;
+}
+
+document.getElementById("btn-server-profile-close")?.addEventListener("click", closeServerProfileSettings);
+document.getElementById("btn-server-profile-cancel")?.addEventListener("click", closeServerProfileSettings);
+serverProfileOverlay?.addEventListener("click", (e) => {
+  if (e.target === serverProfileOverlay) closeServerProfileSettings();
+});
+// 그 서버 버전으로 새 프로필 만들기 - Install 화면의 "버전 고른 뒤 만들기" 창을 그 버전으로 바로 엶
+document.getElementById("btn-server-profile-create")?.addEventListener("click", async (e) => {
+  const { serverId, version } = e.currentTarget.dataset;
+  closeServerProfileSettings();
+  setActiveSidebarIcon("versions");
+  showAppPanel("view-versions");
+  await openVersionsList();
+  await openCreateProfileForm(version);
+  pendingServerProfileLink = { serverId, version }; // 열고 나서 설정해야 openCreateProfileForm이 안 지움
+});
 
 // ---- 프로필 선택 (서버 선택과 서로 배타적) -----------------------------------
 const profileChipName = document.getElementById("profile-chip-name");
@@ -1623,75 +3226,25 @@ const profileListPill = mountSlidingPill(profileListItemsEl, "slide-pill-hero-li
 // 다닐 필요가 없어서, 공용 슬라이딩 pill 대신 버튼마다 자기 배경(::before)을 갖고 opacity로
 // 크로스페이드하는 새 방식으로 교체함(.hero-side-mode-btn::before 참고)
 function updateHeroModeSwitchPill() {}
-let heroSideSwapOutTimer = null;
-function setHeroSideMode(mode) {
-  document.getElementById("hero-mode-server-btn")?.classList.toggle("is-active", mode !== "profile");
-  document.getElementById("hero-mode-profile-btn")?.classList.toggle("is-active", mode === "profile");
-  const serverBlock = document.getElementById("hero-side-block-server");
-  const profileBlock = document.getElementById("hero-side-block-profile");
-  const activeBlock = mode === "profile" ? profileBlock : serverBlock;
-  const outgoingBlock = mode === "profile" ? serverBlock : profileBlock;
-  // 22차: "서버<>프로필 간 옮길 때 전처럼 에니메이션 넣어주고" - 이미 안 보이던 쪽으로
-  // 다시 전환하는 경우(예: 빠르게 두 번 클릭)엔 굳이 페이드아웃을 재생할 게 없으므로
-  // 즉시 전환하고, 실제로 보이고 있던 블록이 바뀔 때만 크로스페이드를 재생함
-  const wasOutgoingVisible = !outgoingBlock.hidden;
-  if (heroSideSwapOutTimer) { clearTimeout(heroSideSwapOutTimer); heroSideSwapOutTimer = null; }
-  outgoingBlock.classList.remove("hero-side-swap-in", "hero-side-swap-out");
-  if (wasOutgoingVisible) {
-    void outgoingBlock.offsetWidth;
-    outgoingBlock.classList.add("hero-side-swap-out");
-  }
-  const showIncoming = () => {
-    outgoingBlock.hidden = true;
-    outgoingBlock.classList.remove("hero-side-swap-out");
-    activeBlock.hidden = false;
-    // 24-15차: "화살표가 건들면 보이는데 처음엔 안보여" - 목록이 [hidden]인 동안(또는 부모
-    // 화면이 아직 안 보이는 동안) updateHeroListScrollFade가 계산되면 scrollHeight/clientHeight가
-    // 둘 다 0이라 "더 있음" 판정이 항상 false로 나옴. 그 뒤로는 사용자가 실제로 스크롤해서
-    // scroll 이벤트가 한 번 발생해야만 다시 계산되니, 처음엔 화살표가 있어야 하는데도 안 보임.
-    // 블록이 실제로 화면에 나타나는 이 시점에 한 번 더 계산해줘서 처음부터 맞게 보이게 함
-    const listEl = mode === "profile" ? profileListItemsEl : serverListItemsEl;
-    requestAnimationFrame(() => updateHeroListScrollFade(listEl));
-    // 17차: "서버↔프로필 전환에도 효과를 달라" - 새로 보이게 된 블록에 짧은 페이드+살짝
-    // 떠오르는 진입 애니메이션을 재생함
-    activeBlock.classList.remove("hero-side-swap-in");
-    void activeBlock.offsetWidth; // 강제 리플로우로 같은 클래스를 다시 붙여도 애니메이션이 재시작되게 함
-    activeBlock.classList.add("hero-side-swap-in");
-    // 24차: "선택된 게 넘어가는 애니메이션도 해주고" - 전에는 다시 보이게 된 쪽의 선택 pill을
-    // 항상 즉시(instant) 스냅시켰음(숨겨진 동안 크기가 0이라 위치를 못 재고 있었으므로).
-    // 이제 실제로 모드가 바뀐 경우(wasOutgoingVisible)엔, 방금 사라진 쪽 pill의 마지막 위치를
-    // 읽어서(getRect) 새로 나타나는 쪽 pill에 그대로 심어준 다음(seedRect) 애니메이션으로
-    // 갱신해서, 두 목록이 서로 다른 컨테이너인데도 마치 선택 표시가 한쪽에서 다른 쪽으로
-    // 그대로 이어져 넘어간 것처럼 보이게 함. 두 박스가 같은 자리에 같은 구조로 겹쳐있어서
-    // 좌표계가 거의 그대로 맞아떨어짐
-    const incomingPill = mode === "profile" ? profileListPill : serverListPill;
-    const outgoingPill = mode === "profile" ? serverListPill : profileListPill;
-    const carryRect = wasOutgoingVisible ? outgoingPill.getRect() : null;
-    requestAnimationFrame(() => {
-      const activeItem = activeBlock.querySelector(".server-box-item.is-selected");
-      if (carryRect && activeItem) {
-        incomingPill.seedRect(carryRect);
-        incomingPill.update(activeItem, false);
-      } else {
-        incomingPill.update(activeItem, true);
-      }
-    });
-  };
-  if (wasOutgoingVisible) {
-    heroSideSwapOutTimer = setTimeout(showIncoming, 140);
-  } else {
-    showIncoming();
-  }
+// 24-94차: "서버랑 프로필은 이제 스왑이 아니라 반반 나눠서 떠있고" - 서버/프로필 두 목록이
+// 항상 나란히 보이므로 더 이상 한쪽을 숨기고 다른 쪽을 보여주는 전환(크로스페이드)이 없음.
+// 이름은 호출하는 곳(refreshChipActiveStates 등)이 그대로 쓰도록 남기고, 하는 일은
+// "두 목록의 선택 표시(pill)와 스크롤 화살표를 지금 상태에 맞게 다시 맞추기"만 함.
+function setHeroSideMode(_mode) {
+  requestAnimationFrame(() => {
+    serverListPill.update(serverListItemsEl.querySelector(".server-box-item.is-selected"), true);
+    profileListPill.update(profileListItemsEl.querySelector(".server-box-item.is-selected"), true);
+    updateHeroListScrollFade(serverListItemsEl);
+    updateHeroListScrollFade(profileListItemsEl);
+  });
 }
-document.getElementById("hero-mode-server-btn")?.addEventListener("click", () => setHeroSideMode("server"));
-document.getElementById("hero-mode-profile-btn")?.addEventListener("click", () => setHeroSideMode("profile"));
 window.addEventListener("resize", () => {
   serverListPill.update(serverListItemsEl.querySelector(".server-box-item.is-selected"), true);
   profileListPill.update(profileListItemsEl.querySelector(".server-box-item.is-selected"), true);
 });
 
 async function refreshChipActiveStates() {
-  const mode = await window.luna.getLaunchMode?.();
+  const mode = await window.nova.getLaunchMode?.();
   launchModeCache = mode;
   setHeroSideMode(mode);
   // 24-71차: "다른 버튼으로 바꿨을 때 추가 실행 버튼 색이 빨간색이야" - 이미 게임이 실행
@@ -1702,7 +3255,10 @@ async function refreshChipActiveStates() {
   // 최신 launchModeCache 기준으로 버튼 색만 다시 맞춰줌(글로우/귓속말 자동 숨김 같은 다른
   // 부수효과는 실제로 게임을 새로 켤 때만 필요하므로 setInGameUiState를 통째로 다시 부르지
   // 않고 클래스 토글만 재사용함)
-  btnPlay.classList.toggle("is-in-game", isInGame && launchModeCache !== "profile");
+  // 24-190차: 여기서 따로 걸던 빨간 정지 모양은 refreshPlayButtonLook()이 글자와 함께
+  // 한 번에 정한다(모양만 정지로 바뀌고 글자는 PLAY인 상태가 없어짐)
+  // 24-149차: 서버<->프로필 전환, 프로필 변경 뒤에도 글자를 지금 상태로 다시 씀
+  refreshPlayButtonLook();
 }
 
 // 10차: 서버 목록과 동일하게 페이지 번호 대신 휠 스크롤 방식으로 바꿈 - "새 프로필 만들기"
@@ -1711,12 +3267,10 @@ async function refreshChipActiveStates() {
 function renderProfileListItems() {
   // 24-14차: "고른 프로필 맨 위로 하는 거 취소할게 그거 돌려놓고" - 24-11차의 "선택된 프로필
   // 항상 맨 위" 정렬을 되돌림. 다시 최근 플레이순 정렬만 씀(안 켠 프로필은 맨 뒤)
-  const profiles = lastProfilesData.slice().sort((a, b) => {
-    const at = a.lastPlayedAt ? new Date(a.lastPlayedAt).getTime() : 0;
-    const bt = b.lastPlayedAt ? new Date(b.lastPlayedAt).getTime() : 0;
-    return bt - at;
-  });
+  // 24-241차: 끌어서 바꾼 순서(main 의 profile_order)
+  const profiles = lastProfilesData.slice();
 
+  setLaunchListCount("profile-list-count", profiles.length); // 24-95차: 칸 제목 옆 개수
   profileListItemsEl.innerHTML = "";
   if (profiles.length === 0) {
     profileListItemsEl.innerHTML = `<div class="mini-list-empty">아직 만든 프로필이 없어요</div>`;
@@ -1732,12 +3286,21 @@ function renderProfileListItems() {
       : `<span class="server-box-icon">${escapeHtml((p.name || "?").slice(0, 1))}</span>`;
     // 14차: "가져다 대면 추가 정보가 뜨면서 목록 길이가 밑으로 늘어나는 게 이상하다" -
     // 마지막 플레이 시각을 호버 시에만 펼쳐 보여주던 3번째 줄을 완전히 제거함
+    // 24-142차: "프로필에 마지막 플레이가 언제인지 오른쪽 빈 공간에 적어줘"
+    // .server-box-info 가 flex:1 이라 그 뒤에 붙이면 오른쪽 빈자리에 그대로 들어감(줄 높이 변화 없음).
+    // relativeTimeKo 는 프로필 관리 화면에서 쓰던 함수를 그대로 재사용("3시간 전"/"2일 전"/"플레이한 적 없음")
     item.innerHTML = `
       ${iconHtml}
       <span class="server-box-info">
         <b class="server-box-name">${escapeHtml(p.name)}</b>
         <span class="server-box-version">${escapeHtml(p.mcVersion || "")} · Nova</span>
       </span>
+      ${
+        // 24-232차: "플레이중 너무 길고 버전 밑에 말고 다른 곳에" - 켜져 있으면 오른쪽 시간 자리에 글자 길이만큼
+        runningCountForProfile(p.id)
+          ? playingPillHtml(runningCountForProfile(p.id))
+          : `<span class="server-box-lastplayed${p.lastPlayedAt ? "" : " is-never"}">${escapeHtml(relativeTimeKo(p.lastPlayedAt))}</span>`
+      }
     `;
 
     if (!p.selected) {
@@ -1747,9 +3310,10 @@ function renderProfileListItems() {
         profileListPill.update(item, false);
         setLaunchControlsLocked(true);
         try {
-          const res = await window.luna.selectProfile(p.id);
+          const res = await window.nova.selectProfile(p.id);
           if (res.ok) {
             if (profileChipName) profileChipName.textContent = res.profile.name;
+            selectedProfileIdCache = res.profile.id; // 24-149차
             updateMcVersionLabel(res.profile.mcVersion);
             refreshChipActiveStates();
             showToast(`${res.profile.name} 프로필로 전환했어요`);
@@ -1765,7 +3329,9 @@ function renderProfileListItems() {
         }
       });
     }
+    item.dataset.reorderId = p.id; // 24-241차
     profileListItemsEl.appendChild(item);
+    makeReorderable(item, profileListItemsEl, "profile");
   });
 
   profileListPill.update(profileListItemsEl.querySelector(".server-box-item.is-selected"), true);
@@ -1773,10 +3339,13 @@ function renderProfileListItems() {
 }
 
 async function loadProfileList() {
-  const profiles = await window.luna.listProfiles();
+  const profiles = await window.nova.listProfiles();
   lastProfilesData = profiles;
   const selected = profiles.find((p) => p.selected);
   if (selected && profileChipName) profileChipName.textContent = selected.name;
+  // 24-149차: 지금 고른 프로필이 실제로 켜져 있는지 따져서 PLAY / 추가 실행하기를 가른다
+  selectedProfileIdCache = selected ? selected.id : null;
+  refreshPlayButtonLook();
   renderProfileListItems();
 }
 
@@ -1795,9 +3364,14 @@ async function refreshLaunchTargetLists() {
 // 시작할 때 프로필 목록도 바로 로드
 loadProfileList();
 refreshChipActiveStates();
+// (모드 49-139) 창으로 돌아올 때(게임을 끄고 런처로 오는 순간 등) 선택 표시를 main 기준으로 다시 맞춤
+window.addEventListener("focus", () => {
+  if (isSwitchingLaunchTarget) return;
+  refreshLaunchTargetLists().then(refreshChipActiveStates).catch(() => {});
+});
 
 // ---- 현재 버전 / 제작자 표시 -----------------------------------------------
-Promise.all([window.luna.getAppVersion?.(), window.luna.getCreator?.()]).then(
+Promise.all([window.nova.getAppVersion?.(), window.nova.getCreator?.()]).then(
   ([v, creator]) => {
     if (v) {
       const homeEl = document.getElementById("app-version");
@@ -1810,11 +3384,11 @@ Promise.all([window.luna.getAppVersion?.(), window.luna.getCreator?.()]).then(
   }
 );
 document.getElementById("app-version")?.addEventListener("click", () => {
-  window.luna.openReleases?.();
+  window.nova.openReleases?.();
 });
 
 // ---- 최근 업데이트 날짜 표시 -------------------------------------------------
-window.luna.getLastUpdate?.().then((iso) => {
+window.nova.getLastUpdate?.().then((iso) => {
   const el = document.getElementById("last-update");
   if (!el || !iso) return;
   try {
@@ -1833,13 +3407,13 @@ window.luna.getLastUpdate?.().then((iso) => {
 // 다운로드 진행률 화면은 별도의 독립된 창(update.html)에서 처리함.
 const btnUpdateAvailable = document.getElementById("btn-update-available");
 
-window.luna.onUpdateAvailable?.(() => {
+window.nova.onUpdateAvailable?.(() => {
   if (btnUpdateAvailable) btnUpdateAvailable.hidden = false;
 });
 
 btnUpdateAvailable?.addEventListener("click", () => {
   btnUpdateAvailable.hidden = true; // 누르면 바로 시작되니 아이콘은 숨김
-  window.luna.startUpdateDownload?.();
+  window.nova.startUpdateDownload?.();
 });
 
 // ---- 설정 / 업데이트 내역 오버레이 -------------------------------------------
@@ -1859,6 +3433,8 @@ const setAutostartEnabled = document.getElementById("set-autostart-enabled");
 const setAutostartBackground = document.getElementById("set-autostart-background");
 const autostartBackgroundRow = document.getElementById("setting-row-autostart-background");
 const setHidePresence = document.getElementById("set-hide-presence");
+// 24-147차: 시작할 때 리소스팩/쉐이더 자동 적용
+const setAutoApplyPacks = document.getElementById("set-auto-apply-packs");
 // 24-24차: "설정 화면에서 전체화면 + 해상도 기능 넣어주고" - 서버로 플레이할 때 쓰이던
 // 하드코딩 1280x720을 직접 바꿀 수 있는 UI (main.js DEFAULT_SETTINGS의 mcResolutionWidth/
 // mcResolutionHeight/mcFullscreen과 짝을 이룸)
@@ -1876,6 +3452,7 @@ function fillSettingsForm(s) {
   // 24-23차: "친구에게 지금 뭐하는지 공유 안 하기"(체크=숨김) -> "친구에게 상태 공유"(체크=공유)로
   // 문구를 긍정형으로 바꾸면서 체크 의미도 반전시킴 - 저장 필드명(hidePresence)은 그대로 둠
   if (setHidePresence) setHidePresence.checked = !s.hidePresence;
+  if (setAutoApplyPacks) setAutoApplyPacks.checked = s.autoApplyPacks !== false;
   if (setMcResolutionWidth) setMcResolutionWidth.value = s.mcResolutionWidth || 1280;
   if (setMcResolutionHeight) setMcResolutionHeight.value = s.mcResolutionHeight || 720;
   if (setMcFullscreen) setMcFullscreen.checked = !!s.mcFullscreen;
@@ -1891,6 +3468,10 @@ function fillSettingsForm(s) {
   document.querySelectorAll(".lang-option").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.lang === (s.language === "en" ? "en" : "ko"));
   });
+  // 24-83차: 설정 > 폰트 - 지금 쓰는 글꼴에 맞춰 선택 표시와 미리보기 문구를 갱신함
+  // (폰트 항목에는 일부러 .lang-option 클래스를 안 붙였음 - 바로 위 언어 처리에 같이 휩쓸려
+  //  선택 표시가 풀려버리기 때문)
+  refreshUiFontPicker?.(s);
   // 설정 화면이 열리는 시점(hidden=false 직후)에 openSettings()에서 다시 애니메이션 없이 맞춰줌
 }
 
@@ -1898,7 +3479,7 @@ function fillSettingsForm(s) {
 // 안 눌러도 됨) - autostartMode는 main.js의 settings:set 핸들러가 바뀐 걸 감지해서
 // applyAutostartSetting()을 자동으로 다시 호출해줌
 setOnLaunchBehavior?.addEventListener("change", () => {
-  window.luna.setSettings({ onLaunchBehavior: setOnLaunchBehavior.value });
+  window.nova.setSettings({ onLaunchBehavior: setOnLaunchBehavior.value });
 });
 // 24-23차: 체크박스 2개(자동 실행 켜기 + 백그라운드로 시작)를 예전 select 3지선다와 같은
 // autostartMode 값("no"/"yes"/"background")으로 합쳐서 저장함
@@ -1906,24 +3487,33 @@ function saveAutostartMode() {
   const enabled = !!setAutostartEnabled?.checked;
   const background = !!setAutostartBackground?.checked;
   autostartBackgroundRow?.classList.toggle("is-disabled", !enabled);
-  window.luna.setSettings({ autostartMode: !enabled ? "no" : background ? "background" : "yes" });
+  window.nova.setSettings({ autostartMode: !enabled ? "no" : background ? "background" : "yes" });
 }
 setAutostartEnabled?.addEventListener("change", saveAutostartMode);
 setAutostartBackground?.addEventListener("change", saveAutostartMode);
+setAutoApplyPacks?.addEventListener("change", () => {
+  window.nova.setSettings({ autoApplyPacks: setAutoApplyPacks.checked });
+  showToast(
+    setAutoApplyPacks.checked
+      ? "이제 활성화해둔 팩이 게임에서도 켜져요"
+      : "이제 게임 안에서 직접 골라야 해요"
+  );
+});
+
 setHidePresence?.addEventListener("change", () => {
-  window.luna.setSettings({ hidePresence: !setHidePresence.checked });
+  window.nova.setSettings({ hidePresence: !setHidePresence.checked });
 });
 function saveMcResolution() {
   const w = Math.max(640, Math.min(7680, Number(setMcResolutionWidth?.value) || 1280));
   const h = Math.max(480, Math.min(4320, Number(setMcResolutionHeight?.value) || 720));
   if (setMcResolutionWidth) setMcResolutionWidth.value = w;
   if (setMcResolutionHeight) setMcResolutionHeight.value = h;
-  window.luna.setSettings({ mcResolutionWidth: w, mcResolutionHeight: h });
+  window.nova.setSettings({ mcResolutionWidth: w, mcResolutionHeight: h });
 }
 setMcResolutionWidth?.addEventListener("change", saveMcResolution);
 setMcResolutionHeight?.addEventListener("change", saveMcResolution);
 setMcFullscreen?.addEventListener("change", () => {
-  window.luna.setSettings({ mcFullscreen: setMcFullscreen.checked });
+  window.nova.setSettings({ mcFullscreen: setMcFullscreen.checked });
 });
 
 // 저장 버튼을 안 누르고 바깥을 클릭하거나 X로 닫으려고 할 때, 바뀐 게 있으면 저장할지 물어봄
@@ -1944,17 +3534,26 @@ function updateSettingsNavPill() {
 }
 
 // 설정 팝업 안 카테고리 전환 (스킨/플레이/화면/클라이언트)
+// 24-202차: 카테고리 하나가 패널 여러 개를 품을 수 있게 함.
+// "소리, 화면을 비디오/오디오로 묶고 폰트 언어를 언어로 묶고" - 패널 마크업은 그대로 두고
+// 여기서 어느 패널을 같이 보여줄지만 정한다(패널을 통째로 옮기면 그 안의 id/리스너를 전부
+// 다시 손봐야 해서, 묶는 규칙만 한 곳에 둔다).
+const SETTINGS_CAT_PANELS = {
+  av: ["display", "play"], // 비디오 / 오디오 (화면 + 소리)
+  language: ["language", "font"], // 언어 / 글꼴
+};
 function showSettingsCategory(cat) {
   document.querySelectorAll(".settings-nav-item").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.cat === cat);
   });
+  const shown = SETTINGS_CAT_PANELS[cat] || [cat];
   document.querySelectorAll(".settings-panel-section").forEach((sec) => {
-    sec.classList.toggle("is-active", sec.dataset.catPanel === cat);
+    sec.classList.toggle("is-active", shown.includes(sec.dataset.catPanel));
   });
   updateSettingsNavPill();
   // 6차: 테마 모드 pill은 "화면" 카테고리 패널 안에 있어서, 그 패널이 실제로 보이게 된
   // 시점에야 위치를 정확히 잴 수 있음 (숨겨진 동안엔 offsetWidth가 0)
-  if (cat === "display") {
+  if (cat === "av" || cat === "display") {
     requestAnimationFrame(() => {
       updateThemeModePill?.(true);
       updateLangModePill?.(true);
@@ -1982,7 +3581,7 @@ async function loadChangelog() {
     container.scrollTop = container.scrollHeight;
     return;
   }
-  const list = await window.luna.getChangelog();
+  const list = await window.nova.getChangelog();
   container.innerHTML = "";
   (list || []).forEach((entry) => {
     const el = document.createElement("div");
@@ -1992,7 +3591,14 @@ async function loadChangelog() {
         <span class="changelog-version">v${entry.version}</span>
         <span class="changelog-date">${entry.date}</span>
       </div>
-      <ul>${(entry.items || []).map((i) => `<li>${i}</li>`).join("")}</ul>
+      <ul>${(entry.items || [])
+        .map((i) => {
+          const t = String(i);
+          // 24-116차: "## 소제목" 항목은 불릿이 아니라 묶음 구분 제목으로 그림
+          if (t.startsWith("## ")) return `<li class="changelog-group">${escapeHtml(t.slice(3))}</li>`;
+          return `<li>${t}</li>`;
+        })
+        .join("")}</ul>
     `;
     container.appendChild(el);
   });
@@ -2007,12 +3613,12 @@ async function openUpdates() {
   loadChangelog();
 
   // 17차: 업데이트 내역을 실제로 열어봤으니 "안 읽음" 점을 지움
-  window.luna.markUpdateSeen?.();
+  window.nova.markUpdateSeen?.();
   document.getElementById("settings-about-update-dot")?.setAttribute("hidden", "");
 
   const [current, latestList] = await Promise.all([
-    window.luna.getAppVersion?.(),
-    window.luna.getChangelog(),
+    window.nova.getAppVersion?.(),
+    window.nova.getChangelog(),
   ]);
   document.getElementById("updates-current-version").textContent = current || "-";
 
@@ -2035,12 +3641,12 @@ document.getElementById("btn-updates-close")?.addEventListener("click", () => {
   document.getElementById("updates-overlay").hidden = true;
 });
 document.getElementById("btn-updates-github")?.addEventListener("click", () => {
-  window.luna.openReleases?.();
+  window.nova.openReleases?.();
 });
 
 // 설정은 이제 전체 화면이 아니라 작은 팝업으로 뜸 (기존 화면 그대로 두고 그 위에 띄움)
 async function openSettings() {
-  const s = await window.luna.getSettings();
+  const s = await window.nova.getSettings();
   fillSettingsForm(s);
   settingsDirty = false;
   // 24-54차: 프로필 사진 미리보기가 더 이상 renderSiteAccountPanel 안에서 매번 다시
@@ -2089,9 +3695,12 @@ async function loadNewsView() {
   if (!grid) return;
   grid.innerHTML = `<div class="news-empty">불러오는 중...</div>`;
 
-  const items = await window.luna.getNews?.();
+  const items = await window.nova.getNews?.();
   if (!items?.length) {
+    // 24-201차: 여기서 그냥 끝내버려서 마인크래프트 공식 소식이 아예 안 떴다. 우리가 올린
+    // 소식이 없어도(대부분 그렇다) 공식 소식은 보여줘야 한다.
     grid.innerHTML = `<div class="news-empty" data-i18n="news_empty_list">아직 올라온 소식이 없어요</div>`;
+    loadMinecraftNews();
     return;
   }
 
@@ -2106,6 +3715,64 @@ async function loadNewsView() {
         </div>`
     )
     .join("");
+
+  // 24-200차: 우리 소식 아래에 마인크래프트 공식 소식(번역본 + 원문 링크)을 이어 붙인다
+  loadMinecraftNews();
+}
+
+// 24-200차: "그 소식에는 minecraft.net/en-us/article 여기 올라오는 거 번역본이랑 링크해서"
+// 제목/요약은 번역본으로 보여주고, 카드를 누르면 기본 브라우저에서 원문 기사를 연다.
+// 영어 원제는 작게 같이 적어둔다(검색하거나 영상 찾을 때 그게 더 쓸모 있어서).
+async function loadMinecraftNews() {
+  const host = document.getElementById("news-grid");
+  if (!host) return;
+  const old = document.getElementById("mc-news-section");
+  if (old) old.remove();
+
+  const section = document.createElement("div");
+  section.id = "mc-news-section";
+  section.className = "mc-news-section";
+  section.innerHTML = `
+    <div class="mc-news-head">
+      <span class="mc-news-title">${escapeHtml(wgT("news_mc_title", "마인크래프트 공식 소식"))}</span>
+      <span class="mc-news-sub">${escapeHtml(wgT("news_mc_sub", "minecraft.net · 자동 번역"))}</span>
+    </div>
+    <div class="mc-news-grid"><div class="news-empty">${escapeHtml(
+      wgT("news_mc_loading", "불러오는 중...")
+    )}</div></div>`;
+  host.parentElement?.appendChild(section);
+
+  const items = (await window.nova.minecraftNews?.().catch(() => [])) || [];
+  const grid = section.querySelector(".mc-news-grid");
+  if (!items.length) {
+    grid.innerHTML = `<div class="news-empty">${escapeHtml(
+      wgT("news_mc_empty", "공식 소식을 불러오지 못했어요")
+    )}</div>`;
+    return;
+  }
+  grid.innerHTML = items
+    .map(
+      (it) => `
+      <div class="mc-news-card" data-url="${escapeHtml(it.link)}" title="${escapeHtml(
+        wgT("news_mc_open", "원문 기사 열기")
+      )}">
+        ${it.image ? `<div class="mc-news-thumb"><img src="${escapeHtml(it.image)}" alt="" onerror="this.closest('.mc-news-thumb').remove()" /></div>` : ""}
+        <div class="mc-news-body">
+          <div class="mc-news-card-top">
+            ${it.category ? `<span class="mc-news-tag">${escapeHtml(it.category)}</span>` : ""}
+            ${it.date ? `<span class="mc-news-date">${escapeHtml(String(it.date).slice(0, 10))}</span>` : ""}
+          </div>
+          <div class="mc-news-card-title">${escapeHtml(it.title)}</div>
+          ${it.titleEn && it.titleEn !== it.title ? `<div class="mc-news-card-en">${escapeHtml(it.titleEn)}</div>` : ""}
+          ${it.text ? `<div class="mc-news-card-desc">${escapeHtml(it.text)}</div>` : ""}
+          <div class="mc-news-card-link">${escapeHtml(wgT("news_mc_open", "원문 기사 열기"))} →</div>
+        </div>
+      </div>`
+    )
+    .join("");
+  grid.querySelectorAll(".mc-news-card").forEach((card) => {
+    card.addEventListener("click", () => window.nova.openExternal?.(card.dataset.url));
+  });
 }
 
 // 15차: 설정 > 화면의 테마 갤러리 - 기본 3개 밝기 모드(다크/화이트/시스템) 박스는 HTML에
@@ -2117,7 +3784,7 @@ async function loadThemeGallery() {
   if (!gallery) return;
   gallery.querySelectorAll(".theme-gallery-shop-item").forEach((el) => el.remove());
 
-  const [catalog, state] = await Promise.all([window.luna.getShopCatalog(), window.luna.getShopState()]);
+  const [catalog, state] = await Promise.all([window.nova.getShopCatalog(), window.nova.getShopState()]);
   const fullThemes = catalog.filter((c) => c.category === "fulltheme");
 
   // 16차: "다크나 화이트를 고르면 블랙앤화이트나 핑크는 꺼져야 하는데 이상해, 이중 하나만
@@ -2155,7 +3822,7 @@ async function loadThemeGallery() {
         return;
       }
       if (equipped) return;
-      const res = await window.luna.equipColor(item.id);
+      const res = await window.nova.equipColor(item.id);
       if (res.ok) {
         // 24-72차: 완전 테마를 새로 착용하면 메인 프로세스(shop:equip)가 이전에 써둔
         // 색상 슬롯을 같이 해제해서 res.equipped가 항상 null로 옴 - 그대로 넘기면
@@ -2174,7 +3841,7 @@ async function loadJavaInfoSection() {
   const listEl = document.getElementById("java-info-list");
   if (!listEl) return;
   listEl.innerHTML = `<div style="color:var(--text-2); font-size:12px;">확인 중...</div>`;
-  const info = await window.luna.getJavaInfo?.();
+  const info = await window.nova.getJavaInfo?.();
   if (!info || info.length === 0) {
     listEl.innerHTML = `<div style="color:var(--text-2); font-size:12px;">정보를 확인할 수 없어요</div>`;
     return;
@@ -2193,7 +3860,7 @@ async function loadJavaInfoSection() {
     `;
     const openBtn = row.querySelector(".java-info-open-btn");
     if (entry.installed) {
-      openBtn.addEventListener("click", () => window.luna.openJavaFolder?.(entry.javaFeatureVersion));
+      openBtn.addEventListener("click", () => window.nova.openJavaFolder?.(entry.javaFeatureVersion));
     }
     listEl.appendChild(row);
   });
@@ -2202,12 +3869,12 @@ async function loadJavaInfoSection() {
 async function loadProfileBio() {
   const bioEl = document.getElementById("set-profile-bio");
   if (!bioEl || !currentProfile?.uuid) return;
-  const info = await window.luna.forumGetUserInfo(currentProfile.uuid);
+  const info = await window.nova.forumGetUserInfo(currentProfile.uuid);
   bioEl.value = info?.bio || "";
 }
 document.getElementById("btn-profile-bio-save")?.addEventListener("click", async () => {
   const bioEl = document.getElementById("set-profile-bio");
-  const res = await window.luna.setProfileBio(bioEl.value);
+  const res = await window.nova.setProfileBio(bioEl.value);
   if (res.ok) showToast("자기소개를 저장했어요");
   else showToast(res.error || "저장에 실패했어요.", "error");
 });
@@ -2224,7 +3891,7 @@ async function loadSiteAccountPanel() {
   panel.innerHTML = `<div style="color:var(--text-2); font-size:12px;">확인 중...</div>`;
   let siteRes;
   try {
-    siteRes = await window.luna.getSiteAccount();
+    siteRes = await window.nova.getSiteAccount();
   } catch (_) {
     siteRes = null;
   }
@@ -2273,7 +3940,6 @@ function renderSiteAccountPanel(account) {
 
   const links = account.links || [];
   const mcLinks = links.filter((l) => l.provider === "minecraft");
-  const discordLink = links.find((l) => l.provider === "discord");
 
   const linkRows = links
     .map((l) => {
@@ -2306,11 +3972,6 @@ function renderSiteAccountPanel(account) {
     <div class="site-account-links">${linkRows}</div>
     <div class="settings-subgroup-title" style="margin-top:6px; padding-top:10px;">마인크래프트 계정 연동</div>
     ${mcLinkForm}
-    <div class="settings-subgroup-title" style="margin-top:6px; padding-top:10px;">디스코드 연동</div>
-    <div class="site-account-link-form">
-      <input id="site-account-discord-input" type="text" class="setting-input" placeholder="디스코드 태그 (예: username)" value="${escapeHtml(discordLink?.provider_name || "")}" />
-      <button id="btn-link-discord" class="btn btn-ghost btn-small" type="button">저장</button>
-    </div>
     <button id="btn-site-account-logout" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start; margin-top:6px;">사이트 계정 로그아웃</button>
   `;
   // 24-69차: 닉네임 변경 UI는 이제 이 패널 안이 아니라 "내 프로필" 최상단(프로필 사진 옆)의
@@ -2335,7 +3996,7 @@ function renderSiteAccountPanel(account) {
       const wasActiveLink = mcLinks.some(
         (l) => l.id === btn.dataset.linkId && normalizeUuidForCompare(l.provider_uid) === normalizeUuidForCompare(currentProfile?.uuid)
       );
-      const res = await window.luna.unlinkSiteAccountLink(btn.dataset.linkId);
+      const res = await window.nova.unlinkSiteAccountLink(btn.dataset.linkId);
       if (!res.ok) {
         btn.dataset.busy = "";
         btn.disabled = false;
@@ -2374,7 +4035,7 @@ function renderSiteAccountPanel(account) {
     e.target.disabled = true;
     e.target.textContent = "연동하는 중...";
     try {
-      const res = await window.luna.login();
+      const res = await window.nova.login();
       if (res.ok) {
         await refreshSiteLinkStateAfterMcLogin(res);
         currentProfile = res.profile;
@@ -2398,17 +4059,6 @@ function renderSiteAccountPanel(account) {
     }
   });
 
-  document.getElementById("btn-link-discord")?.addEventListener("click", async () => {
-    const input = document.getElementById("site-account-discord-input");
-    const res = await window.luna.linkDiscordAccount(input?.value || "");
-    if (res.ok) {
-      showToast("디스코드를 연동했어요");
-      renderSiteAccountPanel(res.account);
-    } else {
-      showToast(res.error || "디스코드를 연동하지 못했어요.", "error");
-    }
-  });
-
   document.getElementById("btn-site-account-logout")?.addEventListener("click", async () => {
     await siteLogoutAndReturnToLogin();
   });
@@ -2429,7 +4079,7 @@ async function loadNicknameTicketCount() {
   const el = document.getElementById("nickname-ticket-count");
   if (!el) return;
   try {
-    const state = await window.luna.getShopState?.();
+    const state = await window.nova.getShopState?.();
     const have = state?.consumables?.nicknameChangeTickets || 0;
     el.textContent = have > 0 ? `(보유 변경권 ${have}개)` : "(보유 변경권 없음 - 상점 > 기타 탭에서 구매)";
   } catch (_) {
@@ -2451,7 +4101,7 @@ async function handleUseNicknameTicket(e) {
   btn.disabled = true;
   btn.textContent = "변경하는 중...";
   try {
-    const res = await window.luna.useNicknameTicket(newNickname);
+    const res = await window.nova.useNicknameTicket(newNickname);
     if (res.ok) {
       showToast("닉네임을 변경했어요.");
       if (input) input.value = "";
@@ -2470,11 +4120,36 @@ async function handleUseNicknameTicket(e) {
   }
 }
 
+// 24-225차: "프로필사진이 적용이 안돼"
+// 사진을 올리면 설정 미리보기에만 보이고, 오른쪽 위 프로필은 계속 마크 얼굴을 그리고 있었다.
+// 올린 사진이 있으면 그 자리도 같이 바꾼다(없으면 지금처럼 마크 얼굴).
+async function applyClientAvatar() {
+  const el = document.getElementById("avatar");
+  if (!el) return;
+  try {
+    const url = await window.nova.getAvatar?.();
+    // 24-228차: 원형으로 자른 사진이라 마크 머리 칸(네모 + 배경)에 넣으면 모서리가 비어 보였다
+    el.classList.toggle("is-photo", !!url);
+    if (url) el.innerHTML = `<img src="${escapeHtml(url)}" alt="" />`;
+    myAvatarUrl = url || null;
+  } catch (_) {}
+  applyMyFrame();
+}
+// 24-229차: 오른쪽 위 내 사진에 착용한 테두리
+let myAvatarUrl = null;
+async function applyMyFrame() {
+  try {
+    const [catalog, state] = await Promise.all([window.nova.getShopCatalog(), window.nova.getShopState()]);
+    const item = state?.equippedFrame ? catalog.find((c) => c.id === state.equippedFrame) : null;
+    setFrameClass(document.getElementById("avatar"), item?.frame || null);
+  } catch (_) {}
+}
+
 async function loadAvatarPreview() {
   const el = document.getElementById("site-account-avatar-preview");
   if (!el) return;
   try {
-    const url = await window.luna.getAvatar?.();
+    const url = await window.nova.getAvatar?.();
     if (url) {
       el.innerHTML = "";
       el.style.backgroundImage = `url("${url}")`;
@@ -2500,7 +4175,7 @@ const AVATAR_OUTPUT_SIZE = 320; // 실제로 업로드할 정사각형 이미지
 // "고를 때 크기 조정도 할 수 있게" - 파일을 고르면 이 크롭 팝업을 열어서, 드래그로 위치를
 // 옮기고 슬라이더로 확대/축소한 뒤 저장하면 그 상태 그대로를 정사각형 PNG로 잘라서 올림
 async function openAvatarCropFlow() {
-  const picked = await window.luna.pickAvatarTemp();
+  const picked = await window.nova.pickAvatarTemp();
   if (!picked?.ok) {
     if (!picked?.canceled) showToast(picked?.error || "사진을 선택하지 못했어요", "error");
     return;
@@ -2605,12 +4280,22 @@ document.getElementById("btn-avatar-crop-save")?.addEventListener("click", async
     octx.drawImage(avatarCropImg, x, y, w, h);
     octx.restore();
     const dataUrl = out.toDataURL("image/png");
-    const res = await window.luna.uploadAvatar(dataUrl);
+    const res = await window.nova.uploadAvatar(dataUrl);
     if (res.ok) {
       showToast("프로필 사진을 저장했어요");
       document.getElementById("avatar-crop-popup").hidden = true;
       avatarCropImg = null;
       loadAvatarPreview();
+      applyClientAvatar(); // 24-225차: 오른쪽 위 프로필도 바로 바꾼다
+      window.nova.tierMine?.().catch(() => {}); // 남들도 볼 수 있게 표에 바로 올린다
+      tierAvatars.clear();
+      faceCheckedAt.clear();
+      // 24-228차: 이미 그려진 내 사진도 새 것으로 다시
+      document.querySelectorAll(".forum-face[data-face-key]").forEach((el) => {
+        delete el.dataset.src;
+        el.innerHTML = "";
+        el.classList.add("is-default");
+      });
     } else {
       showToast(res.error || "저장하지 못했어요", "error");
     }
@@ -2659,7 +4344,7 @@ async function loadInstalledSize() {
   const el = document.getElementById("installed-size");
   if (!el) return;
   el.textContent = "확인 중...";
-  const bytes = await window.luna.getInstalledSize();
+  const bytes = await window.nova.getInstalledSize();
   el.textContent = formatBytes(bytes);
 }
 
@@ -2671,13 +4356,41 @@ document.getElementById("btn-reset-install")?.addEventListener("click", async ()
   );
   if (!confirmed) return;
 
-  const res = await window.luna.resetInstall();
+  const res = await window.nova.resetInstall();
   if (res.ok) {
     showToast("삭제됐어요. 다음 PLAY 때 새로 설치돼요.");
     loadInstalledSize();
   } else {
     showToast(res.error || "삭제 실패", "error");
   }
+});
+
+// 24-123차: "클라이언트 정보에서 클라이언트 삭제 기능 만들어줘 제어판 가기 귀찮다 삭제할 때
+// 동의 창 뜨게 하고" - 윈도우 설정 > 앱까지 갈 필요 없이 여기서 제거 프로그램을 바로 띄움.
+// 되돌릴 수 없으니 확인창을 두 번 거치게 함(첫 창은 무엇이 지워지는지, 둘째는 마지막 확인)
+document.getElementById("btn-uninstall-app")?.addEventListener("click", async () => {
+  // showConfirm 은 innerHTML 로 넣으므로 줄바꿈은 <br> 로
+  // 24-124차: "지웠다 깔아도 프로필은 남아있게 해주고" - 제거 프로그램은 설치 폴더만 지우고
+  // 게임 데이터 폴더(%APPDATA%\\NovaClient - 프로필/모드/설정/자바/마인크래프트)는 건드리지
+  // 않음(package.json 의 nsis.deleteAppDataOnUninstall: false). 안내 문구도 거기에 맞춤
+  const agreed = await showConfirm(
+    "<b>Nova Client를 컴퓨터에서 삭제할까요?</b><br><br>" +
+      "런처 프로그램만 지워져요. <b>프로필과 모드, 설정, 다운로드한 게임 파일은 그대로 남아</b> 있어서, " +
+      "다시 설치하면 쓰던 그대로 이어서 쓸 수 있어요.<br>" +
+      "계정과 구매한 아이템도 사이트 계정에 그대로 있어요.<br><br>" +
+      "게임 파일까지 싹 지우고 싶으면, 먼저 위의 \"다운로드한 게임 파일 모두 삭제\"를 누른 뒤 삭제해주세요.<br><br>" +
+      "확인을 누르면 삭제 프로그램이 뜨면서 런처가 바로 꺼져요.",
+    "삭제",
+    "취소"
+  );
+  if (!agreed) return;
+
+  const res = await window.nova.uninstallApp?.();
+  if (!res?.ok) {
+    showToast(res?.error || "삭제를 시작하지 못했어요", "error");
+    return;
+  }
+  showToast("삭제 프로그램을 여는 중이에요...");
 });
 
 // 설치/구매 등 시간이 걸리는 버튼 클릭을 눌러놓고 다시 누르지 못하게 잠그고, 진행 중 문구를 보여줌
@@ -2706,6 +4419,44 @@ async function withBusyButton(btn, busyText, fn) {
 }
 
 // 간단한 확인창 (저장/취소 선택) - 어디서든 재사용 가능
+// 24-221차: 짧은 글자 하나를 받는 창(폴더 이름 등) - showConfirm 과 같은 모양을 쓴다
+function showPrompt(message, value = "", confirmLabel = "확인", cancelLabel = "취소", maxLen = 20) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+    overlay.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-message">${escapeHtml(message)}</div>
+        <input type="text" class="setting-input" data-prompt-input maxlength="${Number(maxLen) || 20}" value="${escapeHtml(value)}" />
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-ghost btn-small" data-choice="cancel">${escapeHtml(cancelLabel)}</button>
+          <button type="button" class="btn btn-fixed-green btn-small" data-choice="confirm">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector("[data-prompt-input]");
+    const done = (ok) => {
+      const v = input.value.trim();
+      document.body.removeChild(overlay);
+      resolve(ok ? v : null);
+    };
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 30);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") done(true);
+      if (e.key === "Escape") done(false);
+    });
+    overlay.addEventListener("click", (e) => {
+      const choice = e.target?.dataset?.choice;
+      if (!choice) return;
+      done(choice === "confirm");
+    });
+  });
+}
+
 function showConfirm(message, confirmLabel = "저장", cancelLabel = "취소") {
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -2773,7 +4524,7 @@ function showTypeToConfirm(message, expectedText, confirmLabel = "삭제") {
 }
 
 async function saveSettingsAndClose() {
-  await window.luna.setSettings({
+  await window.nova.setSettings({
     sfxVolume: Number(setSfxVolume.value),
   });
   settingsDirty = false;
@@ -2786,7 +4537,7 @@ async function applyTheme(themeValue) {
   currentThemeSetting = themeValue;
   let resolved = themeValue;
   if (themeValue === "system") {
-    const isDark = await window.luna.getSystemIsDark?.();
+    const isDark = await window.nova.getSystemIsDark?.();
     resolved = isDark ? "dark" : "light";
   }
   document.body.dataset.theme = resolved === "light" ? "light" : "dark";
@@ -2803,7 +4554,7 @@ document.querySelectorAll(".theme-option:not(.lang-option)").forEach((btn) => {
     document.querySelectorAll(".theme-option:not(.lang-option)").forEach((b) => b.classList.remove("is-active"));
     btn.classList.add("is-active");
     updateThemeModePill();
-    await window.luna.setSettings({ theme: btn.dataset.theme });
+    await window.nova.setSettings({ theme: btn.dataset.theme });
     applyTheme(btn.dataset.theme);
     // 16차: "다크나 화이트를 고르면 블랙앤화이트나 핑크는 꺼져야" - 배경/글자색까지 통째로
     // 덮어쓰는 완전테마(fulltheme, 예: 블랙&화이트/핑크)가 장착돼 있으면 다크/화이트를
@@ -2814,7 +4565,7 @@ document.querySelectorAll(".theme-option:not(.lang-option)").forEach((btn) => {
     // 착용해둔 색상(포인트색) 슬롯은 그대로 유지함(예전엔 equipColor("default")로 둘 다
     // 초기화해버려서 다크/화이트로 바꾸면 애써 고른 색상까지 같이 풀려버렸음)
     if (document.body.dataset.colorTheme) {
-      const res = await window.luna.unequipShopCategory?.("fulltheme");
+      const res = await window.nova.unequipShopCategory?.("fulltheme");
       if (res?.ok) {
         delete document.body.dataset.colorTheme;
         loadThemeGallery();
@@ -2832,39 +4583,53 @@ document.querySelectorAll(".lang-option").forEach((btn) => {
     document.querySelectorAll(".lang-option").forEach((b) => b.classList.remove("is-active"));
     btn.classList.add("is-active");
     updateLangModePill();
-    await window.luna.setSettings({ language: btn.dataset.lang });
-    const effective = await window.luna.getEffectiveLanguage?.();
+    await window.nova.setSettings({ language: btn.dataset.lang });
+    const effective = await window.nova.getEffectiveLanguage?.();
     window.NovaI18n?.setLang(effective || "ko");
   });
 });
 
 // 시스템 테마를 골랐을 때, OS 설정이 바뀌면 실시간으로 반영
-window.luna.onSystemThemeChanged?.((isDark) => {
+window.nova.onSystemThemeChanged?.((isDark) => {
   if (currentThemeSetting === "system") {
     document.body.dataset.theme = isDark ? "dark" : "light";
   }
 });
 
 // 앱 시작할 때부터 저장된 테마 적용
-window.luna.getSettings().then((s) => applyTheme(s.theme || "dark"));
+window.nova.getSettings().then((s) => applyTheme(s.theme || "dark"));
 
 // 7-1: 앱 시작할 때 저장된 언어(또는 시스템 언어)를 옮겨둔 문구들에 바로 적용
 window.NovaI18n?.initI18n?.();
 
-window.luna.getLicense?.().then((text) => {
+// 24-202차: "정보에 라이센스 줄 바꿈좀 해서 정리"
+// main.js 의 LICENSE_TEXT 는 줄 단위 배열인데, 그걸 그대로 textContent 에 넣어서 한 덩어리로
+// 보였다(빈 줄로 나눠둔 문단 구분도 안 보였다). 줄 단위로 그려서 ── 제목 ──은 소제목으로,
+// 빈 줄은 문단 사이 간격으로 살린다.
+window.nova.getLicense?.().then((text) => {
   const el = document.getElementById("settings-license");
-  if (el && text) el.textContent = text;
+  if (!el || !text) return;
+  const lines = Array.isArray(text) ? text : String(text).split("\n");
+  el.innerHTML = lines
+    .map((raw) => {
+      const line = String(raw);
+      if (!line.trim()) return `<div class="license-gap"></div>`;
+      const head = /^\s*──\s*(.+?)\s*──\s*$/.exec(line);
+      if (head) return `<div class="license-head">${escapeHtml(head[1])}</div>`;
+      return `<div class="license-line">${escapeHtml(line)}</div>`;
+    })
+    .join("");
 });
 
 // 17차: "유료화하니까 법적으로 필요한 사업자 정보도 넣어줘" - main.js CONFIG.BUSINESS_INFO를
 // 그대로 표로 보여줌 (실제 값은 사업자가 main.js에서 채워야 하고, 지금은 "미기재" 플레이스홀더)
 // 17차: "업데이트 내역에 안 읽은 게 있으면 점 보여줘"
-window.luna.hasUnseenUpdate?.().then((unseen) => {
+window.nova.hasUnseenUpdate?.().then((unseen) => {
   const dot = document.getElementById("settings-about-update-dot");
   if (dot) dot.hidden = !unseen;
 });
 
-window.luna.getBusinessInfo?.().then((info) => {
+window.nova.getBusinessInfo?.().then((info) => {
   const el = document.getElementById("settings-business-info");
   if (!el || !info) return;
   const rows = [
@@ -2886,25 +4651,25 @@ document.getElementById("btn-brand-terms")?.addEventListener("click", () => {
   showTerms({ alreadyAgreed: true });
 });
 document.getElementById("btn-restart-launcher")?.addEventListener("click", () => {
-  window.luna.restartApp?.();
+  window.nova.restartApp?.();
 });
 document.getElementById("btn-brand-discord")?.addEventListener("click", () => {
-  window.luna.openDiscord?.();
+  window.nova.openDiscord?.();
 });
 document.getElementById("btn-brand-website")?.addEventListener("click", () => {
-  window.luna.openWebsite?.();
+  window.nova.openWebsite?.();
 });
 // 24-31차 신규: 설정 > 정보 > 커뮤니티 "상점" 버튼 - 코인 구매(충전) 페이지를 브라우저로 바로 엶
 document.getElementById("btn-brand-coins-shop")?.addEventListener("click", () => {
-  window.luna.openCoinsShop?.();
+  window.nova.openCoinsShop?.();
 });
 document.getElementById("btn-brand-open-game-folder")?.addEventListener("click", () => {
-  window.luna.openGameFolder?.();
+  window.nova.openGameFolder?.();
 });
 
 // ---- 17차 신규, 24-25차 대폭 확장: AI 진단 도우미 (딥러닝/외부 AI 없이 선택지+키워드 매칭만으로 답을 찾음) ------
 // 24-25차: "AI 진단 도우미를 최대한 업데이트해서... 스펙트럼을 넓혀줘" 요청으로 커버 범위를
-// 8개 대분류(게임 실행/모드+컨텐츠/계정+로그인/상점+코인/친구+포럼/프로필+프리셋/설정+성능/
+// 8개 대분류(게임 실행/모드+콘텐츠/계정+로그인/상점+코인/친구+포럼/프로필+프리셋/설정+성능/
 // 클라이언트 정보)로 확장. 17차 당시엔 "모드/클라이언트 정보/계정" 3개뿐이었는데, 그 사이
 // 24-4~24-24차에 걸쳐 새로 생긴 기능(사이트 계정 로그인, 마인크래프트 N:1 연동, 상점/코인,
 // 친구/포럼, 실행 해상도 설정 등)이 전혀 반영 안 돼 있던 걸 이번에 따라잡음. 노드 종류는 기존과 동일:
@@ -2922,7 +4687,7 @@ const AI_ASSISTANT_TREE = {
       { label: "계정/로그인 문제", next: "account_problem" },
       { label: "상점/코인 문제", next: "shop_problem" },
       { label: "친구/포럼 문제", next: "social_problem" },
-      { label: "프로필/프리셋 관리 문제", next: "profile_problem" },
+      { label: "프로필 관리 문제", next: "profile_problem" },
       { label: "설정/성능 문제", next: "settings_perf_problem" },
       { label: "클라이언트(런처) 정보", next: "client_info" },
     ],
@@ -2943,7 +4708,7 @@ const AI_ASSISTANT_TREE = {
     question: "Forge/NeoForge는 처음 실행할 때 공식 설치 프로그램을 자동으로 받아서 돌리는 방식이에요",
     options: [
       { label: "처음 켤 때 시간이 오래 걸려요", answer: "정상이에요. 처음 한 번은 Forge/NeoForge 설치 프로그램을 내려받아 그 자리에서 설치까지 하기 때문에 Fabric 프로필보다 시간이 더 걸려요. 진행률 표시가 멈춘 것처럼 보여도 조금만 더 기다려주세요." },
-      { label: "설치 프로그램 실행 중 오류가 나요", answer: "logs 폴더의 로그 파일(설정 > 클라이언트 > 폴더에서 게임 폴더 열기)에 설치 프로그램 출력이 그대로 남아요. 자바가 없거나 손상됐을 수 있으니, 이 프로필을 지우고 새로 만들어 자바를 다시 받게 해보시고, 그래도 안 되면 로그 내용을 그대로 루나 디스코드에 남겨주세요." },
+      { label: "설치 프로그램 실행 중 오류가 나요", answer: "logs 폴더의 로그 파일(설정 > 클라이언트 > 폴더에서 게임 폴더 열기)에 설치 프로그램 출력이 그대로 남아요. 자바가 없거나 손상됐을 수 있으니, 이 프로필을 지우고 새로 만들어 자바를 다시 받게 해보시고, 그래도 안 되면 로그 내용을 그대로 Nova 디스코드에 남겨주세요." },
       { label: "이 마인크래프트 버전엔 아예 안 켜져요", answer: "너무 최신이거나 너무 오래된 마인크래프트 버전은 그 버전용 Forge/NeoForge가 아직 없거나 지원이 끊겼을 수 있어요. 다른 마인크래프트 버전으로 프로필을 다시 만들어보세요." },
     ],
   },
@@ -2957,7 +4722,7 @@ const AI_ASSISTANT_TREE = {
   },
   game_wont_start_resolution: {
     dynamicAnswer: async () => {
-      const s = await window.luna.getSettings?.();
+      const s = await window.nova.getSettings?.();
       const w = s?.mcResolutionWidth || 1280;
       const h = s?.mcResolutionHeight || 720;
       const fs = s?.mcFullscreen ? "켜짐" : "꺼짐";
@@ -2977,7 +4742,7 @@ const AI_ASSISTANT_TREE = {
       { keywords: ["access denied", "권한", "permission"], answer: "설치 폴더에 파일을 쓸 권한이 없을 때 나는 오류예요. Nova Client를 관리자 권한으로 한 번 실행해보시거나, 백신 프로그램이 게임 폴더를 막고 있지 않은지 확인해주세요." },
       { keywords: ["msmc", "microsoft", "마이크로소프트", "로그인 창"], answer: "마이크로소프트 로그인 창 자체의 문제라면, 계정/로그인 문제 쪽 안내가 더 자세해요 - 처음으로 돌아가서 '계정/로그인 문제'를 골라주세요." },
     ],
-    fallback: "정확히 어떤 문제인지 이 문구만으로는 찾기 어려워요. 프로필 관리에서 최근에 추가한 모드를 하나씩 빼보면서 확인해보시거나, 이 문구를 그대로 커뮤니티나 루나 디스코드에 남겨주시면 더 빠르게 도와드릴 수 있어요.",
+    fallback: "정확히 어떤 문제인지 이 문구만으로는 찾기 어려워요. 프로필 관리에서 최근에 추가한 모드를 하나씩 빼보면서 확인해보시거나, 이 문구를 그대로 커뮤니티나 Nova 디스코드에 남겨주시면 더 빠르게 도와드릴 수 있어요.",
   },
   mod_conflict: {
     question: "화면에 뜬 오류 문구를 직접 적어주시면 원인을 찾아드릴게요 (모르면 아래 자주 나오는 문구 중에서 골라주세요)",
@@ -2987,22 +4752,22 @@ const AI_ASSISTANT_TREE = {
       { keywords: ["requires", "depend", "필요", "missing"], answer: "이 모드가 실행되려면 다른 모드(라이브러리 모드 등)가 같이 설치돼 있어야 한다는 뜻이에요. 오류 문구에 같이 적힌 모드 이름을 Contents에서 검색해서 먼저 설치해주세요 (Fabric API는 이제 모든 Fabric 프로필에 자동으로 들어있어서 따로 안 찾으셔도 돼요)." },
       { keywords: ["incompatib", "호환"], answer: "두 모드(또는 모드와 마인크래프트/로더 버전)가 서로 호환되지 않는다는 뜻이에요. 오류 문구에 적힌 두 모드 중 하나를 최신 버전으로 업데이트해보거나, 그래도 안 되면 둘 중 하나를 프로필에서 빼주세요." },
       { keywords: ["mixin"], answer: "모드가 게임 코드에 끼워 넣는 방식(Mixin)끼리 충돌났다는 뜻이에요. 최근에 새로 추가한 모드를 하나씩 빼보면서 어떤 모드 때문인지 찾아보시는 게 가장 확실해요." },
-      { keywords: ["crash", "exit code", "튕김", "튕겨"], answer: "정확한 원인은 로그를 봐야 알 수 있어요. 설정 > 클라이언트 > 폴더에서 게임 폴더를 열어 logs/latest.log 안의 마지막 오류(빨간 글씨 근처)를 확인해주시고, 그래도 모르겠으면 이 문구를 그대로 커뮤니티나 루나 디스코드에 남겨주세요." },
+      { keywords: ["crash", "exit code", "튕김", "튕겨"], answer: "정확한 원인은 로그를 봐야 알 수 있어요. 설정 > 클라이언트 > 폴더에서 게임 폴더를 열어 logs/latest.log 안의 마지막 오류(빨간 글씨 근처)를 확인해주시고, 그래도 모르겠으면 이 문구를 그대로 커뮤니티나 Nova 디스코드에 남겨주세요." },
       { keywords: ["fabric api", "fabric-api"], answer: "24-46차부터 Fabric API는 모든 Fabric 프로필에 자동으로 포함돼요(Contents에서 따로 검색은 안 돼요 - 이미 항상 켜져있는 상태라서 그래요). 그런데도 이 오류가 난다면, 프로필의 마인크래프트 버전이 아직 Fabric API가 지원하지 않는 아주 최신/구버전일 수 있어요 - 다른 버전으로 프로필을 새로 만들어보세요." },
       { keywords: ["forge", "neoforge"], answer: "Forge/NeoForge 프로필이라면 위 'Forge/NeoForge 프로필이 안 켜져요' 항목이 더 자세해요. 모드 자체의 문제라면, 그 모드가 실제로 Forge/NeoForge용 파일이 맞는지(Fabric용을 잘못 넣으면 이런 오류가 나요) 확인해주세요." },
     ],
-    fallback: "정확히 어떤 문제인지 이 문구만으로는 찾기 어려워요. 프로필 관리에서 최근에 추가한 모드를 하나씩 빼보면서 확인해보시거나, 이 문구를 그대로 커뮤니티나 루나 디스코드에 남겨주시면 더 빠르게 도와드릴 수 있어요.",
+    fallback: "정확히 어떤 문제인지 이 문구만으로는 찾기 어려워요. 프로필 관리에서 최근에 추가한 모드를 하나씩 빼보면서 확인해보시거나, 이 문구를 그대로 커뮤니티나 Nova 디스코드에 남겨주시면 더 빠르게 도와드릴 수 있어요.",
   },
 
   // ---- B. 모드/리소스팩/쉐이더/모드팩 설치 ----
   content_problem: {
-    question: "컨텐츠 관련해서 어떤 문제인가요?",
+    question: "콘텐츠 관련해서 어떤 문제인가요?",
     options: [
       { label: "설치가 안 돼요", next: "mod_install_fail" },
       { label: "업데이트가 안 돼요", next: "mod_update_fail" },
       { label: "모드팩(.mrpack) 설치가 이상해요", next: "modpack_problem" },
       { label: "리소스팩/쉐이더 설치가 안 돼요", answer: "리소스팩/쉐이더도 모드처럼 필요한 다른 모드(대부분 라이브러리 모드)가 있으면 설치 전에 자동으로 확인해서 같이 설치할지 물어봐요. 그 안내가 뜨면 '같이 설치'를 눌러주시고, 설치 후에도 게임에 안 보이면 프로필 관리 > 리소스팩/쉐이더 탭에서 꺼짐(비활성화) 상태가 아닌지 확인해주세요." },
-      { label: "찾는 모드가 검색이 안 돼요", answer: "개별 '모드' 검색은 지금 Fabric 모드만 대상이에요(Forge/NeoForge는 모드팩 단위로만 지원). 클라이언트 전용 모드만 보기 필터를 켜두셨다면, 서버 전용 모드는 그 필터 때문에 안 보일 수 있으니 꺼보세요. 기본으로는 정식 버전만 보이니, 베타/알파까지 보려면 버전 목록 화면의 베타 표시 토글도 확인해주세요." },
+      { label: "찾는 모드가 검색이 안 돼요", answer: "개별 '모드' 검색은 지금 Fabric 모드만 대상이에요(Forge/NeoForge는 모드팩 단위로만 지원). '클라이언트 모드만 보기'를 켜두셨다면 서버 전용 모드는 그 필터 때문에 안 보일 수 있으니 꺼보세요. 기본으로는 정식 버전만 보이니, 베타/알파까지 보려면 버전 목록 화면의 베타 표시 토글도 확인해주세요." },
       { label: "스크린샷/설명이 안 보여요", answer: "일부 모드는 Modrinth 쪽 이미지 정보가 예상과 다른 형태로 와서 화면에 못 띄우는 경우가 있어요(계속 조사 중인 부분이에요). 어떤 모드에서 그런지 이름을 알려주시면 다음에 더 정확히 봐드릴 수 있어요." },
       { label: "제작자 페이지로 이동이 안 돼요", answer: "탐색 목록의 제작자 이름을 눌러도 안 열린다면, 그 항목이 팀/여러 명 공동 제작이라 대표 제작자 정보가 비어있는 경우일 수 있어요. 모드 상세 화면에서 다시 시도해주세요." },
     ],
@@ -3041,8 +4806,8 @@ const AI_ASSISTANT_TREE = {
       { label: "마인크래프트 계정 연동이 안 돼요", answer: "로그인 후 마인크래프트 계정이 하나도 연동 안 되어 있으면 마인크래프트 연동 화면으로 이동하는데, 거기 '마인크래프트 계정으로 로그인' 버튼을 누르면 마이크로소프트 로그인 창이 따로 떠요. 그 창에서 로그인을 마치면 서버가 실제 소유권을 확인한 뒤 자동으로 연동돼요. 창이 안 뜨거나 로그인 후에도 계속 연동 화면에 머문다면, 런처를 완전히 종료 후 다시 켜보시고 인터넷 연결도 확인해주세요." },
       { label: "마인크래프트 계정을 하나 더 연동하고 싶어요", answer: "지금은 사이트 계정 하나에 마인크래프트 계정을 여러 개 연동할 수 있어요. 설정 > 내 프로필 탭의 사이트 계정 패널에서 '다른 마인크래프트 계정 추가로 연동하기' 버튼을 누르면 마이크로소프트 로그인 창이 다시 뜨고, 그 계정으로 로그인하면 추가로 연동돼요." },
       { label: "연동을 해제했는데 다시 로그인이 안 돼요", answer: "연동을 해제한 마인크래프트 계정은 로컬에 남아있던 정보로 바로 다시 붙지 않고, 반드시 설정의 연동 버튼으로 마이크로소프트 로그인을 새로 거쳐야 다시 연동돼요 - 계정 자체가 사라진 건 아니니 같은 마이크로소프트 계정으로 다시 로그인하면 정상적으로 돌아와요." },
-      { label: "다른 기기에서 로그인해서 로그아웃됐다는 메시지가 떴어요", answer: "이 클라이언트는 한 사이트 계정으로 한 곳에서만 로그인할 수 있어요(동시 로그인 방지). 다른 컴퓨터나 다른 실행 창에서 같은 계정으로 로그인하면, 먼저 있던 쪽은 다음 확인 시점(최대 약 45초 이내)에 이 메시지와 함께 밀려나요. 지금 이 기기에서 계속 쓰시려면 다시 로그인해주세요 - 만약 본인이 로그인한 적이 없다면 비밀번호가 유출됐을 수 있으니 다시 로그인한 뒤 되도록 빨리 비밀번호를 바꿔주세요." },
-      { label: "비밀번호를 잊어버렸어요", answer: "죄송하지만 지금은 런처 안에서 바로 비밀번호를 재설정하는 기능이 아직 없어요. 루나 디스코드(설정 > 정보 탭에서 이동 가능)로 문의해주시면 확인 도와드릴게요." },
+      { label: "다른 기기에서 로그인해서 로그아웃됐다는 메시지가 떴어요", answer: "지금은 한 계정으로 여러 기기에서 동시에 로그인할 수 있어서, 다른 기기에서 로그인해도 이 기기가 밀려나지 않아요. 그런데도 이 메시지를 보셨다면 예전 버전에서 만들어진 세션이 남아있던 경우예요 - 다시 로그인하면 그 뒤로는 계속 유지돼요. 만약 본인이 로그인한 적 없는 기기가 보인다면 비밀번호가 유출됐을 수 있으니 되도록 빨리 비밀번호를 바꿔주세요." },
+      { label: "비밀번호를 잊어버렸어요", answer: "죄송하지만 지금은 런처 안에서 바로 비밀번호를 재설정하는 기능이 아직 없어요. Nova 디스코드(설정 > 정보 탭에서 이동 가능)로 문의해주시면 확인 도와드릴게요." },
       { label: "계정을 잘못 골랐어요/바꾸고 싶어요", answer: "홈 화면의 프로필(내 마인크래프트 프로필) 아이콘을 누르면 계정 메뉴가 열려요. 거기서 연동된 다른 마인크래프트 계정으로 전환하거나, 사이트 계정 자체를 로그아웃할 수 있어요." },
     ],
   },
@@ -3052,11 +4817,11 @@ const AI_ASSISTANT_TREE = {
     rules: [
       { keywords: ["아이디 또는 비밀번호", "일치하지", "올바르지"], answer: "아이디(또는 이메일)와 비밀번호 중 하나가 틀렸다는 뜻이에요. 대소문자까지 정확히 맞는지 확인해주시고, 웹사이트에서 만든 계정이라면 런처 회원가입 화면이 아니라 로그인 화면(아이디/이메일 + 비밀번호)을 써주세요 - 웹사이트 계정과 런처 계정은 이제 같은 계정이에요." },
       { keywords: ["8자", "비밀번호는"], answer: "비밀번호는 8자 이상이어야 해요. 더 길게 다시 만들어주세요." },
-      { keywords: ["이미 사용", "중복", "already"], answer: "이미 같은 아이디나 이메일로 가입된 계정이 있다는 뜻이에요. 그 계정을 기억하지 못하신다면 새로 회원가입하지 마시고, 위 '비밀번호를 잊어버렸어요' 안내대로 루나 디스코드에 문의해주세요." },
-      { keywords: ["네트워크", "network", "연결", "timeout", "서버"], answer: "Nova Site 서버에 접속이 안 되고 있을 수 있어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요 - 계속되면 서버 쪽 점검 중일 수 있으니 루나 디스코드 공지를 확인해주세요." },
+      { keywords: ["이미 사용", "중복", "already"], answer: "이미 같은 아이디나 이메일로 가입된 계정이 있다는 뜻이에요. 그 계정을 기억하지 못하신다면 새로 회원가입하지 마시고, 위 '비밀번호를 잊어버렸어요' 안내대로 Nova 디스코드에 문의해주세요." },
+      { keywords: ["네트워크", "network", "연결", "timeout", "서버"], answer: "Nova Site 서버에 접속이 안 되고 있을 수 있어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요 - 계속되면 서버 쪽 점검 중일 수 있으니 Nova 디스코드 공지를 확인해주세요." },
       { keywords: ["닉네임", "2~16", "nickname"], answer: "닉네임은 2~16자여야 해요. 이 닉네임이 로그인 아이디로도 쓰이니, 너무 짧거나 특수문자가 많으면 거부될 수 있어요." },
     ],
-    fallback: "정확히 어떤 상황인지 이 문구만으로는 찾기 어려워요. 로그인 화면에 뜬 오류 문구를 그대로 캡처해서 루나 디스코드에 문의해주시면 더 빠르게 도와드릴 수 있어요.",
+    fallback: "정확히 어떤 상황인지 이 문구만으로는 찾기 어려워요. 로그인 화면에 뜬 오류 문구를 그대로 캡처해서 Nova 디스코드에 문의해주시면 더 빠르게 도와드릴 수 있어요.",
   },
 
   // ---- D. 상점/코인 ----
@@ -3080,21 +4845,19 @@ const AI_ASSISTANT_TREE = {
       { label: "친구가 온라인인데 오프라인으로 나와요", answer: "온라인 상태는 약 45초 간격으로 서버에 보고되는 방식이라, 실제 접속/종료 시점과 화면에 반영되는 시점 사이에 최대 45초 정도 차이가 날 수 있어요. 잠시 기다렸다가 다시 확인해주세요." },
       { label: "귓속말이 안 오거나 안 읽음 표시가 이상해요", answer: "귓속말은 친구창이나 별도 대화창을 열어야 최신 내용을 받아와요. 알림(안 읽음 표시)이 이상하다면 한 번 그 대화창을 열었다 닫아서 새로고침해보세요." },
       { label: "글을 썼는데 하루 제한에 걸려요", answer: "스팸 방지를 위해 하루에 게시글 5개, 답글 100개까지만 쓸 수 있어요(자정 기준으로 초기화). 관리자 계정은 이 제한에서 제외돼요." },
-      { label: "글/계정이 정지당했어요", answer: "포럼 이용 규칙 위반으로 관리자가 정지시킨 경우예요. 이의가 있으시면 루나 디스코드로 문의해주세요." },
+      { label: "글/계정이 정지당했어요", answer: "포럼 이용 규칙 위반으로 관리자가 정지시킨 경우예요. 이의가 있으시면 Nova 디스코드로 문의해주세요." },
       { label: "내가 쓴 글이 '내 글만 보기'에 안 나와요/글 수가 안 맞아요", answer: "예전 버전에서 저장된 일부 게시글의 작성자 정보 형식이 최신 버전과 살짝 달라서 못 찾는 경우가 있었는데, 최신 업데이트에서 고쳤어요. 그래도 여전히 안 보이면 어떤 글인지 알려주시면 확인해드릴게요." },
       { label: "인용구/강조박스/표가 깨져 보여요", answer: "포럼 에디터의 인용구/강조박스/표 스타일이 몇 차례 업데이트됐어요. 아주 예전에 작성된 글이라면 옛날 스타일 그대로 저장돼 있어 다르게 보일 수 있으니, 그 글을 다시 수정 저장하면 최신 스타일로 갱신돼요." },
       { label: "신고했는데 상대가 신고당한 걸 아는 것 같아요", answer: "신고 여부는 신고한 본인에게만 보이도록 되어 있어요(다른 사람에게는 안 보임). 혹시 그렇게 보이는 상황이 있다면 어떤 화면이었는지 알려주세요." },
     ],
   },
 
-  // ---- F. 프로필/프리셋 관리 ----
+  // ---- F. 프로필 관리 ----
   profile_problem: {
-    question: "프로필/프리셋 관련해서 어떤 문제인가요?",
+    question: "프로필 관련해서 어떤 문제인가요?",
     options: [
-      { label: "프로필 생성이 안 돼요", answer: "이름을 비워두지 않았는지, 로더(Vanilla/Fabric - 일반 프로필은 이 둘만 고를 수 있고, Forge/NeoForge는 모드팩 설치로만 만들어져요)와 마인크래프트 버전을 골랐는지 확인해주세요. 프리셋으로 만드는 경우엔 이름칸이 자동으로 채워지고 화면엔 안 보이니 신경 안 쓰셔도 돼요." },
-      { label: "프리셋으로 만들 때 이름을 못 정해요", answer: "프리셋에서 만드는 프로필은 일부러 이름칸을 없앴어요(요청하신 대로) - '프리셋 이름 (버전)' 형태로 자동으로 이름이 붙어서, 같은 프리셋으로 여러 버전을 만들어도 이름이 겹치지 않아요." },
+      { label: "프로필 생성이 안 돼요", answer: "이름을 비워두지 않았는지, 로더(Vanilla/Fabric - 일반 프로필은 이 둘만 고를 수 있고, Forge/NeoForge는 모드팩 설치로만 만들어져요)와 마인크래프트 버전을 골랐는지 확인해주세요." },
       { label: "프로필을 실수로 지웠어요", answer: "프로필 삭제는 이름을 직접 타이핑해서 확인해야 하는 되돌릴 수 없는 작업이라, 안타깝지만 복구는 어려워요. 모드/설정을 미리 백업해두시는 걸 추천드려요." },
-      { label: "프리셋 목록에 원하는 버전이 없어요", answer: "프리셋은 지금 Fabric 프로필만 만들 수 있고, 사용 가능한 버전 목록도 프리셋마다 상한이 있어요(모드 없는 프리셋 최대 60개, 모드 있는 프리셋 최대 30개). 정말 필요한 버전이 안 보이면 어떤 프리셋/버전인지 알려주세요." },
       { label: ".mrpack으로 내보낸 파일이 다른 런처에서 안 열려요", answer: "표준 modrinth.index.json 형식으로 내보내요. 어떤 런처(Modrinth App 등)에서 안 열리는지, 어떤 오류가 나는지 알려주시면 더 정확히 봐드릴 수 있어요." },
       { label: "케밥(⋮) 메뉴가 안 보이거나 잘려 보여요", answer: "창을 아주 작게 줄인 상태라면 메뉴 위치가 화면 밖으로 밀릴 수 있어요. 창을 조금 키운 뒤 다시 눌러보세요." },
       { label: "공유받은 프로필을 가져오기했는데 이상해요", answer: "원작자가 그 프로필을 갱신하면 '업데이트 연동'을 켜둔 경우에만 자동으로 따라와요. 꺼져있다면 프로필 수정 화면에서 다시 켜주세요." },
@@ -3123,15 +4886,15 @@ const AI_ASSISTANT_TREE = {
       { label: "지금 내 버전이 뭔가요?", next: "client_info_version" },
       { label: "필요한 자바를 따로 설치해야 하나요?", answer: "아니요, 프로필을 처음 실행할 때 그 마인크래프트 버전에 맞는 자바를 자동으로 받아서 설치해요. 설정 > 클라이언트 > 자바 위치에서 지금 설치된 자바 정보를 볼 수 있어요." },
       { label: "라이선스/사업자 정보는 어디서 봐요?", answer: "설정 > 정보 탭 아래쪽에서 라이선스·이용약관을 볼 수 있어요. 사업자 등록 정보는 아직 준비 중이라 화면에서 숨겨둔 상태예요." },
-      { label: "제작자가 누구예요?", answer: "Nova Client는 Luna World에서 만들었어요. 설정 > 정보 탭에서 루나 디스코드로 바로 이동할 수 있어요." },
+      { label: "제작자가 누구예요?", answer: "Nova Client는 망고가 만들었어요. 설정 > 정보 탭에서 Nova 디스코드로 바로 이동할 수 있어요." },
       { label: "백그라운드 실행이 뭐예요?", answer: "설정 > 클라이언트에서 '게임 실행 시 런처는'을 백그라운드(트레이)로 두면, 게임 중에는 런처 창이 닫히고 작업표시줄 트레이 아이콘으로만 남아있어요. 트레이 아이콘을 누르면 다시 런처를 열 수 있어요." },
       { label: "업데이트는 자동으로 되나요?", answer: "새 버전이 나오면 앱이 자동으로 감지해서 알려줘요. 설정 > 정보에서 지금 바로 업데이트를 확인하거나 설치할 수도 있어요." },
-      { label: "이 AI 진단 도우미는 어떻게 동작하나요?", answer: "위쪽에 적힌 것처럼, 딥러닝이나 외부 AI 서버 없이 정해진 선택지와 키워드 매칭만으로 동작해요. 그래서 아주 특이한 상황이나 이 문서에 없는 오류는 못 찾을 수 있는데, 그럴 땐 화면 문구를 그대로 루나 디스코드에 남겨주시면 사람이 직접 도와드려요." },
+      { label: "이 AI 진단 도우미는 어떻게 동작하나요?", answer: "위쪽에 적힌 것처럼, 딥러닝이나 외부 AI 서버 없이 정해진 선택지와 키워드 매칭만으로 동작해요. 그래서 아주 특이한 상황이나 이 문서에 없는 오류는 못 찾을 수 있는데, 그럴 땐 화면 문구를 그대로 Nova 디스코드에 남겨주시면 사람이 직접 도와드려요." },
     ],
   },
   client_info_version: {
     dynamicAnswer: async () => {
-      const v = await window.luna.getAppVersion?.();
+      const v = await window.nova.getAppVersion?.();
       return `지금 쓰고 있는 버전은 v${v || "-"} 이에요. 설정 > 정보 > 업데이트 내역에서 이 버전에 뭐가 바뀌었는지 볼 수 있어요.`;
     },
   },
@@ -3245,7 +5008,7 @@ document.getElementById("btn-ai-assistant-submit")?.addEventListener("click", ()
   const node = AI_ASSISTANT_TREE[aiAssistantCurrentKey];
   const lower = text.toLowerCase();
   const matched = (node?.rules || []).find((rule) => rule.keywords.some((kw) => lower.includes(kw.toLowerCase())));
-  aiAssistantAnswerLeaf(text, matched ? matched.answer : node?.fallback || "정확한 원인을 찾지 못했어요. 루나 디스코드에 문의해주세요.");
+  aiAssistantAnswerLeaf(text, matched ? matched.answer : node?.fallback || "정확한 원인을 찾지 못했어요. Nova 디스코드에 문의해주세요.");
 });
 document.getElementById("ai-assistant-input")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("btn-ai-assistant-submit")?.click();
@@ -3255,7 +5018,7 @@ document.getElementById("ai-assistant-input")?.addEventListener("keydown", (e) =
 document.getElementById("btn-brand-check-update")?.addEventListener("click", async () => {
   closeSettings();
   showToast("업데이트를 확인하는 중...");
-  const res = await window.luna.checkUpdateNow?.();
+  const res = await window.nova.checkUpdateNow?.();
   if (res?.ok) {
     showToast("업데이트 확인을 시작했어요 (새 버전이 있으면 알림이 떠요)");
   } else {
@@ -3364,6 +5127,9 @@ const ALL_APP_VIEWS = [
   "view-shop",
   "view-inventory",
   "view-news",
+  // 24-208차: 서버 열기 / 알림함은 가운데 뜨는 창이 아니라 보통 화면이다
+  "view-host",
+  "view-notify",
 ];
 // 24-21차: "왼쪽에 아이콘 눌러도 변경 안되게 해줘 지금 화면은 그대로인데 아이콘이 선택되는
 // UI가 떠" - 사이드바 아이콘 각각의 클릭 핸들러가 실제 화면 전환(showAppPanel) 결과와
@@ -3383,6 +5149,8 @@ const VIEW_TO_SIDEBAR_PANEL = {
   "view-inventory": "inventory",
   "view-profile-manage": "profile",
   "view-news": "news",
+  "view-host": "host", // 24-208차
+  "view-notify": "notify",
 };
 function syncSidebarActiveIcon(viewId) {
   const panel = VIEW_TO_SIDEBAR_PANEL[viewId] || null;
@@ -3433,6 +5201,8 @@ function showAppPanel(id) {
     return; // 화면은 바꾸지 않고 지금 보던 화면(currentVisibleId) 그대로 유지
   }
   id = gatedId;
+  if (id === "view-mc-gate") refreshMcGateWording(); // 24-173차
+  if (id === "view-forum") markNoticesSeen?.(); // 24-214차
   ALL_APP_VIEWS.forEach((vid) => {
     const el = document.getElementById(vid);
     if (el) el.hidden = vid !== id;
@@ -3474,7 +5244,7 @@ function showAppPanel(id) {
     }
   });
   // 19차: "친구창 흐리게 하지 말라니까" - 더 이상 화면에 따라 흐려지지 않고, 아래 두 특수
-  // 케이스(프로필 만들기 / 컨텐츠 설치)를 빼면 항상 또렷하게 그대로 보임
+  // 케이스(프로필 만들기 / 콘텐츠 설치)를 빼면 항상 또렷하게 그대로 보임
   const friendsEl = document.querySelector(".home-friends");
   const friendsDefaultEl = document.getElementById("home-friends-default-content");
   const friendsExploreSlot = document.getElementById("home-friends-explore-slot");
@@ -3483,9 +5253,10 @@ function showAppPanel(id) {
 
   // "프로필 만들기에서는 전에처럼 친구창이 안뜨게 해줘" - 이 화면에서만 통째로 숨김
   // 24-15차: 로그인 전 화면들(view-login/view-mc-gate)에서도 당연히 친구창은 숨겨야 함
-  if (friendsEl) friendsEl.hidden = id === "view-versions" || isPreAuth;
+  // 24-208차: 서버 열기 화면도 가로를 다 써야 해서 친구창을 숨긴다(프로필 만들기와 같음)
+  if (friendsEl) friendsEl.hidden = id === "view-versions" || id === "view-host" || isPreAuth;
 
-  // "컨텐츠 설치는 친구창 위치에 친구창 대신 프로필 리스트로 교체하고 전에 프로필 있던
+  // "콘텐츠 설치는 친구창 위치에 친구창 대신 프로필 리스트로 교체하고 전에 프로필 있던
   // 자리는 그냥 모드로 채워줘" - Explore가 활성일 때만 .explore-sidebar를 친구 패널 자리로
   // 옮기고, 벗어나면 원래 자리(.explore-content)로 되돌려서 레이아웃이 정상 유지되게 함
   if (id === "view-explore") {
@@ -3544,14 +5315,25 @@ btnSidebarMoreToggle?.addEventListener("click", () => {
     closeSidebarMoreAccordion();
   }
 });
+// 24-154차: "왼쪽에 더보기 다른 창 누르면 더보기 닫히기" - 지금까지는 화살표를 한 번 더
+// 눌러야만 닫혔다. 더보기 바깥 아무 데나 누르면(다른 사이드바 아이콘, 본문, 팝업 등) 같이
+// 닫히게 함. 더보기 안의 항목을 누른 경우에도 그 항목의 동작은 그대로 실행된 뒤 닫힌다
+// (여기는 버블 단계라 원래 핸들러가 먼저 돌아감).
+document.addEventListener("click", (e) => {
+  if (!sidebarMoreIcons || sidebarMoreIcons.hidden) return;
+  if (btnSidebarMoreToggle?.contains(e.target)) return; // 토글 자신은 위 핸들러가 처리
+  closeSidebarMoreAccordion();
+});
+// Esc 로도 닫히게
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSidebarMoreAccordion();
+});
 
 // 18차: "설정에서는 스킨을 없애고 저기로 옮겨야지" - 더 이상 설정을 거치지 않고 독립
 // 팝업(openSkinOverlay)을 바로 염
 document.getElementById("sidebar-more-skin-btn")?.addEventListener("click", () => openSkinOverlay());
-// 서버: "추가예정 아직 미구현" - 지금은 자리만 만들어두고 준비 중 안내만 보여줌
-document.getElementById("sidebar-more-server-btn")?.addEventListener("click", () => {
-  showToast("서버 열기 기능은 아직 준비 중이에요");
-});
+// 서버: 24-202차부터 진짜로 동작함(이 컴퓨터에서 서버 열기). 실제 연결은 아래 서버 열기
+// 블록 끝에서 openHost 로 건다 - 여기서는 자리만 남겨두고 "준비 중" 안내를 없앴다.
 // 19차: "소식은 포럼이 아니야" - 커뮤니티(포럼) 공지사항 카테고리로 보내던 것을 되돌리고,
 // 개발자가 직접 올리는 이벤트/소식 전용 화면(view-news)으로 바꿈
 // 20차: 팝업이 아니라 다른 사이드바 메뉴들과 같은 방식(setActiveSidebarIcon + showAppPanel)의
@@ -3563,12 +5345,302 @@ document.getElementById("sidebar-more-news-btn")?.addEventListener("click", () =
   loadNewsView();
 });
 // 업데이트 로그: 기존 업데이트 내역 팝업 재사용
+// 24-200차: 사이드바 더보기에 있던 업데이트 로그를 설정 > 클라이언트로 옮김.
+// (예전 버튼이 남아있는 빌드에서도 깨지지 않게 둘 다 연결해 둔다)
 document.getElementById("sidebar-more-changelog-btn")?.addEventListener("click", () => openUpdates());
+document.getElementById("btn-settings-changelog")?.addEventListener("click", () => {
+  document.getElementById("settings-overlay")?.setAttribute("hidden", "");
+  openUpdates();
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// 24-169차: 계정 찾기 (아이디 / 비밀번호)
+// 둘 다 본인 확인은 "그 계정에 연동된 마인크래프트 계정으로 실제 로그인" 으로 한다.
+// 메인 프로세스가 마이크로소프트 로그인 창을 띄우고(확인만 하고 런처 계정 상태는 안 건드림),
+// 그 결과를 노바클 사이트에 물어본다(main.js account:find-id / account:reset-password).
+// ────────────────────────────────────────────────────────────────────────────
+const accountRecoverOverlay = document.getElementById("account-recover-overlay");
+const accountRecoverError = document.getElementById("account-recover-error");
+
+function setRecoverTab(tab) {
+  document.querySelectorAll("[data-recover-tab]").forEach((b) =>
+    b.classList.toggle("is-active", b.dataset.recoverTab === tab)
+  );
+  document.getElementById("recover-panel-id").hidden = tab !== "id";
+  document.getElementById("recover-panel-pw").hidden = tab !== "pw";
+  if (accountRecoverError) accountRecoverError.textContent = "";
+}
+
+function openAccountRecover(tab) {
+  if (!accountRecoverOverlay) return;
+  accountRecoverOverlay.hidden = false;
+  setRecoverTab(tab || "id");
+  ["recover-id-result", "recover-pw-result"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.hidden = true;
+      el.innerHTML = "";
+    }
+  });
+  // 24-171차: 비밀번호 찾기는 "코드 받기 -> 코드 입력" 2단계. 열 때마다 1단계로 되돌린다
+  const step2 = document.getElementById("recover-pw-step2");
+  if (step2) step2.hidden = true;
+  ["recover-pw-code", "recover-pw-new", "recover-pw-new2"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+}
+
+function closeAccountRecover() {
+  if (accountRecoverOverlay) accountRecoverOverlay.hidden = true;
+}
+
+document.getElementById("btn-find-id")?.addEventListener("click", () => openAccountRecover("id"));
+document.getElementById("btn-find-pw")?.addEventListener("click", () => openAccountRecover("pw"));
+document.getElementById("btn-account-recover-close")?.addEventListener("click", closeAccountRecover);
+accountRecoverOverlay?.addEventListener("click", (e) => {
+  if (e.target === accountRecoverOverlay) closeAccountRecover();
+});
+document.querySelectorAll("[data-recover-tab]").forEach((b) =>
+  b.addEventListener("click", () => setRecoverTab(b.dataset.recoverTab))
+);
+
+// 아이디 찾기
+document.getElementById("btn-recover-id-start")?.addEventListener("click", async () => {
+  const btn = document.getElementById("btn-recover-id-start");
+  const out = document.getElementById("recover-id-result");
+  accountRecoverError.textContent = "";
+  btn.disabled = true;
+  btn.textContent = "마인크래프트 로그인 창을 여는 중...";
+  try {
+    const res = await window.nova.findAccountId?.();
+    if (res?.ok) {
+      out.hidden = false;
+      out.innerHTML = `
+        <div class="account-recover-found-label">찾은 아이디</div>
+        <div class="account-recover-found-id">${escapeHtml(res.loginId)}</div>
+        ${res.nickname ? `<div class="account-recover-found-sub">닉네임 ${escapeHtml(res.nickname)}</div>` : ""}
+        ${res.email ? `<div class="account-recover-found-sub">가입 이메일 <span class="account-recover-found-email">${escapeHtml(res.email)}</span></div>` : ""}
+        ${res.mcName ? `<div class="account-recover-found-sub">확인한 마인크래프트 계정 · ${escapeHtml(res.mcName)}</div>` : ""}
+        ${res.email ? `<button type="button" class="link-btn account-recover-jump" id="btn-recover-goto-pw">이 계정 비밀번호도 바꾸기</button>` : ""}
+      `;
+      // 24-172차: "아이디 찾기 할 때 이메일도 알려주라" - 가리지 않고 그대로 보여준다.
+      // 방금 마인크래프트 계정으로 본인 확인을 마친 사람에게만 보이는 화면이라 괜찮다.
+      // 아이디를 찾은 김에 바로 비밀번호까지 바꿀 수 있게 입력칸에도 채워 둔다
+      document.getElementById("btn-recover-goto-pw")?.addEventListener("click", () => {
+        setRecoverTab("pw");
+        const emailEl = document.getElementById("recover-pw-email");
+        if (emailEl) emailEl.value = res.email || "";
+      });
+    } else {
+      out.hidden = true;
+      accountRecoverError.textContent = res?.error || "찾지 못했어요";
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = window.NovaI18n?.t?.("recover_mc_verify") || "마인크래프트 계정으로 확인";
+  }
+});
+
+// 비밀번호 찾기(재설정) - 24-171차부터 사이트와 똑같이 "가입 이메일로 6자리 코드"
+// ("비밀번호 찾기는 이메일로 해야 하는 거 아니야?") 사이트에 이미 있는 두 라우트를
+// 그대로 부르므로 사이트 쪽에 새로 만들 건 없다.
+function maskEmail(addr) {
+  const s = String(addr || "");
+  const at = s.indexOf("@");
+  if (at < 1) return s;
+  const id = s.slice(0, at);
+  const rest = s.slice(at);
+  if (id.length <= 2) return `${id[0]}*${rest}`;
+  return `${id.slice(0, 2)}${"*".repeat(Math.min(id.length - 2, 6))}${rest}`;
+}
+
+async function sendRecoverCode(resend) {
+  const btn = document.getElementById(resend ? "btn-recover-pw-resend" : "btn-recover-pw-code");
+  const email = (document.getElementById("recover-pw-email")?.value || "").trim();
+  accountRecoverError.textContent = "";
+  if (!email.includes("@")) {
+    accountRecoverError.textContent = "이메일 형식이 올바르지 않아요";
+    return;
+  }
+  const label = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "보내는 중...";
+  }
+  try {
+    const res = await window.nova.requestPasswordCode?.(email);
+    if (res?.ok) {
+      const step2 = document.getElementById("recover-pw-step2");
+      if (step2) step2.hidden = false;
+      document.getElementById("recover-pw-code")?.focus();
+      showToast(`${maskEmail(email)} 로 인증 코드를 보냈어요`);
+    } else {
+      accountRecoverError.textContent = res?.error || "인증 코드를 보내지 못했어요";
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+}
+
+document.getElementById("btn-recover-pw-code")?.addEventListener("click", () => sendRecoverCode(false));
+document.getElementById("btn-recover-pw-resend")?.addEventListener("click", () => sendRecoverCode(true));
+
+document.getElementById("btn-recover-pw-start")?.addEventListener("click", async () => {
+  const btn = document.getElementById("btn-recover-pw-start");
+  const out = document.getElementById("recover-pw-result");
+  const email = (document.getElementById("recover-pw-email").value || "").trim();
+  const code = (document.getElementById("recover-pw-code").value || "").trim();
+  const pw = document.getElementById("recover-pw-new").value;
+  const pw2 = document.getElementById("recover-pw-new2").value;
+  accountRecoverError.textContent = "";
+  out.hidden = true;
+  if (!code) {
+    accountRecoverError.textContent = "메일로 받은 인증 코드를 입력해주세요";
+    return;
+  }
+  if (pw.length < 8) {
+    accountRecoverError.textContent = "새 비밀번호는 8자 이상이어야 해요";
+    return;
+  }
+  if (pw !== pw2) {
+    accountRecoverError.textContent = "새 비밀번호가 서로 달라요";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "바꾸는 중...";
+  try {
+    const res = await window.nova.resetAccountPassword?.(email, code, pw);
+    if (res?.ok) {
+      out.hidden = false;
+      out.innerHTML = `
+        <div class="account-recover-found-label">비밀번호를 바꿨어요</div>
+        <div class="account-recover-found-sub">${escapeHtml(maskEmail(email))} 계정으로 새 비밀번호로 로그인해주세요</div>
+      `;
+      document.getElementById("recover-pw-step2").hidden = true;
+      ["recover-pw-code", "recover-pw-new", "recover-pw-new2"].forEach((id) => {
+        document.getElementById(id).value = "";
+      });
+      showToast("비밀번호를 바꿨어요");
+    } else {
+      accountRecoverError.textContent = res?.error || "바꾸지 못했어요";
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = window.NovaI18n?.t?.("recover_pw_submit") || "비밀번호 바꾸기";
+  }
+});
+
+// 24-224차: 보관함 > 티어
+async function renderTierPanel() {
+  // 24-229차: "티어 혜택 너무 대충 정리돼있어 더 멋지고 깔끔하게"
+  const res = await window.nova.tierInfo?.().catch(() => null);
+  if (!res?.ok) return;
+  const meta = TIER_META[res.tier] || TIER_META.iron;
+  const hero = document.getElementById("tier-hero");
+  if (hero) {
+    hero.style.setProperty("--ta", meta.a);
+    hero.style.setProperty("--tb", meta.b);
+  }
+  document.getElementById("tier-now-badge").innerHTML = tierBadgeHtml(res.tier);
+  document.getElementById("tier-now-name").textContent = res.label;
+  document.getElementById("tier-now-score").textContent = Number(res.score || 0).toLocaleString();
+
+  const cur = res.steps.find((x) => x.key === res.tier);
+  const fill = document.getElementById("tier-bar-fill");
+  const nextEl = document.getElementById("tier-next");
+  if (res.next) {
+    const span = Math.max(1, res.nextMin - cur.min);
+    const got = Math.min(span, Math.max(0, res.score - cur.min));
+    fill.style.width = `${Math.round((got / span) * 100)}%`;
+    nextEl.innerHTML = `${tierBadgeHtml(res.next)}<span>${escapeHtml(res.nextLabel)}</span><b>${Math.max(0, res.nextMin - res.score)}</b>`;
+  } else {
+    fill.style.width = "100%";
+    nextEl.innerHTML = `<span>최고 티어</span>`;
+  }
+
+  const hours = Math.floor((res.minutes || 0) / 60);
+  document.getElementById("tier-stats").innerHTML = [
+    ["post", "게시글", res.posts, "+10"],
+    ["comment", "댓글", res.comments, "+3"],
+    ["clock", "접속 시간", `${hours}h`, "+1/h"],
+  ]
+    .map(
+      ([ic, label, val, pts]) => `
+      <div class="tier-stat">
+        <span class="tier-stat-icon">${tierPerkIcon(ic)}</span>
+        <span class="tier-stat-label">${label}</span>
+        <b class="tier-stat-val">${escapeHtml(String(val))}</b>
+        <em class="tier-stat-pts">${pts}</em>
+      </div>`
+    )
+    .join("");
+
+  const order = res.steps.map((s) => s.key);
+  const nowIdx = order.indexOf(res.tier);
+  const extra = Number(res.serverExtra) || 0;
+  document.getElementById("tier-table").innerHTML = res.steps
+    .map((st, i) => {
+      const m = TIER_META[st.key] || TIER_META.iron;
+      const state = i === nowIdx ? "is-now" : i < nowIdx ? "is-done" : "is-locked";
+      const perk = (ic, label, val, off) =>
+        `<li class="${off ? "is-off" : ""}"><span class="tier-perk-icon">${tierPerkIcon(ic)}</span><span class="tier-perk-label">${label}</span><b>${val}</b></li>`;
+      return `
+      <div class="tier-card ${state}" style="--ta:${m.a}; --tb:${m.b};">
+        <div class="tier-card-head">
+          <span class="tier-card-emblem">${tierBadgeHtml(st.key)}</span>
+          <span class="tier-card-title"><b>${escapeHtml(st.label)}</b><small>${st.min.toLocaleString()}점</small></span>
+          ${i === nowIdx ? `<span class="tier-card-now">현재</span>` : ""}
+        </div>
+        <ul class="tier-perks">
+          ${perk("coin", "출석", `${st.coin}<small>코인</small>`)}
+          ${perk("post", "게시글", `${st.posts}<small>/일</small>`)}
+          ${perk("comment", "댓글", `${st.comments}<small>/일</small>`)}
+          ${perk("server", "서버", `${st.servers || 2}${extra ? `<small class="tier-perk-plus">+${extra}</small>` : ""}`)}
+          ${perk("quest", "주간 퀘스트", st.weekly ? "열림" : "잠김", !st.weekly)}
+        </ul>
+      </div>`;
+    })
+    .join("");
+  const extraEl = document.getElementById("tier-extra");
+  if (extraEl) {
+    extraEl.classList.toggle("is-owned", !!extra);
+    extraEl.innerHTML = `<span class="tier-perk-icon">${tierPerkIcon("server")}</span><b>서버 슬롯 +1</b><span class="tier-extra-tag">상점</span><span class="tier-extra-tag">티어와 중첩</span><span class="tier-extra-state">${extra ? "보유" : "미보유"}</span>`;
+  }
+  paintTiers();
+}
+
+// 24-229차: 티어 혜택 아이콘(선 아이콘 한 벌)
+function tierPerkIcon(name) {
+  const P = {
+    coin: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5v9M9.5 9.5h3.8a1.8 1.8 0 0 1 0 3.6h-2.6a1.8 1.8 0 0 0 0 3.6h3.8" stroke-linecap="round"/>',
+    post: '<path d="M6 3.5h8l4 4v13H6Z" stroke-linejoin="round"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6" stroke-linecap="round"/>',
+    comment: '<path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4 3.5v-3.5h0a1.5 1.5 0 0 1-1.5-1.5Z" stroke-linejoin="round"/>',
+    server: '<rect x="4" y="4.5" width="16" height="6" rx="1.6"/><rect x="4" y="13.5" width="16" height="6" rx="1.6"/><path d="M7.5 7.5h.01M7.5 16.5h.01" stroke-linecap="round" stroke-width="2.4"/>',
+    quest: '<path d="M7 3.5h10v17l-5-3.5-5 3.5Z" stroke-linejoin="round"/>',
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2" stroke-linecap="round"/>',
+  };
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">${P[name] || ""}</svg>`;
+}
+
+// 24-229차: 상점/보관함 스와치 안의 테두리 미리보기
+function frameSwatchHtml(item) {
+  if (!item?.frame) return "";
+  return `<span class="shop-frame-swatch has-frame frame-${escapeHtml(item.frame)}"><i></i></span>`;
+}
 
 function showInventoryTab(tab) {
   document.querySelectorAll(".inventory-tab").forEach((t) => t.classList.toggle("is-active", t.dataset.tab === tab));
   document.getElementById("inventory-items-panel").hidden = tab !== "items";
   document.getElementById("inventory-attendance-panel").hidden = tab !== "attendance";
+  const tierPanel = document.getElementById("inventory-tier-panel");
+  if (tierPanel) {
+    tierPanel.hidden = tab !== "tier";
+    if (tab === "tier") renderTierPanel();
+  }
 }
 document.querySelectorAll(".inventory-tab").forEach((tab) => {
   tab.addEventListener("click", () => showInventoryTab(tab.dataset.tab));
@@ -3610,7 +5682,7 @@ let forumTagUsageCountsCache = null;
 async function getForumTagUsageCounts() {
   if (forumTagUsageCountsCache) return forumTagUsageCountsCache;
   try {
-    const res = await window.luna.forumTagUsageCounts?.();
+    const res = await window.nova.forumTagUsageCounts?.();
     forumTagUsageCountsCache = res?.ok ? res.counts || {} : {};
   } catch (_) {
     forumTagUsageCountsCache = {};
@@ -3628,7 +5700,7 @@ async function getForumTagOptionsFor(category) {
   if (category === "정보" || category === "질문") {
     let serverNames = [];
     try {
-      const servers = await window.luna.listServers();
+      const servers = await window.nova.listServers();
       serverNames = (servers || []).map((s) => s.name);
     } catch (_) {}
     base = ["마인팜", "PVP", "모드", "마인크래프트", ...serverNames];
@@ -3714,13 +5786,162 @@ async function ensureForumTagMenuBuilt() {
   });
 }
 
+// ============================================================================
+// 24-218차: 커뮤니티 구독 칸
+// "구독은 커뮤니티에서 목록 볼 수 있고 수정도 할 수 있게 ... 본인 구독 리스트도 볼 수 있게
+//  구독란을 따로 만들어주고 구독자 게시글반 볼 수 있게도 해줘"
+// ============================================================================
+const forumSubsPanel = document.getElementById("forum-subs-panel");
+
+// 24-220차: 비어 있을 때도 "뭘 하면 되는지"가 보이게
+// 24-222차: "커뮤니티 글 들어가면 프로필 사진도 이름 옆에 보여야하고"
+// 얼굴은 마크 uuid 만 있으면 바로 그릴 수 있다(다른 화면에서 쓰는 것과 같은 mc-heads).
+// 못 받아오면 첫 글자 동그라미로 조용히 떨어진다.
+// 24-224차: "커뮤니티 프로필 사진은 마크 사진이 아니라 클라이언트 사진이야"
+// 마크 얼굴(mc-heads) 대신 그 사람이 클라이언트에 올린 프로필 사진을 쓴다. 사진 주소는
+// 티어를 읽어올 때 같이 받아오므로(아래 paintTiers) 여기서는 자리만 만들어 둔다.
+// 올린 사진이 없으면 이름 첫 글자 동그라미로 남는다.
+// 24-236차: "프로필 없는 사람은 앞글자 말고 카톡 사람모양처럼 회색으로" - 첫 글자 대신 회색 사람 모양.
+// 사진이 있으면 이 span 안에 img 를 넣는다(span 을 img 로 바꾸지 않아서 테두리 링이 항상 붙는다).
+function forumFaceHtml(uuid, name) {
+  return `<span class="forum-face is-default" data-face-key="${escapeHtml(String(uuid || ""))}" title="${escapeHtml(
+    String(name || "")
+  )}"></span>`;
+}
+
+function forumSubsEmptyHtml(icon, title, hint) {
+  const ICONS = {
+    bell: '<path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5Z" stroke-linejoin="round"/><path d="M10.3 18a1.9 1.9 0 0 0 3.4 0" stroke-linecap="round"/>',
+    person: '<circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c1.4-3.4 4-5.2 6.5-5.2s5.1 1.8 6.5 5.2" stroke-linecap="round"/>',
+    news: '<path d="M4 5.5h12a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 0 1.5 1.5H6a2 2 0 0 1-2-2Z" stroke-linejoin="round"/><path d="M7 9h6M7 12h6M7 15h3" stroke-linecap="round"/>',
+  };
+  return `
+    <div class="forum-subs-empty">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">${
+        ICONS[icon] || ICONS.bell
+      }</svg>
+      <b>${escapeHtml(title)}</b>
+      ${hint ? `<span>${escapeHtml(hint)}</span>` : ""}
+    </div>`;
+}
+
+function forumSubsRowHtml(name, uuid, right) {
+  return `
+    <div class="forum-subs-row" data-uuid="${escapeHtml(uuid || "")}">
+      <span class="tier-slot" data-tier-key="${escapeHtml(uuid || "")}"></span>
+      <span class="forum-subs-name">${escapeHtml(name || "알 수 없음")}</span>
+      ${right}
+    </div>`;
+}
+
+async function renderForumSubs() {
+  const mineEl = document.getElementById("forum-subs-mine");
+  const followEl = document.getElementById("forum-subs-followers");
+  const feedEl = document.getElementById("forum-subs-feed");
+  if (!mineEl) return;
+  mineEl.innerHTML = forumSubsEmptyHtml("bell", "불러오는 중", "");
+  followEl.innerHTML = "";
+  feedEl.innerHTML = "";
+
+  const [subsRes, followRes, feedRes] = await Promise.all([
+    window.nova.subsList?.().catch(() => null),
+    window.nova.subsFollowers?.().catch(() => null),
+    window.nova.subsFeed?.().catch(() => null),
+  ]);
+
+  // 내가 구독한 사람 - 여기서 바로 해제할 수 있다("수정도 할 수 있게")
+  const subs = subsRes?.subs || [];
+  document.getElementById("forum-subs-mine-count").textContent = subs.length ? String(subs.length) : "";
+  mineEl.innerHTML = subs.length
+    ? subs
+        .map((r) =>
+          forumSubsRowHtml(
+            r.author_name,
+            r.author_uuid,
+            `<button type="button" class="btn btn-ghost btn-small btn-danger-ghost" data-unsub="${escapeHtml(
+              r.author_uuid
+            )}" data-name="${escapeHtml(r.author_name || "")}">구독 해제</button>`
+          )
+        )
+        .join("")
+    : forumSubsEmptyHtml("bell", "구독한 사람이 없어요", "게시글의 작성자 이름을 눌러 구독할 수 있어요");
+  mineEl.querySelectorAll("[data-unsub]").forEach((b) => {
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      // 24-219차: 취소는 5시간 동안 되돌릴 수 없으니 한 번 더 묻는다
+      const ok = await showConfirm(
+        `${b.dataset.name} 구독을 취소할까요? 5시간 동안은 다시 구독할 수 없어요.`,
+        "구독 취소",
+        "그대로 두기"
+      );
+      if (!ok) return;
+      b.disabled = true;
+      const res = await window.nova.subsToggle?.(b.dataset.unsub, b.dataset.name);
+      if (!res?.ok) showToast(res?.error || "취소하지 못했어요", "error");
+      renderForumSubs();
+      window.NovaSubsRefresh?.();
+    });
+  });
+
+  // 나를 구독한 사람
+  const followers = followRes?.followers || [];
+  document.getElementById("forum-subs-followers-count").textContent = followers.length ? String(followers.length) : "";
+  followEl.innerHTML = followers.length
+    ? followers.map((r) => forumSubsRowHtml(r.name, r.subscriber_uuid, "")).join("")
+    : forumSubsEmptyHtml("person", "아직 구독자가 없어요", "글을 올리면 구독한 사람에게 알림이 가요");
+
+  // 구독한 사람들의 글
+  const posts = feedRes?.posts || [];
+  feedEl.innerHTML = posts.length
+    ? posts
+        .map(
+          (p) => `
+      <div class="forum-post-item" data-post-id="${escapeHtml(p.id)}">
+        <span class="forum-post-category">${escapeHtml(p.category || "")}</span>
+        <div class="forum-post-item-main">
+          <div class="forum-post-item-title">${escapeHtml(p.title || "")}</div>
+          <div class="forum-post-item-author"><span class="tier-slot" data-tier-key="${escapeHtml(
+            p.author_uuid || ""
+          )}"></span>${escapeHtml(p.author_name || "")}</div>
+        </div>
+        <span class="forum-post-item-date">${escapeHtml(relativeTimeKo(p.created_at))}</span>
+      </div>`
+        )
+        .join("")
+    : forumSubsEmptyHtml("news", "구독한 사람의 글이 아직 없어요", "새 글이 올라오면 알림함에도 떠요");
+  const feedCount = document.getElementById("forum-subs-feed-count");
+  if (feedCount) feedCount.textContent = posts.length ? String(posts.length) : "";
+  feedEl.querySelectorAll("[data-post-id]").forEach((row) => {
+    row.addEventListener("click", () => openForumDetail(row.dataset.postId));
+  });
+
+  // 구독자 알림은 여기까지 본 것으로
+  try {
+    if (followers[0]?.created_at) localStorage.setItem("nova_last_seen_follower", followers[0].created_at);
+  } catch (_) {}
+  document.getElementById("forum-subs-dot").hidden = true;
+  paintTiers();
+}
+
+function showForumSubs() {
+  forumListPanel.hidden = true;
+  if (typeof forumSubsPanel !== "undefined" && forumSubsPanel) forumSubsPanel.hidden = true;
+  forumWritePanel.hidden = true;
+  forumDetailPanel.hidden = true;
+  forumSubsPanel.hidden = false;
+  renderForumSubs();
+}
+document.getElementById("btn-forum-subs")?.addEventListener("click", showForumSubs);
+document.getElementById("btn-forum-subs-back")?.addEventListener("click", () => showForumList());
+
 function showForumList() {
   forumListPanel.hidden = false;
   forumWritePanel.hidden = true;
   forumDetailPanel.hidden = true;
+  if (forumSubsPanel) forumSubsPanel.hidden = true;
   ensureForumTagMenuBuilt();
   runForumSearch();
-  window.luna.isAdmin?.().then((isAdmin) => {
+  window.nova.isAdmin?.().then((isAdmin) => {
     const btn = document.getElementById("btn-forum-open-reports");
     if (btn) btn.hidden = !isAdmin;
   });
@@ -3731,7 +5952,7 @@ function showForumList() {
 // 열기 전에 먼저 이미 신고한 적 있는지 확인함(sourceBtn을 넘겨주면 이미 신고했을 때 그
 // 버튼을 바로 비활성화 상태로 바꿔둠 - 목록/상세 어느 쪽에서 눌렀든 동일하게 동작)
 async function openForumReportModal(postId, postTitle, sourceBtn) {
-  const already = await window.luna.forumHasReported?.(postId);
+  const already = await window.nova.forumHasReported?.(postId);
   if (already) {
     if (sourceBtn) markReportButtonAsReported(sourceBtn);
     showToast("이미 신고한 글이에요", "error");
@@ -3754,7 +5975,7 @@ async function openForumReportModal(postId, postTitle, sourceBtn) {
 // 24-45차 신규: "오른쪽 점점점 누르면 답글 신고하기" - 답글의 "..." 메뉴에서 호출됨.
 // 위 openForumReportModal(게시글 신고)와 같은 모달을 공유하고, 접수 버튼 핸들러에서만 분기함
 async function openForumReplyReportModal(replyId, postId, replyContent) {
-  const already = await window.luna.forumHasReportedReply?.(replyId);
+  const already = await window.nova.forumHasReportedReply?.(replyId);
   if (already) {
     showToast("이미 신고한 답글이에요", "error");
     return;
@@ -3801,7 +6022,7 @@ document.getElementById("btn-forum-report-submit")?.addEventListener("click", as
     const replyId = overlay.dataset.replyId;
     const postId = overlay.dataset.postId;
     await withBusyButton(btn, "접수 중...", async () => {
-      const res = await window.luna.forumReportReply(replyId, postId, reason, detail);
+      const res = await window.nova.forumReportReply(replyId, postId, reason, detail);
       if (res.ok) {
         showToast("신고가 접수됐어요");
         overlay.hidden = true;
@@ -3819,7 +6040,7 @@ document.getElementById("btn-forum-report-submit")?.addEventListener("click", as
   const postId = overlay.dataset.postId;
   const postTitle = overlay.dataset.postTitle;
   await withBusyButton(btn, "접수 중...", async () => {
-    const res = await window.luna.forumReportPost(postId, postTitle, reason, detail);
+    const res = await window.nova.forumReportPost(postId, postTitle, reason, detail);
     if (res.ok) {
       showToast("신고가 접수됐어요");
       overlay.hidden = true;
@@ -3852,7 +6073,7 @@ async function openForumModerateModal(targetUuid, targetName) {
   overlay.hidden = false;
 
   try {
-    const res = await window.luna.forumListRestrictions?.();
+    const res = await window.nova.forumListRestrictions?.();
     const rows = res?.ok ? res.restrictions || [] : [];
     const now = Date.now();
     const active = rows.find((r) => r.target_uuid === targetUuid && (!r.expires_at || new Date(r.expires_at).getTime() > now));
@@ -3877,7 +6098,7 @@ document.getElementById("btn-forum-moderate-submit")?.addEventListener("click", 
   const reason = document.getElementById("forum-moderate-reason").value.trim();
   const btn = document.getElementById("btn-forum-moderate-submit");
   await withBusyButton(btn, "처리 중...", async () => {
-    const res = await window.luna.forumModerateUser?.({ targetUuid, targetName, restrictType, durationHours, reason });
+    const res = await window.nova.forumModerateUser?.({ targetUuid, targetName, restrictType, durationHours, reason });
     if (res?.ok) {
       showToast("제재했어요");
       overlay.hidden = true;
@@ -3891,7 +6112,7 @@ document.getElementById("btn-forum-moderate-unrestrict")?.addEventListener("clic
   const targetUuid = overlay.dataset.targetUuid;
   const btn = document.getElementById("btn-forum-moderate-unrestrict");
   await withBusyButton(btn, "해제 중...", async () => {
-    const res = await window.luna.forumUnmoderateUser?.(targetUuid);
+    const res = await window.nova.forumUnmoderateUser?.(targetUuid);
     if (res?.ok) {
       showToast("제재를 해제했어요");
       overlay.hidden = true;
@@ -3908,7 +6129,7 @@ async function openForumReportsAdminPanel() {
   if (!overlay || !listEl) return;
   overlay.hidden = false;
   listEl.innerHTML = `<div style="color:var(--text-2); font-size:12.5px;">불러오는 중...</div>`;
-  const res = await window.luna.forumListReports();
+  const res = await window.nova.forumListReports();
   if (!res.ok) {
     listEl.innerHTML = `<div style="color:var(--text-2); font-size:12.5px;">${escapeHtml(res.error || "불러오지 못했어요")}</div>`;
     return;
@@ -4075,7 +6296,7 @@ document.getElementById("forum-search-input")?.addEventListener("input", () => {
 async function runForumSearch() {
   forumPostList.innerHTML = `<div style="color:var(--text-2); font-size:12.5px; padding:12px;">불러오는 중...</div>`;
   const search = document.getElementById("forum-search-input").value;
-  const posts = await window.luna.forumListPosts(forumCurrentCategory, search, forumCurrentSort, forumAuthorFilter?.uuid, forumCurrentTag);
+  const posts = await window.nova.forumListPosts(forumCurrentCategory, search, forumCurrentSort, forumAuthorFilter?.uuid, forumCurrentTag);
 
   // 작성자 필터가 걸려있으면 목록 위에 "OOO님의 글" 칩을 보여주고, 눌러서 해제할 수 있게 함
   const existingChip = document.getElementById("forum-author-filter-chip");
@@ -4109,7 +6330,9 @@ async function runForumSearch() {
       <span class="forum-post-category${p.category === "공지사항" ? " is-notice" : ""}">${p.category === "공지사항" ? "📢 " : ""}${p.category}</span>
       <div class="forum-post-item-info">
         <div class="forum-post-item-title">${p.pinned ? `<span class="forum-pin-badge" title="고정된 글">📌</span>` : ""}${forumTagChipHtml(p.tag)}${escapeHtml(p.title)}</div>
-        <div class="forum-post-item-author">${escapeHtml(p.author_name)}${adminBadgeHtml(p.author_name)}</div>
+        <div class="forum-post-item-author">${tierSlot(
+          p.author_uuid
+        )}${escapeHtml(p.author_name)}${adminBadgeHtml(p.author_name)}</div>
       </div>
       <div class="forum-post-item-stats">
         <span class="forum-post-item-views" title="조회수">👁 ${p.view_count || 0}</span>
@@ -4327,7 +6550,7 @@ function bindForumLinkClicks(container) {
   container.querySelectorAll(".forum-link").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      window.luna.openExternal?.(a.dataset.url);
+      window.nova.openExternal?.(a.dataset.url);
     });
   });
 }
@@ -4406,7 +6629,7 @@ async function resetForumWriteForm() {
   // '공지사항' 카테고리는 제작자(LNR_Sil2ntium)만 고를 수 있게, 글쓰기 화면 열 때만 넣어줌
   const categorySelect = document.getElementById("forum-write-category");
   const existingNotice = categorySelect.querySelector('option[value="공지사항"]');
-  const isAdmin = await window.luna.isAdmin?.();
+  const isAdmin = await window.nova.isAdmin?.();
   if (isAdmin && !existingNotice) {
     const opt = document.createElement("option");
     opt.value = "공지사항";
@@ -4443,7 +6666,7 @@ async function saveForumDraftNow(silent) {
   if (forumEditingPostId) return;
   const draft = collectForumDraftInput();
   if (!draft.title.trim() && !document.getElementById("forum-write-content").textContent.trim()) return; // 빈 글은 저장 안 함
-  const res = await window.luna.forumSaveDraft?.(draft);
+  const res = await window.nova.forumSaveDraft?.(draft);
   const statusEl = document.getElementById("forum-draft-status");
   if (res?.ok && statusEl) {
     statusEl.textContent = formatDraftSavedAt(new Date().toISOString());
@@ -4471,6 +6694,7 @@ document.getElementById("btn-forum-write")?.addEventListener("click", async () =
   forumEditingPostSharedCode = null;
   document.getElementById("btn-forum-submit").textContent = "게시하기";
   forumListPanel.hidden = true;
+  if (typeof forumSubsPanel !== "undefined" && forumSubsPanel) forumSubsPanel.hidden = true;
   forumDetailPanel.hidden = true;
   forumWritePanel.hidden = false;
   await resetForumWriteForm();
@@ -4481,7 +6705,7 @@ document.getElementById("btn-forum-write")?.addEventListener("click", async () =
   if (statusEl) statusEl.hidden = true;
 
   // 17차: 임시저장된 글이 있으면(제목/내용 중 하나라도 실제 내용이 있을 때만) 불러올지 물어봄
-  const draft = await window.luna.forumGetDraft?.();
+  const draft = await window.nova.forumGetDraft?.();
   const draftHasContent = draft && (draft.title?.trim() || draft.content?.replace(/<[^>]*>/g, "").trim());
   if (draftHasContent) {
     const restore = await showConfirm("임시저장된 글이 있어요. 불러올까요?", "불러오기", "새로 쓰기");
@@ -4497,7 +6721,7 @@ document.getElementById("btn-forum-write")?.addEventListener("click", async () =
         statusEl.hidden = false;
       }
     } else {
-      await window.luna.forumClearDraft?.();
+      await window.nova.forumClearDraft?.();
     }
   }
 });
@@ -4512,10 +6736,10 @@ document.getElementById("btn-forum-write-back")?.addEventListener("click", async
     if (hasContent) {
       const save = await showConfirm("작성 중인 내용이 있어요. 임시 저장하시겠습니까?", "임시 저장", "저장 안 함");
       if (save) {
-        await window.luna.forumSaveDraft?.(draft);
+        await window.nova.forumSaveDraft?.(draft);
         showToast("임시저장했어요");
       } else {
-        await window.luna.forumClearDraft?.();
+        await window.nova.forumClearDraft?.();
       }
     }
   }
@@ -4671,7 +6895,7 @@ document.getElementById("rt-quote-btn")?.addEventListener("click", () => {
   forumRichExec("insertHTML", html);
 });
 document.getElementById("rt-image-btn")?.addEventListener("click", async () => {
-  const res = await window.luna.forumUploadImage();
+  const res = await window.nova.forumUploadImage();
   if (res.ok) {
     forumRichExec("insertHTML", `<img src="${res.url}" style="max-width:100%;" /><p><br></p>`);
   } else if (!res.canceled) {
@@ -4683,7 +6907,7 @@ document.getElementById("rt-image-btn")?.addEventListener("click", async () => {
 // 남지만, 버튼만 툴바로 합쳐서 아래쪽 첨부 줄을 없앰. 첨부되면 버튼 자체에 표시(활성 색 +
 // 파일명 툴팁)를 줘서 별도 라벨 없이도 첨부 여부를 알 수 있게 함
 document.getElementById("rt-file-btn")?.addEventListener("click", async () => {
-  const res = await window.luna.forumUploadFile();
+  const res = await window.nova.forumUploadFile();
   if (res.ok) {
     forumAttachedFile = { url: res.url, name: res.name };
     const btn = document.getElementById("rt-file-btn");
@@ -4703,7 +6927,7 @@ document.getElementById("forum-write-share-toggle")?.addEventListener("change", 
   if (!select) return;
   select.hidden = !e.target.checked;
   if (e.target.checked && !select.dataset.loaded) {
-    const profiles = await window.luna.listProfiles();
+    const profiles = await window.nova.listProfiles();
     select.innerHTML = profiles.length
       ? profiles.map((p) => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.mcVersion)})</option>`).join("")
       : `<option value="">먼저 프로필을 만들어주세요</option>`;
@@ -4723,7 +6947,7 @@ async function openSharedProfilePreview(code) {
     if (e.target === overlay || e.target.dataset?.choice === "close") close();
   });
 
-  const res = await window.luna.previewSharedProfile(code);
+  const res = await window.nova.previewSharedProfile(code);
   const box = overlay.querySelector(".shared-profile-preview-box");
   if (!box) return;
   if (!res.ok) {
@@ -4752,6 +6976,10 @@ async function openSharedProfilePreview(code) {
       ${groupHtml("모드", res.modFiles)}
       ${groupHtml("리소스팩", res.resourcepackFiles)}
       ${groupHtml("쉐이더팩", res.shaderFiles)}
+      ${res.novaSettingsCount || res.configCount ? `<div class="shared-profile-preview-group">
+          <div class="shared-profile-preview-group-title">함께 오는 설정</div>
+          <div class="shared-profile-preview-group-files">${res.novaSettingsCount ? `<span class="shared-profile-preview-file">노바 모드 설정 ${res.novaSettingsCount}개</span>` : ""}${res.configCount ? `<span class="shared-profile-preview-file">모드 컨피그 ${res.configCount}개</span>` : ""}</div>
+        </div>` : ""}
     </div>
     <div class="confirm-actions">
       <button type="button" class="btn btn-ghost btn-small" data-choice="close">닫기</button>
@@ -4759,7 +6987,7 @@ async function openSharedProfilePreview(code) {
     </div>
   `;
   box.querySelector("#btn-shared-profile-preview-import")?.addEventListener("click", async () => {
-    const importRes = await window.luna.importProfile(code);
+    const importRes = await window.nova.importProfile(code);
     if (importRes.ok) {
       showToast(`"${importRes.profile.name}" 프로필을 불러왔어요`);
       close();
@@ -4796,7 +7024,7 @@ document.getElementById("btn-forum-submit")?.addEventListener("click", async () 
   // 12차: 글쓰기 창을 수정에도 재활용하면서, 수정 중이면 생성 대신 업데이트로 분기
   if (forumEditingPostId) {
     const id = forumEditingPostId;
-    const res = await window.luna.forumUpdatePost({
+    const res = await window.nova.forumUpdatePost({
       id,
       title,
       content,
@@ -4825,14 +7053,14 @@ document.getElementById("btn-forum-submit")?.addEventListener("click", async () 
       showToast("공유할 프로필을 선택해주세요", "error");
       return;
     }
-    const shareRes = await window.luna.shareProfile(profileId);
+    const shareRes = await window.nova.shareProfile(profileId);
     if (!shareRes.ok) {
       showToast(shareRes.error || "프로필 공유 코드 생성 실패", "error");
       return;
     }
     sharedProfileCode = shareRes.code;
   }
-  const res = await window.luna.forumCreatePost({
+  const res = await window.nova.forumCreatePost({
     title,
     content,
     category,
@@ -4845,7 +7073,7 @@ document.getElementById("btn-forum-submit")?.addEventListener("click", async () 
   if (res.ok) {
     showToast("게시글을 올렸어요");
     clearTimeout(forumDraftAutoSaveTimer);
-    await window.luna.forumClearDraft?.(); // 17차: 게시 성공했으니 임시저장 글은 필요 없어짐
+    await window.nova.forumClearDraft?.(); // 17차: 게시 성공했으니 임시저장 글은 필요 없어짐
     openForumDetail(res.post.id);
   } else {
     showToast(res.error || "게시 실패", "error");
@@ -4866,7 +7094,7 @@ function buildForumReplyComposerHtml(placeholder) {
       <div class="forum-reply-composer-head">
         <span class="forum-reply-composer-name">${escapeHtml(myName)}</span>
       </div>
-      <textarea class="forum-reply-composer-textarea" placeholder="${escapeHtml(placeholder)}"></textarea>
+      <textarea class="forum-reply-composer-textarea" rows="1" placeholder="${escapeHtml(placeholder)}"></textarea>
       <div class="forum-reply-composer-foot">
         <button type="button" class="forum-reply-composer-attach-btn" title="사진 첨부">${FORUM_ATTACH_ICON_SVG}</button>
         <span class="forum-reply-composer-attach-name" hidden></span>
@@ -4884,8 +7112,15 @@ function wireForumReplyComposer(root, { postId, parentId, onSubmitted }) {
   const attachBtn = root.querySelector(".forum-reply-composer-attach-btn");
   const attachNameEl = root.querySelector(".forum-reply-composer-attach-name");
   const submitBtn = root.querySelector(".forum-reply-composer-submit");
+  // 24-231차: 한 줄로 시작해서 쓰는 만큼만 늘어난다
+  const autoGrow = () => {
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(140, textarea.scrollHeight) + "px";
+  };
+  textarea?.addEventListener("input", autoGrow);
+  root._autoGrow = autoGrow;
   attachBtn?.addEventListener("click", async () => {
-    const res = await window.luna.forumUploadImage();
+    const res = await window.nova.forumUploadImage();
     if (res.ok) {
       attachedImageUrl = res.url;
       attachBtn.classList.add("is-active");
@@ -4901,9 +7136,10 @@ function wireForumReplyComposer(root, { postId, parentId, onSubmitted }) {
     const content = textarea.value.trim();
     if (!content && !attachedImageUrl) return;
     await withBusyButton(submitBtn, "등록 중...", async () => {
-      const res = await window.luna.forumCreateReply(postId, parentId || null, content, attachedImageUrl);
+      const res = await window.nova.forumCreateReply(postId, parentId || null, content, attachedImageUrl);
       if (res.ok) {
         textarea.value = "";
+        autoGrow();
         attachedImageUrl = null;
         onSubmitted?.();
       } else {
@@ -4936,16 +7172,23 @@ document.addEventListener("click", (e) => {
 });
 
 // ---- 글 상세 + 답글(대댓글 포함) + 좋아요 -------------------------------------
+// 24-217차: 알림함에서 구독 글을 누르면 그 글로 바로 간다
+window.NovaOpenForumPost = async (postId) => {
+  showAppPanel("view-forum");
+  await openForumDetail(postId);
+};
+
 async function openForumDetail(postId) {
   forumCurrentPostId = postId;
   forumListPanel.hidden = true;
+  if (typeof forumSubsPanel !== "undefined" && forumSubsPanel) forumSubsPanel.hidden = true;
   forumWritePanel.hidden = true;
   forumDetailPanel.hidden = false;
 
   const container = document.getElementById("forum-detail-content");
   container.innerHTML = `<div style="color:var(--text-2); font-size:12.5px;">불러오는 중...</div>`;
 
-  const { post, replies, liked } = await window.luna.forumGetPost(postId);
+  const { post, replies, liked } = await window.nova.forumGetPost(postId);
   if (!post) {
     container.innerHTML = `<div style="color:var(--text-2); font-size:12.5px;">게시글을 찾을 수 없어요</div>`;
     return;
@@ -4953,7 +7196,7 @@ async function openForumDetail(postId) {
 
   const myUuid = currentProfile?.uuid || null;
   const isMine = !!myUuid && normalizeUuidForCompare(myUuid) === normalizeUuidForCompare(post.author_uuid);
-  const isAdmin = await window.luna.isAdmin?.();
+  const isAdmin = await window.nova.isAdmin?.();
 
   container.innerHTML = `
     <div class="forum-detail-header">
@@ -4981,9 +7224,18 @@ async function openForumDetail(postId) {
         </div>` : ""}
       </div>
       <div class="forum-detail-meta">
-        <span class="forum-author-link" id="forum-detail-author">${escapeHtml(post.author_name)}${adminBadgeHtml(post.author_name)}</span>
-        · ${FORUM_CALENDAR_ICON_SVG}${formatForumDate(post.created_at)}
-        · <span title="조회수">👁 ${post.view_count || 0}</span>
+        <span class="forum-author-link" id="forum-detail-author">${forumFaceHtml(post.author_uuid, post.author_name)}${tierSlot(
+          post.author_uuid
+        )}${escapeHtml(post.author_name)}${adminBadgeHtml(post.author_name)}</span>
+        ${
+          isMine
+            ? ""
+            : `<button type="button" class="btn btn-ghost btn-small forum-user-sub-btn" id="btn-forum-detail-subscribe" data-uuid="${escapeHtml(
+                post.author_uuid || ""
+              )}" data-name="${escapeHtml(post.author_name || "")}">+ 구독</button>`
+        }
+        <span class="forum-detail-meta-item">${FORUM_CALENDAR_ICON_SVG}${formatForumDate(post.created_at)}</span>
+        <span class="forum-detail-meta-item" title="조회수">👁 ${post.view_count || 0}</span>
       </div>
       ${post.image_url ? `<img class="forum-detail-image" src="${post.image_url}" />` : ""}
       ${post.attachment_url ? `<a href="#" class="forum-attachment-link" data-url="${post.attachment_url}">📎 ${escapeHtml(post.attachment_name || "첨부파일")}</a>` : ""}
@@ -5000,7 +7252,7 @@ async function openForumDetail(postId) {
   renderForumRichContent(document.getElementById("forum-detail-body"), post.content);
   container.querySelector(".forum-attachment-link")?.addEventListener("click", (e) => {
     e.preventDefault();
-    window.luna.openExternal?.(e.currentTarget.dataset.url);
+    window.nova.openExternal?.(e.currentTarget.dataset.url);
   });
   document.getElementById("btn-shared-profile-copy")?.addEventListener("click", async () => {
     try {
@@ -5014,10 +7266,38 @@ async function openForumDetail(postId) {
     openSharedProfilePreview(post.shared_profile_code);
   });
   document.getElementById("forum-detail-author")?.addEventListener("click", () => openForumUserPopup(post.author_uuid, post.author_name));
+
+  // 24-222차: "게시글에서 구독하기" - 글을 읽다 바로 구독할 수 있게
+  const detailSubBtn = document.getElementById("btn-forum-detail-subscribe");
+  if (detailSubBtn) {
+    renderSubscribeBtn(post.author_uuid, "btn-forum-detail-subscribe");
+    detailSubBtn.addEventListener("click", async () => {
+      const name = detailSubBtn.dataset.name || "";
+      if (detailSubBtn.classList.contains("is-on")) {
+        const ok = await showConfirm(
+          `${name} 구독을 취소할까요? 5시간 동안은 다시 구독할 수 없어요.`,
+          "구독 취소",
+          "그대로 두기"
+        );
+        if (!ok) return;
+      }
+      detailSubBtn.disabled = true;
+      const res = await window.nova.subsToggle?.(detailSubBtn.dataset.uuid, name);
+      detailSubBtn.disabled = false;
+      if (!res?.ok) {
+        showToast(res?.error || "구독하지 못했어요", "error");
+        renderSubscribeBtn(post.author_uuid, "btn-forum-detail-subscribe");
+        return;
+      }
+      showToast(res.subscribed ? `${name} 구독` : `${name} 구독 취소`);
+      renderSubscribeBtn(post.author_uuid, "btn-forum-detail-subscribe");
+      window.NovaSubsRefresh?.();
+    });
+  }
   document.getElementById("btn-forum-delete-post")?.addEventListener("click", async () => {
     const confirmed = await showConfirm("이 게시글을 삭제할까요?", "삭제", "취소");
     if (!confirmed) return;
-    const res = await window.luna.forumDeletePost(post.id);
+    const res = await window.nova.forumDeletePost(post.id);
     if (res.ok) {
       showToast("삭제했어요");
       showForumList();
@@ -5030,11 +7310,11 @@ async function openForumDetail(postId) {
     openForumModerateModal(post.author_uuid, post.author_name);
   });
   // 17차: 상세화면을 열 때 이미 신고한 글이면 신고 버튼을 처음부터 비활성화해둠
-  window.luna.forumHasReported?.(post.id).then((already) => {
+  window.nova.forumHasReported?.(post.id).then((already) => {
     if (already) markReportButtonAsReported(document.getElementById("btn-forum-report-post"));
   });
   document.getElementById("btn-forum-pin-post")?.addEventListener("click", async () => {
-    const res = post.pinned ? await window.luna.forumUnpinPost(post.id) : await window.luna.forumPinPost(post.id);
+    const res = post.pinned ? await window.nova.forumUnpinPost(post.id) : await window.nova.forumPinPost(post.id);
     if (res.ok) {
       showToast(post.pinned ? "고정을 해제했어요" : "글을 고정했어요");
       openForumDetail(post.id);
@@ -5067,7 +7347,7 @@ async function openForumDetail(postId) {
     await refreshForumTagSelect(post.category, "forum-write-tag-row", "forum-write-tag", post.tag);
   });
   document.getElementById("forum-like-btn")?.addEventListener("click", async () => {
-    const res = await window.luna.forumToggleLike(post.id);
+    const res = await window.nova.forumToggleLike(post.id);
     if (res.ok) {
       document.getElementById("forum-like-btn").classList.toggle("is-liked", res.liked);
       document.getElementById("forum-like-count").textContent = res.likeCount;
@@ -5085,13 +7365,24 @@ async function openForumDetail(postId) {
     });
   }
 
-  renderForumReplies(replies, post.id, myUuid, isAdmin);
+  renderForumReplies(replies, post.id, myUuid, isAdmin, post.author_uuid);
 }
 
 // 24-5차: "내가 쓴 게시글 답변도 삭제/수정 가능하게 해줘" - 답글 목록을 그리는 이 함수도
 // 게시글 상세(isMine/isAdmin)와 같은 기준으로 내가 쓴 답글엔 수정/삭제 버튼을, 관리자에겐
 // (본인 게 아니어도) 삭제 버튼을 붙여야 해서 myUuid/isAdmin을 인자로 같이 받도록 함
-function renderForumReplies(replies, postId, myUuid, isAdmin) {
+// 24-231차: 답글에 쓰는 시각 - "2026.10.02. 19:36"
+function formatReplyStamp(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}. ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+// 24-231차: 본문의 @이름 을 강조
+function highlightMentions(html) {
+  return String(html || "").replace(/(^|\s|>)@([^\s<@]{1,24})/g, '$1<span class="forum-mention">@$2</span>');
+}
+function renderForumReplies(replies, postId, myUuid, isAdmin, postAuthorUuid) {
   const listEl = document.getElementById("forum-reply-list");
   listEl.innerHTML = "";
 
@@ -5113,16 +7404,23 @@ function renderForumReplies(replies, postId, myUuid, isAdmin) {
       ${isMine ? `<button type="button" class="dropdown-select-item forum-reply-edit-item">수정</button>` : ""}
       ${canDelete ? `<button type="button" class="dropdown-select-item danger-text forum-reply-delete-item">삭제</button>` : ""}
     `;
+    // 24-231차: "답장을 네모로 하지 말고 ... 사진처럼" - 왼쪽 사진, 오른쪽에 이름/글/시각·답글쓰기
+    const isPostAuthor =
+      !!postAuthorUuid && normalizeUuidForCompare(postAuthorUuid) === normalizeUuidForCompare(reply.author_uuid);
     el.innerHTML = `
+      <span class="forum-reply-avatar">${forumFaceHtml(reply.author_uuid, reply.author_name)}</span>
+      <div class="forum-reply-main">
       <div class="forum-reply-head">
-        <span class="forum-author-link">${escapeHtml(reply.author_name)}${adminBadgeHtml(reply.author_name)}</span>
+        <span class="forum-author-link forum-reply-name">${tierSlot(reply.author_uuid)}${escapeHtml(reply.author_name)}${adminBadgeHtml(
+          reply.author_name
+        )}${isPostAuthor ? `<span class="forum-reply-op">작성자</span>` : ""}</span>
         ${menuItemsHtml.trim() ? `
         <div class="dropdown-select-wrap forum-reply-kebab-wrap">
           <button type="button" class="icon-btn icon-btn-tiny forum-reply-kebab-btn" title="더보기">${FORUM_REPLY_KEBAB_ICON_SVG}</button>
           <div class="dropdown-select-menu forum-reply-kebab-menu" hidden>${menuItemsHtml}</div>
         </div>` : ""}
       </div>
-      <div class="forum-reply-body">${linkify(reply.content)}</div>
+      <div class="forum-reply-body">${highlightMentions(linkify(reply.content))}</div>
       ${reply.image_url ? `<img class="forum-reply-image" src="${reply.image_url}" />` : ""}
       <div class="forum-reply-edit-box forum-reply-input-row" hidden>
         <textarea class="forum-reply-edit-textarea"></textarea>
@@ -5132,11 +7430,12 @@ function renderForumReplies(replies, postId, myUuid, isAdmin) {
         </div>
       </div>
       <div class="forum-reply-foot">
-        ${FORUM_CALENDAR_ICON_SVG}<span class="forum-reply-date">${formatForumDate(reply.created_at)}</span>
-        <button type="button" class="forum-reply-like-btn${reply.liked_by_me ? " is-liked" : ""}">♥ <span class="forum-reply-like-count">${reply.like_count || 0}</span></button>
+        <span class="forum-reply-date" title="${escapeHtml(formatForumDate(reply.created_at))}">${formatReplyStamp(reply.created_at)}</span>
         <button type="button" class="forum-reply-btn">답글쓰기</button>
+        <button type="button" class="forum-reply-like-btn${reply.liked_by_me ? " is-liked" : ""}" title="좋아요"><svg width="15" height="15" viewBox="0 0 24 24" fill="${reply.liked_by_me ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" stroke-linejoin="round"/></svg><span class="forum-reply-like-count">${reply.like_count ? reply.like_count : ""}</span></button>
       </div>
       <div class="forum-nested-input" hidden></div>
+      </div>
     `;
     const bodyEl = el.querySelector(".forum-reply-body");
     const editBox = el.querySelector(".forum-reply-edit-box");
@@ -5144,10 +7443,12 @@ function renderForumReplies(replies, postId, myUuid, isAdmin) {
     replyInputBox.innerHTML = buildForumReplyComposerHtml("답글을 입력하세요");
     wireForumReplyComposer(replyInputBox, {
       postId,
-      parentId: reply.id,
+      // 24-231차: 대댓글에 다시 답글을 달아도 한 단계로 모은다(누구에게인지는 @이름 으로)
+      parentId: nested && reply.parent_id ? reply.parent_id : reply.id,
       onSubmitted: () => openForumDetail(postId),
     });
     el.querySelector(".forum-author-link").addEventListener("click", () => openForumUserPopup(reply.author_uuid, reply.author_name));
+    el.querySelector(".forum-reply-avatar").addEventListener("click", () => openForumUserPopup(reply.author_uuid, reply.author_name));
     el.querySelector(".forum-reply-btn").addEventListener("click", () => {
       const box = replyInputBox;
       const willOpen = box.hidden;
@@ -5164,14 +7465,26 @@ function renderForumReplies(replies, postId, myUuid, isAdmin) {
         }
       }
       box.hidden = !box.hidden;
+      // 24-231차: 답글은 "@이름 " 으로 시작
+      if (!box.hidden) {
+        const ta = box.querySelector(".forum-reply-composer-textarea");
+        if (ta) {
+          const tag = `@${reply.author_name} `;
+          if (!ta.value.trim()) ta.value = tag;
+          box._autoGrow?.();
+          ta.focus();
+          ta.setSelectionRange(ta.value.length, ta.value.length);
+        }
+      }
     });
     // 24-45차: "답글 좋아요" - 게시글 좋아요 버튼(#forum-like-btn)과 같은 토글 방식
     el.querySelector(".forum-reply-like-btn")?.addEventListener("click", async () => {
-      const res = await window.luna.forumToggleReplyLike(reply.id);
+      const res = await window.nova.forumToggleReplyLike(reply.id);
       if (res.ok) {
         const btn = el.querySelector(".forum-reply-like-btn");
         btn.classList.toggle("is-liked", res.liked);
-        btn.querySelector(".forum-reply-like-count").textContent = res.likeCount;
+        btn.querySelector("svg")?.setAttribute("fill", res.liked ? "currentColor" : "none");
+        btn.querySelector(".forum-reply-like-count").textContent = res.likeCount ? res.likeCount : "";
       } else {
         showToast(res.error || "실패했어요", "error");
       }
@@ -5197,7 +7510,7 @@ function renderForumReplies(replies, postId, myUuid, isAdmin) {
       const textarea = editBox.querySelector("textarea");
       const content = textarea.value.trim();
       if (!content) return;
-      const res = await window.luna.forumUpdateReply(reply.id, content);
+      const res = await window.nova.forumUpdateReply(reply.id, content);
       if (res.ok) {
         showToast("수정했어요");
         openForumDetail(postId);
@@ -5214,7 +7527,7 @@ function renderForumReplies(replies, postId, myUuid, isAdmin) {
       el.querySelector(".forum-reply-kebab-menu").hidden = true;
       const confirmed = await showConfirm("이 답글을 삭제할까요?", "삭제", "취소");
       if (!confirmed) return;
-      const res = await window.luna.forumDeleteReply(reply.id);
+      const res = await window.nova.forumDeleteReply(reply.id);
       if (res.ok) {
         showToast("삭제했어요");
         openForumDetail(postId);
@@ -5246,6 +7559,56 @@ bindSkinLoadingSpinner(document.getElementById("forum-user-skin"), document.getE
 // 작성자 아이콘)은 이번 범위에서 제외 - 그대로 둠
 // 14차: server 인자는 "이 친구가 지금 등록된 서버에서 플레이 중"일 때만 넘어옴(홈 친구
 // 목록에서 바로 이 팝업으로 진입하는 경로 전용) - 넘어오면 "참가하기" 버튼도 같이 보여줌
+// 24-217차: 지금 팝업에 띄워둔 사람(구독 버튼이 누구를 대상으로 하는지)
+let forumUserPopupUuid = null;
+let forumUserPopupName = "";
+// 24-219차: 취소하면 5시간 동안은 다시 못 구독한다 - 버튼에 남은 시간을 그대로 보여준다
+function subsCooldownText(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.ceil((ms % 3600000) / 60000);
+  return `${h > 0 ? `${h}시간 ` : ""}${m}분 뒤`;
+}
+// 24-222차: 예전엔 조회가 실패하면(표가 아직 없거나 네트워크 문제) 버튼 자체를 숨겨서
+// "구독 버튼이 없다"로 보였다. 이제는 일단 보여주고, 안 되면 누를 때 이유를 말한다.
+async function renderSubscribeBtn(uuid, btnId = "btn-forum-user-subscribe") {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.hidden = false;
+  btn.disabled = false;
+  btn.classList.remove("is-on");
+  btn.textContent = "+ 구독";
+  const res = await window.nova.subsIsSubscribed?.(uuid).catch(() => null);
+  if (!res?.ok) return;
+  btn.classList.toggle("is-on", !!res.subscribed);
+  const cooling = !res.subscribed && res.cooldownMs > 0;
+  btn.disabled = cooling;
+  btn.title = cooling ? "구독을 취소한 뒤에는 5시간 뒤에 다시 구독할 수 있어요" : "";
+  btn.textContent = res.subscribed ? "구독 중" : cooling ? subsCooldownText(res.cooldownMs) : "+ 구독";
+}
+document.getElementById("btn-forum-user-subscribe")?.addEventListener("click", async () => {
+  if (!forumUserPopupUuid) return;
+  const btn = document.getElementById("btn-forum-user-subscribe");
+  // 24-219차: "취소 2차 확인 받게 하고" - 취소는 5시간 동안 되돌릴 수 없으니 한 번 더 묻는다
+  if (btn.classList.contains("is-on")) {
+    const ok = await showConfirm(
+      `${forumUserPopupName} 구독을 취소할까요? 5시간 동안은 다시 구독할 수 없어요.`,
+      "구독 취소",
+      "그대로 두기"
+    );
+    if (!ok) return;
+  }
+  btn.disabled = true;
+  const res = await window.nova.subsToggle?.(forumUserPopupUuid, forumUserPopupName);
+  btn.disabled = false;
+  if (!res?.ok) {
+    showToast(res?.error || "구독하지 못했어요", "error");
+    return;
+  }
+  renderSubscribeBtn(forumUserPopupUuid);
+  showToast(res.subscribed ? `${forumUserPopupName} 구독` : `${forumUserPopupName} 구독 취소`);
+  window.NovaSubsRefresh?.();
+});
+
 async function openForumUserPopup(uuid, knownName, playing = null) {
   if (!uuid) {
     // 17-5(4차): 대상 uuid가 없는데도 팝업이 뜨는 걸 막음(알 수 없음 유저로 진입 방지)
@@ -5283,9 +7646,23 @@ async function openForumUserPopup(uuid, knownName, playing = null) {
   if (forumUserSkin3d) forumUserSkin3d.hidden = true;
   // 24-61차: 유저 정보(+스킨 렌더 URL)를 서버에서 받아오는 동안(아래 await) 빈 박스만
   // 보이지 않도록 스피너를 띄움 - 실제 스킨 img가 뜨면(load/error) 자동으로 지워짐
-  showSkinLoadingSpinner(document.getElementById("forum-user-skin-spinner"));
+  showSkinLoadingSpinner(
+    document.getElementById("forum-user-skin-spinner"),
+    document.getElementById("forum-user-skin"),
+    document.getElementById("forum-user-skin-3d")
+  );
+  // 24-150차: 직전에 본 사람의 이름/소개/코인이 그대로 남아있다가 바뀌던 것도 같이 비움
+  document.getElementById("forum-user-name").textContent = knownName || "";
+  document.getElementById("forum-user-bio").textContent = "";
+  document.getElementById("forum-user-coins").textContent = "-";
+  document.getElementById("forum-user-postcount").textContent = "-";
 
-  const info = await window.luna.forumGetUserInfo(uuid);
+  // 24-217차: 구독 버튼 - 이 사람이 새 글을 올리면 알림함에 뜬다
+  forumUserPopupUuid = uuid;
+  forumUserPopupName = knownName || "";
+  renderSubscribeBtn(uuid);
+
+  const info = await window.nova.forumGetUserInfo(uuid);
   if (!info) {
     forumUserPopup.hidden = true;
     showToast("이 사용자 정보를 불러올 수 없어요", "error");
@@ -5312,8 +7689,9 @@ async function openForumUserPopup(uuid, knownName, playing = null) {
   // 24-61차: 렌더 URL 자체가 없으면(드문 경우) img의 load/error가 안 뜰 수도 있어서 안전하게
   // 바로 지움 - 있으면 곧 img load/error가 알아서 지워줌
   if (!info.skinRenderUrl) {
+    // 24-150차: 스피너를 그냥 지우면 빈 네모만 남는다 - 조용한 '없음' 표시로 바꿔둠
     const spinnerEl = document.getElementById("forum-user-skin-spinner");
-    if (spinnerEl) spinnerEl.hidden = true;
+    if (spinnerEl) spinnerEl.classList.add("is-failed");
   }
   if (uuid) mountSkinViewer(document.getElementById("forum-user-skin-3d"), document.getElementById("forum-user-skin"), uuid, { w: 90, h: 140 });
 
@@ -5349,7 +7727,7 @@ document.getElementById("btn-forum-user-add-friend")?.addEventListener("click", 
     showToast("아직 노바 클라이언트 계정과 연동되지 않은 사용자예요.", "error");
     return;
   }
-  const res = await window.luna.friendsAdd(forumUserPopupTarget.novaNickname);
+  const res = await window.nova.friendsAdd(forumUserPopupTarget.novaNickname);
   if (res.ok) {
     showToast(res.accepted ? `${forumUserPopupTarget.novaNickname}님과 친구가 되었어요!` : `${forumUserPopupTarget.novaNickname}님에게 친구 요청을 보냈어요`);
     refreshFriends();
@@ -5367,6 +7745,7 @@ document.getElementById("btn-forum-user-whisper")?.addEventListener("click", () 
 // 14차: 기존 friend-status-popup의 "참가하기" 버튼과 동일한 로직 - 이 프로필 팝업으로 흡수됨
 // 17차: 서버뿐 아니라 "같은 버전의 내 프로필로 참가"도 지원 - "우리 클라이언트에 있는 서버라면
 // 그걸로 들어가고 아니라면 맞는 버전의 프로필을 골라서 들어갈 수 있게" 요청 반영
+
 // 24-63차: "참가하기 누르면 PLAY를 누르는 게 아니라 참가하시겠습니까 이거 뜨게 해줘 누르면
 // 바로 들어가지고" - 예전엔 여기서 서버/프로필 전환만 해주고 "PLAY를 눌러 참가하세요!"
 // 토스트로 안내한 뒤 사용자가 직접 PLAY를 한 번 더 눌러야 했음. 이제 확인창을 먼저 띄우고,
@@ -5382,7 +7761,7 @@ document.getElementById("btn-forum-user-join")?.addEventListener("click", async 
   setLaunchControlsLocked(true);
   try {
     if (playing.type === "server") {
-      const res = await window.luna.selectServer(playing.server.id);
+      const res = await window.nova.selectServer(playing.server.id);
       if (res.ok) {
         if (serverChipName) serverChipName.textContent = res.server.name;
         updateMcVersionLabel(res.server.version);
@@ -5393,7 +7772,7 @@ document.getElementById("btn-forum-user-join")?.addEventListener("click", async 
         return;
       }
     } else if (playing.type === "profile") {
-      const res = await window.luna.selectProfile(playing.profile.id);
+      const res = await window.nova.selectProfile(playing.profile.id);
       if (res.ok) {
         if (profileChipName) profileChipName.textContent = res.profile.name;
         updateMcVersionLabel(res.profile.mcVersion);
@@ -5463,7 +7842,7 @@ document.addEventListener("click", async (e) => {
   if (dlBtn) {
     const payload = receivedSkinShares.get(dlBtn.dataset.shareId);
     if (!payload) return;
-    const res = await window.luna.downloadSharedSkin(payload.dataUrl, payload.name);
+    const res = await window.nova.downloadSharedSkin(payload.dataUrl, payload.name);
     if (res.ok) showToast("스킨 파일을 저장했어요");
     else if (!res.canceled) showToast(res.error || "다운로드에 실패했어요", "error");
     return;
@@ -5473,7 +7852,7 @@ document.addEventListener("click", async (e) => {
     const payload = receivedSkinShares.get(applyBtn.dataset.shareId);
     if (!payload) return;
     applyBtn.disabled = true;
-    const res = await window.luna.applySharedSkin(payload.dataUrl, payload.variant, payload.name);
+    const res = await window.nova.applySharedSkin(payload.dataUrl, payload.variant, payload.name);
     applyBtn.disabled = false;
     if (res.ok) {
       showToast(`${payload.name} 스킨을 적용했어요`);
@@ -5487,7 +7866,7 @@ document.addEventListener("click", async (e) => {
 
 async function loadWhisperMessages(scrollToBottom) {
   if (!whisperTarget) return;
-  const messages = await window.luna.whisperList(whisperTarget.uuid);
+  const messages = await window.nova.whisperList(whisperTarget.uuid);
   if (!whisperTarget) return; // 그 사이에 닫혔으면 무시
   whisperMessageList.innerHTML = messages.length
     ? messages.map(whisperMsgHtml).join("")
@@ -5495,16 +7874,37 @@ async function loadWhisperMessages(scrollToBottom) {
   if (scrollToBottom) whisperMessageList.scrollTop = whisperMessageList.scrollHeight;
   // 15-6(6차): 대화를 여는/새로고침하는 시점마다 "읽음" 시각을 갱신해둠 -> 친구 목록의
   // 빨간 안읽음 점은 그 이후에 도착한 귓속말이 있을 때만 다시 뜸
-  window.luna.whisperMarkRead?.(whisperTarget.uuid);
+  window.nova.whisperMarkRead?.(whisperTarget.uuid);
 }
 
-function openWhisperPopup(uuid, name) {
+async function openWhisperPopup(uuid, name) {
   // 게임이 실행 중일 땐 귓속말 창을 띄우지 않음(플레이 나가면 자동으로 닫힘 - setInGameUiState 참고)
-  if (isInGame) return;
+  // 24-144차: "귓속말 안열리는데 확인좀"
+  // 예전엔 여기서 조용히 return 만 해서, 이 플래그가 잘못돼 있으면 친구를 눌러도 아무 반응이
+  // 없고 이유도 알 수 없었음. 게다가 isInGame 은 launch:game-closed 이벤트로만 풀리기 때문에
+  // 그 이벤트를 한 번 놓치면 런처를 껐다 켤 때까지 귓속말이 계속 안 열렸음.
+  // 이제 (1) 진짜로 게임이 돌고 있는지 메인 프로세스에 되물어 플래그를 바로잡고
+  //      (2) 그래도 실행 중이면 이유를 알려줌
+  if (isInGame) {
+    const reallyRunning = await window.nova.isGameRunning?.().catch(() => true);
+    if (reallyRunning === false) {
+      isInGame = false;
+      setInGameUiState(false);
+    } else {
+      showToast("게임을 하는 동안에는 귓속말 창을 열 수 없어요");
+      return;
+    }
+  }
   whisperTarget = { uuid, name };
   // 9차: 영어일 때는 "Whisper - name"으로 보이게 i18n 키를 씀
   document.getElementById("whisper-popup-title").textContent = `${window.NovaI18n?.t?.("whisper_title_prefix") || "귓속말"} - ${name}`;
   whisperMessageList.innerHTML = `<div class="whisper-empty">불러오는 중...</div>`;
+  // 24-142차: 닫히는 도중에 다시 열면 애니메이션 상태가 남아있으므로 정리하고 시작
+  if (whisperCloseTimer) {
+    clearTimeout(whisperCloseTimer);
+    whisperCloseTimer = null;
+  }
+  whisperPopup.querySelector(".whisper-popup-box")?.classList.remove("is-closing");
   whisperPopup.hidden = false;
   loadWhisperMessages(true);
   clearInterval(whisperPollTimer);
@@ -5516,10 +7916,31 @@ function openWhisperPopup(uuid, name) {
   document.querySelector(`.friend-row[data-whisper-uuid="${uuid}"] .friend-row-unread-dot`)?.remove();
 }
 
+// 24-142차: "귓속말 끌 때 오른쪽 아래로 사라지는 에니메이션 주고"
+// [hidden] 이 display:none 이라 바로 숨기면 애니메이션이 보일 틈이 없음. 사이드바 아코디언
+// (closeSidebarMoreAccordion)과 같은 방식으로 .is-closing 을 잠깐 걸어 두고, 애니메이션이
+// 끝난 뒤에 실제로 숨김. 창이 오른쪽 아래에 붙어 있으니 그쪽으로 빨려 들어가듯 줄어듦.
+const WHISPER_CLOSE_MS = 200;
+let whisperCloseTimer = null;
+
 function closeWhisperPopup() {
-  whisperPopup.hidden = true;
-  whisperTarget = null;
   clearInterval(whisperPollTimer);
+  whisperTarget = null;
+  if (!whisperPopup || whisperPopup.hidden) return;
+
+  const box = whisperPopup.querySelector(".whisper-popup-box");
+  if (!box) {
+    whisperPopup.hidden = true;
+    return;
+  }
+
+  if (whisperCloseTimer) clearTimeout(whisperCloseTimer);
+  box.classList.add("is-closing");
+  whisperCloseTimer = setTimeout(() => {
+    whisperCloseTimer = null;
+    whisperPopup.hidden = true;
+    box.classList.remove("is-closing");
+  }, WHISPER_CLOSE_MS);
 }
 
 document.getElementById("btn-whisper-close")?.addEventListener("click", closeWhisperPopup);
@@ -5528,7 +7949,7 @@ async function submitWhisper() {
   const text = whisperInput.value.trim();
   if (!text || !whisperTarget) return;
   whisperInput.value = "";
-  const res = await window.luna.whisperSend(whisperTarget.uuid, text);
+  const res = await window.nova.whisperSend(whisperTarget.uuid, text);
   if (res.ok) {
     await loadWhisperMessages(true);
   } else {
@@ -5581,7 +8002,7 @@ function showExploreList() {
 
 // 왼쪽 "프로필" 선택 - 박스 목록에서 골라서 클릭, 여기서 고른 프로필의 마인크래프트 버전이 그대로 검색/설치 기준이 됨
 async function ensureExploreProfileOptions() {
-  const profiles = await window.luna.listProfiles();
+  const profiles = await window.nova.listProfiles();
   exploreProfileList.innerHTML = "";
 
   if (profiles.length === 0) {
@@ -5612,7 +8033,7 @@ async function ensureExploreProfileOptions() {
 // 프로필(전역 "선택된" 프로필과 다를 수 있음) + 지금 보고 있던 탭(모드/리소스팩/쉐이더)로
 // 미리 필터링해서 딜어감 (참고 스크린샷의 "프리필터된 Browse content" 동작)
 async function openExploreScopedToProfile(profileId, kind) {
-  const profiles = await window.luna.listProfiles();
+  const profiles = await window.nova.listProfiles();
   exploreProfileList.innerHTML = "";
 
   if (profiles.length === 0) {
@@ -5673,6 +8094,9 @@ function updateExploreSidebarForType() {
   if (profileListEl) profileListEl.hidden = isModpack;
   if (noticeEl) noticeEl.hidden = !isModpack;
   // 24-14차: "모드에서 클라이언트 모드만 따로 볼 수 있게" - 이 필터는 모드 탭에서만 의미가 있음
+  // ⚠️ 24-155차: 24-154차에서 숨겼던 "클라이언트 모드만 보기" 체크박스를 되살림
+  // (고정시키는 게 아니라 원래대로 유저가 켜고 끄는 기능. 동작 불량은 main.js 쪽에서
+  //  페이셋 대신 결과 필터로 바꿔 고침)
   const clientOnlyFilterEl = document.getElementById("explore-client-only-filter");
   if (clientOnlyFilterEl) clientOnlyFilterEl.hidden = exploreCurrentType !== "mod";
 }
@@ -5885,12 +8309,12 @@ async function installWithDependencies(profile, kind, item, version) {
   const depKind = "mods";
   const missing = [];
   for (const dep of deps) {
-    const check = await window.luna.exploreCheckInstalled(profile.id, depKind, dep.projectId);
+    const check = await window.nova.exploreCheckInstalled(profile.id, depKind, dep.projectId);
     if (!check.installed) missing.push(dep);
   }
 
   if (missing.length > 0) {
-    const depProjects = await Promise.all(missing.map((d) => window.luna.exploreGetProject(d.projectId)));
+    const depProjects = await Promise.all(missing.map((d) => window.nova.exploreGetProject(d.projectId)));
     const names = depProjects.filter(Boolean).map((p) => p.title);
     if (names.length > 0) {
       const proceed = await showConfirm(
@@ -5903,13 +8327,13 @@ async function installWithDependencies(profile, kind, item, version) {
           const dep = missing[i];
           const proj = depProjects[i];
           if (!proj) continue;
-          const depVersions = await window.luna.exploreGetVersions(dep.projectId, profile.mcVersion, "mod");
+          const depVersions = await window.nova.exploreGetVersions(dep.projectId, profile.mcVersion, "mod");
           const depVersion =
             (dep.versionId && depVersions.find((v) => v.id === dep.versionId)) ||
             depVersions.find((v) => v.versionType === "release") ||
             depVersions[0];
           if (!depVersion) continue;
-          await window.luna.exploreInstall({
+          await window.nova.exploreInstall({
             profileId: profile.id,
             kind: depKind,
             fileUrl: depVersion.fileUrl,
@@ -5926,7 +8350,7 @@ async function installWithDependencies(profile, kind, item, version) {
     }
   }
 
-  return window.luna.exploreInstall({
+  return window.nova.exploreInstall({
     profileId: profile.id,
     kind,
     fileUrl: version.fileUrl,
@@ -5949,14 +8373,16 @@ async function runExploreSearch() {
   const gameVersion = exploreCurrentType === "modpack" ? null : exploreCurrentProfile?.mcVersion || null;
   const sortValue = document.getElementById("explore-sort-select")?.value || "downloads";
   const clientOnly = exploreCurrentType === "mod" && !!document.getElementById("explore-client-only-check")?.checked;
-  const res = await window.luna.exploreSearch(
+  const res = await window.nova.exploreSearch(
     exploreSearchInput.value,
     exploreCurrentType,
     gameVersion,
     sortValue,
     exploreCurrentPage,
     exploreSelectedCategories,
-    clientOnly
+    clientOnly,
+    // 24-186차: 너굴마을이 적용된 프로필이면 main.js가 허용 모드만 남겨서 보내준다
+    exploreCurrentProfile?.id || null
   );
   // main.js가 이제 {hits, page, totalPages} 형태로 반환함 (7-4 페이지네이션 추가)
   const results = res.hits || [];
@@ -5964,11 +8390,19 @@ async function runExploreSearch() {
   exploreTotalPages = res.totalPages || 1;
 
   exploreResults.innerHTML = "";
+  // 24-186차: 왜 목록이 짧은지 알 수 있게 걸러졌다는 안내를 위에 한 줄 붙인다
+  const neogulNotice = res.neogulOnly
+    ? `<div style="display:flex; align-items:center; gap:6px; margin:2px 0 8px; padding:8px 10px; border-radius:10px; background:rgba(95,224,102,.08); border:1px solid rgba(95,224,102,.2); color:var(--text-2); font-size:12px;">
+         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1" stroke-linecap="round"/></svg>
+         너굴마을 프로필이라 서버에서 허용한 모드만 보여요
+       </div>`
+    : "";
   if (results.length === 0) {
-    exploreResults.innerHTML = `<div style="color:var(--text-2); font-size:12.5px; padding:12px;">결과가 없어요</div>`;
+    exploreResults.innerHTML = `${neogulNotice}<div style="color:var(--text-2); font-size:12.5px; padding:12px;">결과가 없어요</div>`;
     renderExplorePagination();
     return;
   }
+  if (neogulNotice) exploreResults.innerHTML = neogulNotice;
 
   results.forEach((item, itemIndex) => {
     const row = document.createElement("div");
@@ -5981,7 +8415,7 @@ async function runExploreSearch() {
       <img class="explore-item-icon" src="${item.icon || ""}" onerror="this.style.visibility='hidden'" />
       <div class="explore-item-info">
         <div class="explore-item-title"><span class="explore-item-title-text">${item.title}</span>${modpackMcVersion ? `<span class="explore-item-mc-version-chip">${escapeHtml(modpackMcVersion)}</span>` : ""} <span class="explore-item-author${item.author ? " author-page-link" : ""}">by ${item.author}</span></div>
-        <div class="explore-item-desc">${item.description || ""}</div>
+        <div class="explore-item-desc">${escapeHtml(String(item.description || "").replace(/[*_`~#]/g, ""))}</div>
       </div>
       <div class="explore-item-actions">
         <div class="explore-item-stats">
@@ -6001,7 +8435,7 @@ async function runExploreSearch() {
     // 클릭 가능했음. 줄 전체를 클릭 가능하게 하고, 버튼들은 각자 stopPropagation으로
     // 줄 클릭과 안 겹치게 함
     row.addEventListener("click", () => openExploreDetail(item));
-    // 20차: "컨텐츠 설치에서 모드 제작자 누르면 바로 제작자 프로필로 가게 해주고" - 상세
+    // 20차: "콘텐츠 설치에서 모드 제작자 누르면 바로 제작자 프로필로 가게 해주고" - 상세
     // 화면(mod-detail-author)에는 이미 있던 제작자 클릭 이동을 목록에서도 그대로 씀
     if (item.author) {
       row.querySelector(".explore-item-author")?.addEventListener("click", (e) => {
@@ -6011,7 +8445,7 @@ async function runExploreSearch() {
     }
     row.querySelector(".btn-explore-external").addEventListener("click", (e) => {
       e.stopPropagation();
-      window.luna.openExternal?.(`https://modrinth.com/${exploreCurrentType}/${item.slug}`);
+      window.nova.openExternal?.(`https://modrinth.com/${exploreCurrentType}/${item.slug}`);
     });
     row.querySelector(".btn-explore-detail").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -6026,7 +8460,7 @@ async function runExploreSearch() {
       installBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         withBusyButton(installBtn, "설치 중...", async () => {
-          const versions = await window.luna.exploreGetVersions(item.id, null, "modpack");
+          const versions = await window.nova.exploreGetVersions(item.id, null, "modpack");
           if (!versions || versions.length === 0) {
             showToast("설치할 수 있는 버전이 없어요", "error");
             return;
@@ -6043,7 +8477,7 @@ async function runExploreSearch() {
     }
     const kind = explKindOf(exploreCurrentType);
     if (exploreCurrentProfile) {
-      window.luna.exploreCheckInstalled(exploreCurrentProfile.id, kind, item.id).then((check) => {
+      window.nova.exploreCheckInstalled(exploreCurrentProfile.id, kind, item.id).then((check) => {
         // 16차: "모드 설치할 때 화면 새로고침 되는 거 없애줘" - 설치/제거가 끝날 때마다
         // 목록 전체를 다시 그리던(runExploreSearch) 걸 없애고, 이 버튼 하나만 그때그때
         // 상태를 바꿔줌(깜빡임/스크롤 초기화/등장 애니메이션 재생 방지). 클로저로 잡은
@@ -6055,7 +8489,7 @@ async function runExploreSearch() {
           withBusyButton(installBtn, installedFileName ? "제거 중..." : "설치 중...", async () => {
             if (installedFileName) {
               // 22차: "모드 제거할 때 묻는 거 없애줘" - 되묻지 않고 바로 제거함
-              const res = await window.luna.exploreUninstall(exploreCurrentProfile.id, kind, installedFileName);
+              const res = await window.nova.exploreUninstall(exploreCurrentProfile.id, kind, installedFileName);
               if (res.ok) {
                 showToast("제거했어요");
                 installedFileName = null;
@@ -6063,7 +8497,7 @@ async function runExploreSearch() {
               }
               return;
             }
-            const versions = await window.luna.exploreGetVersions(item.id, exploreCurrentProfile.mcVersion, exploreCurrentType);
+            const versions = await window.nova.exploreGetVersions(item.id, exploreCurrentProfile.mcVersion, exploreCurrentType);
             const latest = versions.find((v) => v.versionType === "release") || versions[0];
             if (!latest) {
               showToast("이 프로필 버전에 맞는 버전이 없어요", "error");
@@ -6071,7 +8505,10 @@ async function runExploreSearch() {
             }
             const res = await installWithDependencies(exploreCurrentProfile, kind, item, latest);
             if (res.ok) {
-              showToast(`"${res.fileName}" 설치 완료!`);
+              showToast(
+                res.notice || `"${res.fileName}" 설치 완료!`,
+                res.neogulBlocked ? "error" : undefined
+              ); // 24-161차: 너굴마을에서 막힌 모드는 꺼둔 사실을 알려줌
               installedFileName = res.fileName;
               syncInstallBtnState(installBtn, installedFileName);
             } else {
@@ -6144,6 +8581,117 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+// ============================================================================
+// 24-214차: 모드 설명의 마크다운
+// "** 이런 걸로 두껍게 만드려고 하는 거 같은데 ... 디스코드에서 쓰는 그 글 방식같은데"
+// 맞다 - Modrinth/CurseForge 설명은 마크다운(디스코드와 같은 표기)으로 적혀 있는데 우리는
+// 그걸 글자 그대로 보여주고 있었다.
+//
+// 먼저 전부 이스케이프해서 남의 HTML 이 실행될 여지를 없애고, 그 다음 우리가 아는 표기만
+// 다시 태그로 되살린다(허용 목록 방식). 설명에 원래 섞여 있는 날 HTML 도 자주 쓰는 것만
+// 같은 방식으로 되살린다.
+// ============================================================================
+function mdInline(t) {
+  return t
+    // 코드 조각이 먼저 - 안쪽은 더 건드리지 않게 자리표시자로 빼둔다
+    .replace(/`([^`\n]+)`/g, (_m, c) => `<code>${c}</code>`)
+    .replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, (_m, a, u) => `<img src="${u}" alt="${a}" loading="lazy" />`)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, a, u) => `<a href="#" class="ext-link" data-url="${u}">${a}</a>`)
+    .replace(/\*\*\*([^*]+)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/(^|[^_])_([^_\n]+)_/g, "$1<em>$2</em>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+    // 남은 맨 주소도 누를 수 있게
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<.,:;!?)\]'"])/g,
+      (_m, pre, url) => `${pre}<a href="#" class="ext-link" data-url="${url}">${url}</a>`);
+}
+
+// 설명에 그대로 들어 있는 날 HTML 중 흔한 것만 되살린다(나머지는 글자로 남는다)
+function mdRawHtml(t) {
+  return t
+    .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
+    .replace(/&lt;\/?(p|center|div)[^&]*&gt;/gi, (m) => (/\//.test(m) ? "</div>" : '<div class="md-block">'))
+    .replace(/&lt;hr\s*\/?&gt;/gi, "<hr>")
+    .replace(/&lt;(b|strong)&gt;/gi, "<strong>").replace(/&lt;\/(b|strong)&gt;/gi, "</strong>")
+    .replace(/&lt;(i|em)&gt;/gi, "<em>").replace(/&lt;\/(i|em)&gt;/gi, "</em>")
+    .replace(/&lt;h([1-3])[^&]*&gt;/gi, (_m, n) => `<h${n}>`).replace(/&lt;\/h([1-3])&gt;/gi, (_m, n) => `</h${n}>`)
+    .replace(/&lt;img[^&]*?src=&quot;(https?:\/\/[^&]+?)&quot;[^&]*?\/?&gt;/gi,
+      (_m, u) => `<img src="${u}" alt="" loading="lazy" />`)
+    .replace(/&lt;a[^&]*?href=&quot;(https?:\/\/[^&]+?)&quot;[^&]*?&gt;/gi,
+      (_m, u) => `<a href="#" class="ext-link" data-url="${u}">`)
+    .replace(/&lt;\/a&gt;/gi, "</a>");
+}
+
+function renderRichText(text) {
+  const src = escapeHtml(String(text || "")).replace(/\r\n/g, "\n");
+  const lines = mdRawHtml(src).split("\n");
+  const out = [];
+  let inCode = false;
+  let listType = null;
+  const closeList = () => {
+    if (listType) {
+      out.push(listType === "ol" ? "</ol>" : "</ul>");
+      listType = null;
+    }
+  };
+  for (let raw of lines) {
+    const line = raw.trimEnd();
+    const fence = /^\s*```/.test(line);
+    if (fence) {
+      closeList();
+      out.push(inCode ? "</pre>" : "<pre>");
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) {
+      out.push(line);
+      continue;
+    }
+    if (!line.trim()) {
+      closeList();
+      continue;
+    }
+    const h = /^(#{1,4})\s+(.*)$/.exec(line);
+    if (h) {
+      closeList();
+      const lv = Math.min(4, h[1].length) + 1; // h1 은 너무 커서 한 단계씩 낮춘다
+      out.push(`<h${lv}>${mdInline(h[2])}</h${lv}>`);
+      continue;
+    }
+    if (/^\s*([-*_])\s*\1\s*\1[\s-*_]*$/.test(line)) {
+      closeList();
+      out.push("<hr>");
+      continue;
+    }
+    const q = /^&gt;\s?(.*)$/.exec(line);
+    if (q) {
+      closeList();
+      out.push(`<blockquote>${mdInline(q[1])}</blockquote>`);
+      continue;
+    }
+    const ul = /^\s*[-*+]\s+(.*)$/.exec(line);
+    const ol = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    if (ul || ol) {
+      const want = ul ? "ul" : "ol";
+      if (listType !== want) {
+        closeList();
+        out.push(want === "ol" ? "<ol>" : "<ul>");
+        listType = want;
+      }
+      out.push(`<li>${mdInline((ul || ol)[1])}</li>`);
+      continue;
+    }
+    closeList();
+    out.push(`<p>${mdInline(line)}</p>`);
+  }
+  closeList();
+  if (inCode) out.push("</pre>");
+  return `<div class="md-body">${out.join("\n")}</div>`;
+}
+
 function linkifyText(text) {
   const escaped = escapeHtml(text || "");
   const urlRe = /(https?:\/\/[^\s<]+[^\s<.,:;!?)\]'"])/g;
@@ -6156,7 +8704,7 @@ function bindExtLinks(container) {
     const a = e.target.closest("a.ext-link");
     if (!a) return;
     e.preventDefault();
-    window.luna.openExternal?.(a.dataset.url);
+    window.nova.openExternal?.(a.dataset.url);
   });
 }
 
@@ -6246,7 +8794,7 @@ async function openExploreDetail(item) {
     ? window.NovaI18n?.t?.("explore_install_new_profile") || "새 프로필로 설치"
     : exploreCurrentProfile.name;
   document.getElementById("btn-mod-detail-external").onclick = () => {
-    window.luna.openExternal?.(`https://modrinth.com/${exploreCurrentType}/${item.slug}`);
+    window.nova.openExternal?.(`https://modrinth.com/${exploreCurrentType}/${item.slug}`);
   };
 
   // 나머지(갤러리/본문/태그/지원버전/최근 업데이트)는 모드린스로 안 나가고 앱 안에서 프로젝트 상세 API로 채움
@@ -6254,12 +8802,25 @@ async function openExploreDetail(item) {
   authorSideEl.textContent = item.author || "-";
   // 17차 신규: "제작자 누르면 그 제작자의 모드/리팩/쉐이더가 쫙 뜨게 해줘"
   authorSideEl.onclick = item.author ? () => openAuthorPage(item.author) : null;
-  const galleryEl = document.getElementById("mod-detail-gallery");
+  // 24-154차: "모드나 리소스팩 스크린샷 여전히 안보임" - 진짜 원인을 찾음.
+  // 아래에서 galleryEl.innerHTML = "" 로 #mod-detail-gallery 를 통째로 비우고 있었는데,
+  // 그 안에 정작 큰 사진(#mod-detail-gallery-main)과 썸네일 줄(#mod-detail-gallery-tabs)이
+  // 들어있었다. 즉 항목을 열 때마다 두 요소가 DOM 에서 사라지고, 잠시 뒤 프로젝트 정보가
+  // 도착했을 때 getElementById 가 null 을 돌려줘서 tabsEl.innerHTML 에서 예외가 나고
+  // (then 안이라 조용히 삼켜짐) 갤러리가 영영 안 그려졌다. 컨테이너는 그대로 두고
+  // 안쪽 내용만 초기화한다.
+  const galleryMainEl = document.getElementById("mod-detail-gallery-main");
+  const galleryTabsEl = document.getElementById("mod-detail-gallery-tabs");
   const bodyEl = document.getElementById("mod-detail-body");
   const versionsChipsEl = document.getElementById("mod-detail-versions-chips");
   const tagsEl = document.getElementById("mod-detail-tags");
   const updatedEl = document.getElementById("mod-detail-updated");
-  galleryEl.innerHTML = "";
+  if (galleryMainEl) {
+    galleryMainEl.removeAttribute("src");
+    galleryMainEl.style.visibility = "hidden";
+  }
+  if (galleryTabsEl) galleryTabsEl.innerHTML = "";
+  modGalleryImages = [];
   bodyEl.textContent = "불러오는 중...";
   versionsChipsEl.innerHTML = "";
   tagsEl.innerHTML = "";
@@ -6277,11 +8838,11 @@ async function openExploreDetail(item) {
     translateBtn.disabled = false;
   }
 
-  window.luna.exploreGetProject(item.id).then((project) => {
+  window.nova.exploreGetProject(item.id).then((project) => {
     if (!project || exploreDetailItem !== item) return; // 그 사이에 다른 항목을 열었으면 무시
 
     modDetailOriginalBodyText = project.body || item.description || "";
-    bodyEl.innerHTML = linkifyText(modDetailOriginalBodyText);
+    bodyEl.innerHTML = renderRichText(modDetailOriginalBodyText); // 24-214차
     bindExtLinks(bodyEl);
 
     modGalleryImages = (project.gallery && project.gallery.length > 0) ? project.gallery : [];
@@ -6338,7 +8899,7 @@ document.getElementById("btn-mod-detail-translate")?.addEventListener("click", a
   const btn = document.getElementById("btn-mod-detail-translate");
   if (!bodyEl || !btn) return;
   if (modDetailShowingTranslation) {
-    bodyEl.innerHTML = linkifyText(modDetailOriginalBodyText);
+    bodyEl.innerHTML = renderRichText(modDetailOriginalBodyText); // 24-214차
     bindExtLinks(bodyEl);
     modDetailShowingTranslation = false;
     btn.textContent = "번역";
@@ -6351,9 +8912,10 @@ document.getElementById("btn-mod-detail-translate")?.addEventListener("click", a
   const prevText = btn.textContent;
   btn.textContent = "번역 중...";
   try {
-    const res = await window.luna.exploreTranslate?.(bodyEl.textContent || "");
+    const res = await window.nova.exploreTranslate?.(modDetailOriginalBodyText || bodyEl.textContent || "");
     if (res?.ok) {
-      bodyEl.textContent = res.text;
+      bodyEl.innerHTML = renderRichText(res.text); // 24-214차: 번역본도 같은 모양으로
+      bindExtLinks(bodyEl);
       modDetailShowingTranslation = true;
       btn.textContent = "원문 보기";
     } else {
@@ -6374,7 +8936,7 @@ async function refreshQuickInstallButton(item, profile) {
   btn.textContent = "설치";
 
   const kind = explKindOf(exploreCurrentType);
-  const installedCheck = await window.luna.exploreCheckInstalled(profile.id, kind, item.id);
+  const installedCheck = await window.nova.exploreCheckInstalled(profile.id, kind, item.id);
   if (exploreDetailItem !== item) return; // 그 사이 다른 항목을 열었으면 무시
 
   if (installedCheck.installed) {
@@ -6387,7 +8949,7 @@ async function refreshQuickInstallButton(item, profile) {
   btn.disabled = false;
   btn.onclick = () =>
     withBusyButton(btn, "설치 중...", async () => {
-      const versions = await window.luna.exploreGetVersions(item.id, profile.mcVersion, exploreCurrentType);
+      const versions = await window.nova.exploreGetVersions(item.id, profile.mcVersion, exploreCurrentType);
       const latest = versions.find((v) => v.versionType === "release") || versions[0];
       if (!latest) {
         showToast("이 프로필 버전에 맞는 버전이 없어요", "error");
@@ -6395,7 +8957,10 @@ async function refreshQuickInstallButton(item, profile) {
       }
       const res = await installWithDependencies(profile, kind, item, latest);
       if (res.ok) {
-        showToast(`"${res.fileName}" 설치 완료!`);
+        showToast(
+                res.notice || `"${res.fileName}" 설치 완료!`,
+                res.neogulBlocked ? "error" : undefined
+              ); // 24-161차: 너굴마을에서 막힌 모드는 꺼둔 사실을 알려줌
         loadModVersionsForProfile(item, profile);
         refreshQuickInstallButton(item, profile);
       } else {
@@ -6420,10 +8985,10 @@ async function loadModVersionsForProfile(item, profile) {
   versionListEl.innerHTML = `<div style="color:var(--text-2); font-size:12px;">불러오는 중...</div>`;
 
   // 이미 이 프로필에 설치돼 있는지 확인
-  const installedCheck = await window.luna.exploreCheckInstalled(profile.id, kind, item.id);
+  const installedCheck = await window.nova.exploreCheckInstalled(profile.id, kind, item.id);
 
   // 프로필의 정확한 마인크래프트 버전에 맞는 버전만 가져옴
-  const allVersions = await window.luna.exploreGetVersions(item.id, profile.mcVersion, exploreCurrentType);
+  const allVersions = await window.nova.exploreGetVersions(item.id, profile.mcVersion, exploreCurrentType);
   // 24-14차: 기본은 릴리스만, "베타 버전도 보기"를 켰을 때만 베타/알파도 같이 보여줌
   const versions = modVersionShowBeta ? allVersions : allVersions.filter((v) => v.versionType === "release");
   versionListEl.innerHTML = "";
@@ -6457,7 +9022,7 @@ async function loadModVersionsForProfile(item, profile) {
     removeBtn.addEventListener("click", () =>
       // 22차: "모드 제거할 때 묻는 거 없애줘" - 되묻지 않고 바로 제거함
       withBusyButton(removeBtn, "제거 중...", async () => {
-        const res = await window.luna.exploreUninstall(profile.id, kind, installedCheck.fileName);
+        const res = await window.nova.exploreUninstall(profile.id, kind, installedCheck.fileName);
         if (res.ok) {
           showToast("제거했어요");
           loadModVersionsForProfile(item, profile);
@@ -6517,7 +9082,10 @@ async function loadModVersionsForProfile(item, profile) {
       withBusyButton(installBtn, "설치 중...", async () => {
         const res = await installWithDependencies(profile, kind, item, v);
         if (res.ok) {
-          showToast(`"${res.fileName}" 설치 완료!`);
+          showToast(
+                res.notice || `"${res.fileName}" 설치 완료!`,
+                res.neogulBlocked ? "error" : undefined
+              ); // 24-161차: 너굴마을에서 막힌 모드는 꺼둔 사실을 알려줌
           loadModVersionsForProfile(item, profile);
           refreshQuickInstallButton(item, profile);
         } else {
@@ -6552,7 +9120,7 @@ async function loadModVersionsForProfile(item, profile) {
 // 이 코드베이스엔 리스너 해제 구조가 없어서, 지금 진행 중인 설치가 있을 때만 콜백이 뭔가를 하도록
 // 설치 함수 안에서 매번 새 함수를 만들어 등록/제거함
 const modpackInstallProgressHandlers = new Set();
-window.luna.onModpackInstallProgress?.((data) => {
+window.nova.onModpackInstallProgress?.((data) => {
   modpackInstallProgressHandlers.forEach((fn) => fn(data));
 });
 
@@ -6560,7 +9128,7 @@ async function loadModpackVersionsForInstall(item) {
   const versionListEl = document.getElementById("mod-install-version-list");
   versionListEl.innerHTML = `<div style="color:var(--text-2); font-size:12px;">불러오는 중...</div>`;
 
-  const versions = await window.luna.exploreGetVersions(item.id, null, "modpack");
+  const versions = await window.nova.exploreGetVersions(item.id, null, "modpack");
   if (exploreDetailItem !== item) return; // 그 사이에 다른 항목을 열었으면 무시
   versionListEl.innerHTML = "";
 
@@ -6625,7 +9193,7 @@ async function refreshModpackQuickInstallButton(item) {
   btn.textContent = "설치";
   btn.onclick = () =>
     withBusyButton(btn, "설치 중...", async () => {
-      const versions = await window.luna.exploreGetVersions(item.id, null, "modpack");
+      const versions = await window.nova.exploreGetVersions(item.id, null, "modpack");
       const latest = versions.find((v) => v.versionType === "release") || versions[0];
       if (!latest) {
         showToast("설치할 수 있는 버전이 없어요", "error");
@@ -6657,7 +9225,7 @@ async function installModpackVersion(item, version, btn) {
   }
 
   try {
-    const res = await window.luna.exploreInstallModpack({
+    const res = await window.nova.exploreInstallModpack({
       projectId: item.id,
       projectTitle: item.title,
       icon: item.icon,
@@ -6668,7 +9236,7 @@ async function installModpackVersion(item, version, btn) {
       // "Versions"에서 새 프로필을 만들 때와 같은 방식: 홈으로 이동하고 바로 그 프로필로 전환
       showAppPanel("view-home");
       setActiveSidebarIcon("launch");
-      await window.luna.selectProfile(res.profile.id);
+      await window.nova.selectProfile(res.profile.id);
       if (profileChipName) profileChipName.textContent = res.profile.name;
       updateMcVersionLabel(res.profile.mcVersion);
       refreshChipActiveStates();
@@ -6756,7 +9324,7 @@ document.getElementById("profile-add-choice-modpack-upload")?.addEventListener("
   btn.disabled = true;
   btn.textContent = "파일 선택 중...";
   try {
-    const res = await window.luna.installModpackFile();
+    const res = await window.nova.installModpackFile();
     if (res.canceled) return;
     if (res.ok) {
       showToast(
@@ -6765,7 +9333,7 @@ document.getElementById("profile-add-choice-modpack-upload")?.addEventListener("
       closeProfileAddOverlay();
       showAppPanel("view-home");
       setActiveSidebarIcon("launch");
-      await window.luna.selectProfile(res.profile.id);
+      await window.nova.selectProfile(res.profile.id);
       if (profileChipName) profileChipName.textContent = res.profile.name;
       updateMcVersionLabel(res.profile.mcVersion);
       refreshChipActiveStates();
@@ -6818,22 +9386,18 @@ async function openVersionsList() {
   versionsCreatePanel.hidden = true;
   versionsListPanel.hidden = false;
   versionsDrillMajor = null;
-  // 13차: Install 화면을 다시 열 때마다 항상 맨 위(버전 목록 + 인라인 프리셋 카테고리 + 공유 코드) 화면으로 초기화
-  document.getElementById("versions-mode-preset-list").hidden = true;
-  document.getElementById("versions-mode-preset-version").hidden = true;
+  // 13차: Install 화면을 다시 열 때마다 항상 맨 위(버전 목록 + 공유 코드) 화면으로 초기화
   document.getElementById("versions-mode-version").hidden = false;
-  await Promise.all([renderVersionsList(), renderPresetBrowseCategories()]);
+  await renderVersionsList();
 }
 
 async function renderVersionsList() {
-  const versions = await window.luna.listAvailableVersions();
+  const versions = await window.nova.listAvailableVersions();
   versionsList.innerHTML = "";
   versionsList.classList.remove("versions-list-major");
-  // 공유 코드 입력/인라인 프리셋 카테고리는 메이저 버전 목록(첫 화면)에서만 보이고, 세부 버전으로 들어가면 숨김
+  // 공유 코드 입력은 메이저 버전 목록(첫 화면)에서만 보이고, 세부 버전으로 들어가면 숨김
   const importSection = document.getElementById("versions-import-section");
   if (importSection) importSection.hidden = !!versionsDrillMajor;
-  const presetInlineSection = document.getElementById("versions-preset-inline-section");
-  if (presetInlineSection) presetInlineSection.hidden = !!versionsDrillMajor;
 
   if (!versions || versions.length === 0) {
     versionsList.innerHTML = `<div style="color:var(--text-2); font-size:12.5px; padding:12px; background:var(--bg-2); border-radius:var(--radius-md);">
@@ -6904,27 +9468,15 @@ async function renderVersionsList() {
   }
 }
 
-// 16-3(4차): presetPreselect가 있으면(=프리셋 브라우징 3단계에서 버전 카드를 클릭해서 들어온 경우)
-// 프리셋 체크박스/선택 UI 대신 "이 프리셋으로 만들어요" 고정 안내만 보여주고, 실제 presetId는
-// versionsCreatePanel.dataset.presetId에 저장해둠 (제출 시 이 값을 우선 사용)
 // 16차: "커스텀 프로필을 눌렀을 때 Install로 가지고, 버전을 골랐을 때 뜨게 해줘야지, 버전
-// 고르는 건 없애주고 고른 버전이 뜨게 해줘" - 예전엔 메모리/해상도/전체화면/JVM 인수까지
-// 고르는 폼이었는데, 아이콘/이름/버전(고른 값 그대로 표시)/로더만 고르는 화면으로 바뀜.
-// 프리셋을 쓰면(자동 선택이든 체크박스로 직접 골랐든) 서버가 로더를 강제로 fabric으로
-// 맞추므로 로더 선택 UI 자체를 숨김
-async function openCreateProfileForm(version, presetPreselect = null) {
+// 고르는 건 없애주고 고른 버전이 뜨게 해줘" - 아이콘/이름/버전(고른 값 그대로 표시)/로더만 고르는 화면
+async function openCreateProfileForm(version) {
   // 17차: "버전 눌렀을 때 작은 팝업창으로 떠야지" - 이제 목록 패널은 숨기지 않고 그대로 뒤에 남겨두고,
   // versionsCreatePanel을 CSS로 화면 중앙에 뜨는 작은 모달 오버레이로 보여줌 (style.css의
   // #versions-create-panel:not([hidden]) 규칙 참고)
   versionsCreatePanel.hidden = false;
 
-  // 24-13차: "프리셋은 이름 정하기가 필요가 없다니까 빼" - 프리셋으로 만들 때는 이름 입력칸을
-  // 아예 숨기지만(아래), 제출 버튼(btn-create-profile-submit)은 여전히 이 입력칸의 값을 그대로
-  // 프로필 이름으로 씀 - 값 자체는 계속 채워둬야 하므로, 같은 프리셋으로 버전을 여러 개
-  // 만들어도 이름이 겹치지 않게 버전까지 같이 넣어서 자동으로 정해줌
-  document.getElementById("create-profile-name").value = presetPreselect
-    ? `${presetPreselect.name} (${version})`
-    : "";
+  document.getElementById("create-profile-name").value = "";
   const descEl = document.getElementById("create-profile-description");
   if (descEl) descEl.value = "";
   const versionDisplay = document.getElementById("create-profile-version-display");
@@ -6945,57 +9497,12 @@ async function openCreateProfileForm(version, presetPreselect = null) {
   });
   updateVanillaLoaderWarning();
 
-  const usePresetCheckbox = document.getElementById("create-profile-use-preset");
-  const presetPicker = document.getElementById("create-profile-preset-picker");
-  const presetSelect = document.getElementById("create-profile-preset-select");
-  const presetRow = usePresetCheckbox?.closest(".setting-row");
   const loaderRow = document.getElementById("create-profile-loader-row");
   versionsCreatePanel.dataset.version = version;
-
-  // 24-13차: "내가 프리셋은 페브릭 고정이라고 했지" - 로더 선택 버튼 자체는 예전부터 이미
-  // presetPreselect일 때 hidden = true로 숨기고 있었는데, .profile-add-loader-row가
-  // display:flex를 직접 지정해서 [hidden]보다 우선순위가 같아 이겨버리는(이 코드베이스에서
-  // 반복돼온) 버그 때문에 실제로는 계속 보였음 - style.css에 명시적 override를 추가해서 고침
-  // (JS 쪽은 원래도 맞는 로직이라 그대로 둠)
-  //
-  // "프리셋은 이름 아래 추가 부제목 쓰지마" - 프리셋으로 만들 때 보여주던 안내 문구
-  // (create-profile-preset-preselect-note)를 완전히 없앰. 이미 프리셋 브라우징 단계에서
-  // 어떤 프리셋/버전을 골랐는지 알고 들어온 화면이라 다시 알려줄 필요가 없었음
   const nameFieldEl = document.getElementById("create-profile-name");
-  const presetNoteEl = document.getElementById("create-profile-preset-preselect-note");
-  if (presetNoteEl) presetNoteEl.hidden = true;
-  if (presetPreselect) {
-    versionsCreatePanel.dataset.presetId = presetPreselect.id;
-    if (presetRow) presetRow.hidden = true;
-    if (presetPicker) presetPicker.hidden = true;
-    if (loaderRow) loaderRow.hidden = true;
-    if (nameFieldEl) nameFieldEl.hidden = true;
-  } else {
-    delete versionsCreatePanel.dataset.presetId;
-    if (presetRow) presetRow.hidden = false;
-    if (usePresetCheckbox) usePresetCheckbox.checked = false;
-    if (presetPicker) presetPicker.hidden = true;
-    if (loaderRow) loaderRow.hidden = false;
-    if (nameFieldEl) nameFieldEl.hidden = false;
-
-    // 이 버전에 맞는 프리셋만 골라서 옵션에 채워줌 (기존 방식 - 프리셋의 "원본 버전"과 정확히 같을 때만)
-    if (presetSelect) {
-      const presets = (await window.luna.listPresets()).filter((p) => p.mcVersion === version);
-      presetSelect.innerHTML = presets.length
-        ? presets.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")
-        : `<option value="">${window.NovaI18n?.t?.("preset_none_for_version") || "이 버전에 맞는 프리셋이 없어요"}</option>`;
-    }
-  }
+  if (loaderRow) loaderRow.hidden = false;
+  if (nameFieldEl) nameFieldEl.hidden = false;
 }
-
-document.getElementById("create-profile-use-preset")?.addEventListener("change", (e) => {
-  const presetPicker = document.getElementById("create-profile-preset-picker");
-  const loaderRow = document.getElementById("create-profile-loader-row");
-  if (presetPicker) presetPicker.hidden = !e.target.checked;
-  // 프리셋을 직접 골라 쓸 때도 프리셋 자동 선택 때와 마찬가지로 로더가 서버에서 fabric으로
-  // 강제되므로, 체크한 동안은 로더 선택 UI를 같이 숨김
-  if (loaderRow) loaderRow.hidden = e.target.checked;
-});
 
 // 16차: 아이콘 선택 + Vanilla/Fabric 로더 선택 (예전에 "프로필 추가" 팝업 안에 있던 걸
 // Install의 버전-선택-후 화면으로 옮김)
@@ -7003,7 +9510,7 @@ let createProfileIconTempPath = null;
 let createProfileLoader = "fabric";
 
 document.getElementById("create-profile-icon-btn")?.addEventListener("click", async () => {
-  const res = await window.luna.pickProfileIconTemp();
+  const res = await window.nova.pickProfileIconTemp();
   if (!res || res.canceled || !res.ok) return;
   createProfileIconTempPath = res.filePath;
   const iconImg = document.getElementById("create-profile-icon-img");
@@ -7039,13 +9546,8 @@ function updateVanillaLoaderWarning() {
 function closeVersionsCreatePanel() {
   versionsCreatePanel.hidden = true;
   versionsListPanel.hidden = false;
-  delete versionsCreatePanel.dataset.presetId;
-  if (versionsCreatePanel.dataset.cameFromPresetBrowse === "1") {
-    delete versionsCreatePanel.dataset.cameFromPresetBrowse;
-    showPresetBrowseStep("version");
-  } else {
-    renderVersionsList();
-  }
+  pendingServerProfileLink = null; // 24-94차: 서버 설정에서 넘어왔다가 그냥 닫은 경우
+  renderVersionsList();
 }
 document.getElementById("btn-versions-back")?.addEventListener("click", closeVersionsCreatePanel);
 // 카드(.versions-create-card) 바깥의 어두운 배경 부분을 직접 클릭했을 때만 닫음 - 카드 안쪽
@@ -7055,145 +9557,6 @@ versionsCreatePanel?.addEventListener("click", (e) => {
   if (e.target === versionsCreatePanel) closeVersionsCreatePanel();
 });
 
-// ---- 16-3(4차): "프리셋으로 만들기" 브라우징 (카테고리 -> 프리셋 -> 버전, 참고 스크린샷 스타일) ----
-let presetBrowseCategory = null;
-let presetBrowsePreset = null;
-let presetBrowseAllPresets = [];
-
-// 13차: 카테고리 선택은 이제 versions-mode-version 화면 안에 인라인으로 있으므로,
-// 여기서는 "list"(카테고리 안 프리셋 목록)/"version"(프리셋의 버전 목록) 두 단계만 다룸.
-function showPresetBrowseStep(step) {
-  document.getElementById("versions-mode-version").hidden = true;
-  document.getElementById("versions-mode-preset-list").hidden = step !== "list";
-  document.getElementById("versions-mode-preset-version").hidden = step !== "version";
-  if (step === "list") renderPresetBrowseList();
-  if (step === "version") renderPresetBrowseVersions();
-}
-
-async function renderPresetBrowseCategories() {
-  const wrap = document.getElementById("preset-browse-category-list");
-  wrap.classList.add("versions-list-major");
-  presetBrowseAllPresets = await window.luna.listPresets();
-  const categories = (await window.luna.presetCategories?.()) || ["PVP", "야생", "마인팜", "최적화", "낭만"];
-  wrap.innerHTML = "";
-  // 17차: "프리셋은 갯수가 아니야, 카테고리마다 그 프리셋 하나만 있어" - 카테고리 카드를 누르면
-  // "프리셋 목록" 중간 단계 없이 바로 그 카테고리의 유일한 프리셋의 버전 선택 화면으로 이동함
-  // 24-36차: "프로필 추가에서 프리셋도 애니메이션 좀 넣어줘" - renderVersionsList()에서 쓰는
-  // 순차 페이드인(-rise 클래스 + 카드마다 늘어나는 animation-delay)을 여기(카테고리 카드
-  // 목록)에도 똑같이 적용해서 프리셋 브라우징 화면도 버전 선택 화면과 동일하게 움직이게 함.
-  let staggerIdx = 0;
-  categories.forEach((cat) => {
-    const preset = presetBrowseAllPresets.find((p) => p.category === cat) || null;
-    const item = document.createElement("div");
-    item.className = "version-item version-item-major version-item-rise";
-    item.style.animationDelay = `${staggerIdx * 40}ms`;
-    staggerIdx++;
-    item.style.setProperty(
-      "--v-bg-image",
-      `url("assets/version-bg/${encodeURIComponent(cat)}.jpg"), url("assets/version-bg/default.jpg")`
-    );
-    const subLabel = preset
-      ? escapeHtml(preset.name)
-      : escapeHtml(window.NovaI18n?.t?.("preset_browse_none") || "아직 프리셋 없음");
-    item.innerHTML = `<b>${escapeHtml(cat)}</b><span>${subLabel}</span>`;
-    if (!preset) item.classList.add("is-disabled-soft");
-    item.addEventListener("click", () => {
-      if (!preset) {
-        showToast("이 카테고리에는 아직 프리셋이 없어요.", "error");
-        return;
-      }
-      presetBrowseCategory = cat;
-      presetBrowsePreset = preset;
-      showPresetBrowseStep("version");
-    });
-    wrap.appendChild(item);
-  });
-}
-
-function renderPresetBrowseList() {
-  document.getElementById("preset-browse-list-title").textContent =
-    window.NovaI18n?.t?.("preset_browse_list_title", { category: presetBrowseCategory }) || `${presetBrowseCategory} 프리셋`;
-  const wrap = document.getElementById("preset-browse-list");
-  wrap.classList.remove("versions-list-major");
-  const list = presetBrowseAllPresets.filter((p) => p.category === presetBrowseCategory);
-  wrap.innerHTML = "";
-  if (list.length === 0) {
-    wrap.innerHTML = `<div class="mini-list-empty">${window.NovaI18n?.t?.("preset_browse_empty") || "이 카테고리에는 아직 프리셋이 없어요. 프리셋 관리 화면에서 먼저 만들어주세요."}</div>`;
-    return;
-  }
-  // 24-36차: 위 카테고리 카드 목록과 동일한 순차 페이드인 적용
-  let staggerIdx = 0;
-  list.forEach((p) => {
-    const item = document.createElement("div");
-    item.className = "version-item version-item-rise";
-    item.style.animationDelay = `${staggerIdx * 40}ms`;
-    staggerIdx++;
-    const n = (p.availableMcVersions || [p.mcVersion]).length;
-    item.innerHTML = `<b>${escapeHtml(p.name)}</b><span>${n}개 버전</span>`;
-    item.addEventListener("click", () => {
-      presetBrowsePreset = p;
-      showPresetBrowseStep("version");
-    });
-    wrap.appendChild(item);
-  });
-}
-
-async function renderPresetBrowseVersions() {
-  // 목록 화면에서 미리 받은 캐시가 최신이 아닐 수 있으니(생성 직후 백그라운드로 버전 계산이 끝났을
-  // 수 있음) 다시 최신 목록을 받아와서 이 프리셋 항목만 갱신함
-  const fresh = (await window.luna.listPresets()).find((p) => p.id === presetBrowsePreset.id);
-  if (fresh) presetBrowsePreset = fresh;
-
-  document.getElementById("preset-browse-version-title").textContent =
-    window.NovaI18n?.t?.("preset_browse_version_title", { name: presetBrowsePreset.name }) || `"${presetBrowsePreset.name}" - 버전을 골라주세요`;
-  const noteEl = document.getElementById("preset-browse-version-note");
-  noteEl.textContent = presetBrowsePreset.versionGenerationNote || "";
-  noteEl.hidden = !presetBrowsePreset.versionGenerationNote;
-
-  const wrap = document.getElementById("preset-browse-version-list");
-  wrap.innerHTML = "";
-  const versions = presetBrowsePreset.availableMcVersions?.length
-    ? presetBrowsePreset.availableMcVersions
-    : [presetBrowsePreset.mcVersion];
-  // 24-36차: 위 두 단계와 동일한 순차 페이드인 적용
-  let staggerIdx = 0;
-  versions.forEach((v) => {
-    const item = document.createElement("div");
-    item.className = "version-item version-item-major version-item-rise";
-    item.style.animationDelay = `${staggerIdx * 40}ms`;
-    staggerIdx++;
-    item.style.setProperty(
-      "--v-bg-image",
-      `url("assets/version-bg/${v}.jpg"), url("assets/version-bg/default.jpg")`
-    );
-    // 24-11차: "자동 생성됨 문구 없애줘" - "원본 버전"/"자동 생성됨" 배지를 없애고
-    // 다른 버전 카드들과 똑같이 심플하게 표시함
-    item.innerHTML = `<b>${v}</b><span>Nova</span>`;
-    item.addEventListener("click", async () => {
-      versionsCreatePanel.dataset.cameFromPresetBrowse = "1";
-      await openCreateProfileForm(v, { id: presetBrowsePreset.id, name: presetBrowsePreset.name, category: presetBrowsePreset.category });
-    });
-    wrap.appendChild(item);
-  });
-}
-
-// 13차: "카테고리로" 버튼은 이제 별도 카테고리 화면이 아니라 맨 위(버전 목록 + 인라인 프리셋
-// 카테고리 + 공유 코드) 화면으로 돌아감
-document.getElementById("btn-preset-browse-back-category")?.addEventListener("click", () => {
-  document.getElementById("versions-mode-preset-list").hidden = true;
-  document.getElementById("versions-mode-preset-version").hidden = true;
-  document.getElementById("versions-mode-version").hidden = false;
-  renderPresetBrowseCategories();
-});
-// 17차: "list"(카테고리 안 프리셋 여러 개 목록) 단계는 이제 진입 경로가 없어졌으므로(카테고리당
-// 프리셋이 하나뿐이라 카테고리 카드를 누르면 바로 버전 단계로 감), 버전 단계의 "뒤로" 버튼도
-// 더 이상 존재하지 않는 목록 단계로 보내지 않고 카테고리 목록으로 바로 돌아가게 함.
-document.getElementById("btn-preset-browse-back-list")?.addEventListener("click", () => {
-  document.getElementById("versions-mode-preset-list").hidden = true;
-  document.getElementById("versions-mode-preset-version").hidden = true;
-  document.getElementById("versions-mode-version").hidden = false;
-  renderPresetBrowseCategories();
-});
 // 17차: 공유 코드 입력창에 타이핑/붙여넣기할 때마다(디바운스) 미리보기를 먼저 보여주고,
 // 미리보기가 성공했을 때만 "불러오기" 버튼을 드러냄. 코드가 바뀌면 이전 미리보기 결과는
 // 즉시 무효화(importProfileLastPreviewedCode로 추적)해서 오래된 미리보기 상태로 잘못
@@ -7220,7 +9583,7 @@ function renderImportProfilePreview(res, code) {
     ${res.iconUrl ? `<img src="${res.iconUrl}" class="shared-profile-inline-preview-icon" />` : `<div class="shared-profile-inline-preview-icon shared-profile-preview-icon-fallback">${escapeHtml((res.name || "?").slice(0, 1))}</div>`}
     <div class="shared-profile-inline-preview-info">
       <div class="shared-profile-inline-preview-name">${escapeHtml(res.name)}</div>
-      <div class="shared-profile-inline-preview-meta">${escapeHtml(res.mcVersion)} · Nova · 파일 ${fileCount}개${res.author ? ` · by ${escapeHtml(res.author)}` : ""}</div>
+      <div class="shared-profile-inline-preview-meta">${escapeHtml(res.mcVersion)} · Nova · 파일 ${fileCount}개${res.novaSettingsCount || res.configCount ? " · 설정 포함" : ""}${res.author ? ` · by ${escapeHtml(res.author)}` : ""}</div>
     </div>
   `;
   btn.hidden = false;
@@ -7235,7 +9598,7 @@ document.getElementById("import-profile-code")?.addEventListener("input", (e) =>
   }
   importProfilePreviewTimer = setTimeout(async () => {
     const stillCurrent = () => document.getElementById("import-profile-code")?.value.trim() === code;
-    const res = await window.luna.previewSharedProfile(code);
+    const res = await window.nova.previewSharedProfile(code);
     if (!stillCurrent()) return; // 그 사이 입력이 더 바뀌었으면 이 결과는 버림
     renderImportProfilePreview(res, code);
   }, 400);
@@ -7244,14 +9607,14 @@ document.getElementById("import-profile-code")?.addEventListener("input", (e) =>
 document.getElementById("btn-import-profile")?.addEventListener("click", async () => {
   const code = document.getElementById("import-profile-code").value.trim();
   if (!code || code !== importProfileLastPreviewedCode) return;
-  const res = await window.luna.importProfile(code);
+  const res = await window.nova.importProfile(code);
   if (res.ok) {
     showToast(`"${res.profile.name}" 프로필을 불러왔어요`);
     document.getElementById("import-profile-code").value = "";
     renderImportProfilePreview(null, null);
     showAppPanel("view-home");
     setActiveSidebarIcon("launch");
-    await window.luna.selectProfile(res.profile.id);
+    await window.nova.selectProfile(res.profile.id);
     if (profileChipName) profileChipName.textContent = res.profile.name;
     updateMcVersionLabel(res.profile.mcVersion);
     refreshChipActiveStates();
@@ -7267,36 +9630,44 @@ document.getElementById("btn-create-profile-submit")?.addEventListener("click", 
     showToast(window.NovaI18n?.t?.("toast_profile_name_required") || "프로필 이름을 입력해주세요", "error");
     return;
   }
-  const usePreset = document.getElementById("create-profile-use-preset")?.checked;
-  const presetId =
-    versionsCreatePanel.dataset.presetId ||
-    (usePreset ? document.getElementById("create-profile-preset-select")?.value || null : null);
   // 16차: 메모리/해상도/전체화면/JVM 인수는 이 화면에서 더는 고르지 않음 - main.js의
   // profiles:create가 생략된 값들에 알아서 기본값을 채워주고, 나중에 프로필 설정에서
   // 언제든 바꿀 수 있음
   const btn = document.getElementById("btn-create-profile-submit");
   await withBusyButton(btn, "만드는 중...", async () => {
-    const res = await window.luna.createProfile({
+    const res = await window.nova.createProfile({
       name,
       mcVersion: version,
       loader: createProfileLoader,
       iconTempPath: createProfileIconTempPath,
-      presetId,
       // 17차: "프로필마다 만들 때 설명 적을 수 있게 해줘"
       description: document.getElementById("create-profile-description")?.value || "",
     });
     if (res.ok) {
-      showToast(
-        res.profile.fromPreset
-          ? `"${res.profile.name}" 프로필을 프리셋으로 만들었어요`
-          : `"${res.profile.name}" 프로필을 만들었어요 (모드/리소스팩은 직접 추가해주세요)`
-      );
+      showToast(`"${res.profile.name}" 프로필을 만들었어요 (모드/리소스팩은 직접 추가해주세요)`);
       showAppPanel("view-home");
       setActiveSidebarIcon("launch");
-      // 만들자마자 바로 그 프로필로 전환
-      await window.luna.selectProfile(res.profile.id);
-      if (profileChipName) profileChipName.textContent = res.profile.name;
-      updateMcVersionLabel(res.profile.mcVersion);
+      // 24-94차: 서버 설정 창의 "프로필 만들기"로 들어온 경우엔, 방금 만든 프로필을 그 서버에
+      // 바로 연결하고 그 서버를 고른 상태로 돌아감(다시 설정 창을 열 필요 없게)
+      const link = pendingServerProfileLink;
+      pendingServerProfileLink = null;
+      let linkedToServer = false;
+      if (link && link.version === res.profile.mcVersion) {
+        const lr = await window.nova.setServerProfile(link.serverId, res.profile.id);
+        const sr = lr?.ok ? await window.nova.selectServer(link.serverId) : null;
+        if (sr?.ok) {
+          linkedToServer = true;
+          if (serverChipName) serverChipName.textContent = sr.server.name;
+          updateMcVersionLabel(sr.server.version);
+          showToast(wgT("server_profile_saved", `${sr.server.name}에 "${res.profile.name}" 프로필로 들어가요`, { server: sr.server.name, profile: res.profile.name }));
+        }
+      }
+      if (!linkedToServer) {
+        // 만들자마자 바로 그 프로필로 전환
+        await window.nova.selectProfile(res.profile.id);
+        if (profileChipName) profileChipName.textContent = res.profile.name;
+        updateMcVersionLabel(res.profile.mcVersion);
+      }
       refreshChipActiveStates();
       // 17차 버그 수정: "새로 만든 프로필이 Play에 바로 안 뜨고, 프로필을 한 번 전환해야만
       // 나타난다" - Play 화면의 프로필 목록(profile-list-items)은 lastProfilesData 캐시를
@@ -7457,7 +9828,7 @@ document.getElementById("profile-manage-sort-btn")?.addEventListener("click", (e
   renderProfileManageGrid();
 });
 
-// 9차: "내 프로필"/"프리셋 관리" 상위 탭에도 슬라이딩 하이라이트 적용
+// 9차: "내 프로필" 상위 탭에도 슬라이딩 하이라이트 적용
 const profileToplevelPill = mountSlidingPill(document.querySelector(".profile-manage-toplevel-tabs"), "slide-pill-profile-toplevel");
 function updateProfileToplevelPill(instant) {
   const active = document.querySelector(".profile-manage-toplevel-tab.is-active:not([hidden])");
@@ -7472,164 +9843,36 @@ async function openProfileList() {
   if (toplevelTabsEl) toplevelTabsEl.hidden = false;
   profileListBody.hidden = false;
   profileEditBody.hidden = true;
-  document.getElementById("preset-manage-body").hidden = true;
   document.querySelectorAll(".profile-manage-toplevel-tab").forEach((t) => t.classList.toggle("is-active", t.dataset.toplevel === "profiles"));
   requestAnimationFrame(() => updateProfileToplevelPill(true));
 
-  // 프리셋은 관리자(개발자 계정)만 만들 수 있어서, "프리셋 관리" 탭 자체를 일반 유저에게는 숨김
-  // (프리셋을 고르는 건 새 프로필 만들기 화면에서 계속 다 할 수 있음 - 여긴 "만들기" 전용 탭)
-  const isAdminUser = !!(await window.luna.isAdmin?.());
-  const presetTabBtn = document.querySelector('.profile-manage-toplevel-tab[data-toplevel="presets"]');
-  if (presetTabBtn) presetTabBtn.hidden = !isAdminUser;
-  // 24-11차: "이 화면 우측 상단에 '내 프로필' 표시가 왜 있는 거야" - 일반 유저는 "프리셋
-  // 관리" 탭이 없어서 "내 프로필" 하나만 덩그러니 떠 있었음(이미 이 화면 자체가 "내
-  // 프로필" 목록이라 의미 중복). 전환할 다른 탭이 있는 관리자만 이 탭 묶음을 보여줌
-  if (toplevelTabsEl) toplevelTabsEl.hidden = !isAdminUser;
+  // 24-11차: "내 프로필" 탭 하나만 덩그러니 뜨면 이 화면 자체와 의미가 중복됨 -
+  // 프리셋 기능 삭제로 전환할 다른 탭이 없어져서 이제 누구에게나 탭 묶음을 숨김
+  if (toplevelTabsEl) toplevelTabsEl.hidden = true;
 
-  lastManageProfilesData = await window.luna.listProfiles();
+  lastManageProfilesData = await window.nova.listProfiles();
   renderProfileManageGrid();
 
   showAppPanel("view-profile-manage");
 }
 
-// ---- 16-2(4차): 독립된 "프리셋 관리" 화면 -------------------------------------
-async function openPresetManage(preselectProfileId = null) {
-  // 방어적 체크: 탭/버튼은 숨겨두지만, 혹시 모를 경로로 호출되더라도 관리자가 아니면
-  // 여기서 한 번 더 막고 "내 프로필" 화면으로 되돌림
-  if (!(await window.luna.isAdmin?.())) {
-    showToast("프리셋 관리는 관리자만 사용할 수 있어요.");
-    openProfileList();
-    return;
-  }
-
-  // 14차: "프리셋 관리" 탭과 같은 뜻을 반복하던 타이틀도 이 화면에선 숨김
-  document.getElementById("profile-manage-title").hidden = true;
-  // 22차: 편집 화면에서 넘어올 때 숨겼던 상위 탭을 다시 보이게 함
-  document.querySelector(".profile-manage-toplevel-tabs").hidden = false;
-  profileListBody.hidden = true;
-  profileEditBody.hidden = true;
-  document.getElementById("preset-manage-body").hidden = false;
-  document.querySelectorAll(".profile-manage-toplevel-tab").forEach((t) => t.classList.toggle("is-active", t.dataset.toplevel === "presets"));
-  requestAnimationFrame(() => updateProfileToplevelPill(true));
-
-  const sourceSelect = document.getElementById("preset-create-source");
-  const allProfiles = await window.luna.listProfiles();
-  // 24-11차: "프리셋은 Fabric 프로필로만 만들 수 있어야지, 바닐라 같은 걸로 만들면 안 되지" -
-  // 로더가 없으면(예전 프로필) Fabric으로 간주하고, 그 외 로더(Vanilla/Forge/NeoForge)
-  // 프로필은 프리셋 소스 목록에서 아예 제외함
-  const profiles = allProfiles.filter((p) => (p.loader || "fabric") === "fabric");
-  sourceSelect.innerHTML = profiles.length
-    ? profiles.map((p) => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.mcVersion)})</option>`).join("")
-    : `<option value="">Fabric 프로필이 없어요 - 먼저 만들어주세요</option>`;
-  if (preselectProfileId) sourceSelect.value = preselectProfileId;
-
-  const catPicker = document.getElementById("preset-create-category-picker");
-  const categories = (await window.luna.presetCategories?.()) || ["PVP", "야생", "마인팜", "최적화", "낭만"];
-  catPicker.innerHTML = categories
-    .map((c, i) => `<button type="button" class="preset-category-chip${i === 0 ? " is-active" : ""}" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`)
-    .join("");
-  catPicker.querySelectorAll(".preset-category-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      catPicker.querySelectorAll(".preset-category-chip").forEach((c) => c.classList.remove("is-active"));
-      chip.classList.add("is-active");
-    });
-  });
-
-  document.getElementById("preset-create-name").value = "";
-  document.getElementById("preset-create-include-resourcepack").checked = false;
-  document.getElementById("preset-create-include-shader").checked = false;
-
-  await renderPresetManageList();
-  showAppPanel("view-profile-manage");
-}
-
-async function renderPresetManageList() {
-  const listEl = document.getElementById("preset-manage-list");
-  const presets = await window.luna.listPresets();
-  listEl.innerHTML = "";
-  if (presets.length === 0) {
-    listEl.innerHTML = `<div class="mini-list-empty">아직 만든 프리셋이 없어요.</div>`;
-    return;
-  }
-  presets.forEach((p) => {
-    const row = document.createElement("div");
-    row.className = "preset-manage-row";
-    const n = (p.availableMcVersions || [p.mcVersion]).length;
-    row.innerHTML = `
-      <span class="preset-manage-row-category">${escapeHtml(p.category || "-")}</span>
-      <div class="preset-manage-row-info">
-        <div class="preset-manage-row-name">${escapeHtml(p.name)}</div>
-        <div class="preset-manage-row-meta">원본 ${escapeHtml(p.mcVersion)} · ${n}개 버전 지원${(() => {
-          const rp = p.includeResourcepack !== undefined ? p.includeResourcepack : p.includeOptional;
-          const sh = p.includeShader !== undefined ? p.includeShader : p.includeOptional;
-          const parts = [];
-          if (rp) parts.push("리소스팩");
-          if (sh) parts.push("쉐이더");
-          return parts.length ? ` · ${parts.join("/")} 포함` : "";
-        })()}</div>
-      </div>
-      <button type="button" class="btn btn-danger-filled btn-small">삭제</button>
-    `;
-    row.querySelector("button").addEventListener("click", async () => {
-      const confirmed = await showConfirm(`"${p.name}" 프리셋을 삭제할까요?`, "삭제", "취소");
-      if (!confirmed) return;
-      const res = await window.luna.deletePreset(p.id);
-      if (res.ok) {
-        showToast("프리셋을 삭제했어요");
-        renderPresetManageList();
-      } else {
-        showToast(res.error || "삭제 실패", "error");
-      }
-    });
-    listEl.appendChild(row);
-  });
-}
-
-document.getElementById("btn-preset-create-submit")?.addEventListener("click", async () => {
-  const profileId = document.getElementById("preset-create-source").value;
-  const name = document.getElementById("preset-create-name").value.trim();
-  const category = document.getElementById("preset-create-category-picker").querySelector(".preset-category-chip.is-active")?.dataset.category;
-  const includeResourcepack = document.getElementById("preset-create-include-resourcepack").checked;
-  const includeShader = document.getElementById("preset-create-include-shader").checked;
-  if (!profileId) {
-    showToast("소스로 쓸 프로필이 없어요", "error");
-    return;
-  }
-  if (!name) {
-    showToast("프리셋 이름을 입력해주세요", "error");
-    return;
-  }
-  const btn = document.getElementById("btn-preset-create-submit");
-  await withBusyButton(btn, "만드는 중...", async () => {
-    const res = await window.luna.createPreset(profileId, name, category, includeResourcepack, includeShader);
-    if (res.ok) {
-      showToast(`"${res.preset.name}" 프리셋을 만들었어요. 다른 버전용은 백그라운드에서 자동으로 계산돼요`);
-      document.getElementById("preset-create-name").value = "";
-      await renderPresetManageList();
-    } else {
-      showToast(res.error || "프리셋 생성 실패", "error");
-    }
-  });
-});
-
 document.querySelectorAll(".profile-manage-toplevel-tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    if (tab.dataset.toplevel === "presets") openPresetManage();
-    else openProfileList();
+    openProfileList();
   });
 });
 
 async function openProfileEdit(profileId) {
-  const profiles = await window.luna.listProfiles();
+  const profiles = await window.nova.listProfiles();
   const profile = profiles.find((p) => p.id === profileId);
   if (!profile) return;
   managingProfileId = profileId;
   currentEditProfile = profile;
 
-  // 22차: "프로필 수정에서 이름이랑 이거(내 프로필/프리셋 관리 탭) 없애고 위로 올려" -
+  // 22차: "프로필 수정에서 이름이랑 이거(내 프로필 탭) 없애고 위로 올려" -
   // 14차 때는 이 타이틀이 "지금 어떤 프로필을 편집 중인지" 알려주는 유일한 표시였는데, 지금은
   // 히어로 행의 이름 입력칸(#manage-profile-name-input)이 이미 그 역할을 하고 있어서 중복임.
-  // 목록/프리셋관리 화면과 공유하는 상위 탭도 편집 중엔 뜰 이유가 없으므로 같이 숨기고,
+  // 목록 화면과 공유하는 상위 탭도 편집 중엔 뜰 이유가 없으므로 같이 숨기고,
   // 그만큼 위쪽 여백도 접혀서(.modal-header:has 규칙, style.css) 본문이 위로 당겨짐
   const titleEl = document.getElementById("profile-manage-title");
   titleEl.hidden = true;
@@ -7637,11 +9880,6 @@ async function openProfileEdit(profileId) {
   document.querySelector(".profile-manage-toplevel-tabs").hidden = true;
   profileListBody.hidden = true;
   profileEditBody.hidden = false;
-  document.getElementById("preset-manage-body").hidden = true;
-
-  // "프리셋 관리에서 이 구성으로 만들기" 버튼도 프리셋 생성이 관리자 전용이라서 같이 숨김
-  const gotoPresetBtn = document.getElementById("btn-manage-profile-goto-preset");
-  if (gotoPresetBtn) gotoPresetBtn.hidden = !(await window.luna.isAdmin?.());
 
   const nameInputEl = document.getElementById("manage-profile-name-input");
   nameInputEl.value = profile.name;
@@ -7650,6 +9888,9 @@ async function openProfileEdit(profileId) {
   // 이름을 바꾸고 blur해도 왜 그대로인지 알 수 없었음. 아예 읽기 전용으로 잠그고 이유를 알려줌
   nameInputEl.readOnly = !!profile.isDefault;
   nameInputEl.title = profile.isDefault ? "기본 프로필은 이름을 바꿀 수 없어요" : "";
+  // 24-188차: 이름을 바꿀 수 있을 때만 연필을 보여준다(기본 프로필은 위에서 읽기 전용)
+  const namePenEl = document.getElementById("btn-manage-profile-name-edit");
+  if (namePenEl) namePenEl.hidden = !!profile.isDefault;
   document.getElementById("manage-profile-icon-preview").src = profile.iconUrl || "";
 
   // 5-10(7차): 참고 스크린샷처럼 부제 한 줄에 로더/버전 · 마지막 플레이를 같이 표시
@@ -7704,14 +9945,60 @@ async function openProfileEdit(profileId) {
 }
 
 // 1-11: 모드/리소스팩/쉐이더 탭 전환
+// 24-147차: 리소스팩/쉐이더팩 탭에 처음 들어갔을 때 딱 한 번만 뜨는 안내.
+// 둘을 합쳐서 한 번이며, 본 표시는 앱 설정(config.json)에 남김 - localStorage 와 달리
+// 프로필/설정과 같은 곳에 저장돼서 런처를 지웠다 깔아도 그대로 유지됨
+let packNoticeShowing = false;
+
+async function maybeShowPackApplyNotice() {
+  if (packNoticeShowing) return;
+  packNoticeShowing = true;
+  try {
+    const s = await window.nova.getSettings();
+    if (s?.packNoticeSeen) return;
+
+    await window.nova.setSettings({ packNoticeSeen: true });
+    await showConfirm(
+      "<b>리소스팩과 쉐이더팩은 이렇게 동작해요</b><br><br>" +
+        "여기서 <b>활성화</b>해두면, 게임을 켤 때 그 팩이 <b>게임에서도 자동으로 켜져요</b>.<br>" +
+        "게임 안에서 따로 고르지 않아도 돼요.<br><br>" +
+        "쉐이더는 한 번에 하나만 켜지니, 여러 개를 활성화하면 맨 위 하나가 적용돼요.<br><br>" +
+        "이 동작이 싫으면 <b>설정 &gt; 클라이언트 &gt; 시작할 때 리소스팩·쉐이더 자동 적용</b>을 꺼주세요.",
+      "알겠어요",
+      "닫기"
+    );
+  } catch (_) {
+    /* 안내를 못 띄워도 목록 사용에는 지장 없음 */
+  } finally {
+    packNoticeShowing = false;
+  }
+}
+
 function setProfileFileTab(tab) {
   document.querySelectorAll(".profile-file-tab").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.tab === tab);
   });
   // 17차: "전체" 탭 추가 - 다른 3개 종류 패널과 같은 방식으로 보이기/숨기기 토글
+  // 24-143차: "프로필에서 전체, 모드, 리팩, 쉐이더 바꿀 때 에니메이션좀 넣어주고" -
+  // 친구창 탭(showFriendsTab, 24-56차)이 쓰던 .is-tab-entering 방식을 그대로 재사용함.
+  // [hidden]은 display:none이라 트랜지션이 안 먹으므로 hidden을 먼저 풀고 클래스를 다시
+  // 붙이고, void offsetWidth로 리플로우를 강제해 같은 탭을 연달아 눌러도 매번 재생되게 함
+  // 24-147차: "이 리소스팩이나 쉐이더 둘중 하나를 처음 들어가면 얘는 활성화 대신 이러이러하다
+  // 라고 앞에 창으로 알려주고 1번만 알려주면 돼 딱 두개 합쳐서"
+  if (tab === "resourcepacks" || tab === "shaderpacks") maybeShowPackApplyNotice();
+
   ["all", "mods", "resourcepacks", "shaderpacks"].forEach((kind) => {
     const panel = document.getElementById(`profile-file-panel-${kind}`);
-    if (panel) panel.hidden = kind !== tab;
+    if (!panel) return;
+    if (kind === tab) {
+      panel.hidden = false;
+      panel.classList.remove("is-tab-entering");
+      void panel.offsetWidth;
+      panel.classList.add("is-tab-entering");
+    } else {
+      panel.hidden = true;
+      panel.classList.remove("is-tab-entering");
+    }
   });
   // 14차: "파일 업로드/모드 추가는 검색 옆으로, 이름순/전체선택/새로고침은 탭 옆으로" -
   // 종류별 버튼 묶음을 패널 밖(검색줄/탭줄)으로 옮기면서, 패널과 같이 자동으로 숨겨지지
@@ -7737,29 +10024,42 @@ document.querySelectorAll(".profile-file-tab").forEach((btn) => {
 // 1-14: 업데이트 가능한 모드가 있을 때만 "전체 업데이트" 버튼 자체를 보여줌
 // 10차: 예전엔 버튼이 항상 떠 있고 초록 점만 붙었는데, "업데이트도 있을 때에만 뜨고"라는
 // 피드백으로 없을 땐 버튼 자체를 숨김
+// 24-114차: "전체 > 모드로 가면서 갑자기 없던 전체 업데이트가 생기면서 버튼이 밀림"
+// 예전엔 확인을 시작할 때 버튼을 먼저 숨기고(hidden=true) 응답이 오면 다시 보여줘서, 탭을
+// 오갈 때마다 버튼이 사라졌다 나타났다 했음. 이제 확인이 끝난 뒤에만 상태를 바꿔서 깜빡임이
+// 없음(줄 안에서 위치가 밀리는 문제는 style.css의 탭 줄 3등분 규칙으로 따로 잡음).
+// 확인에 실패하면 마지막 상태를 그대로 둠.
 async function refreshModsUpdateIndicator() {
   const btn = document.getElementById("btn-manage-mods-update");
   if (!btn) return;
-  btn.hidden = true;
   try {
-    const updates = await window.luna.exploreCheckUpdates(managingProfileId, "mods");
-    if (updates.length > 0) btn.hidden = false;
+    const updates = await window.nova.exploreCheckUpdates(managingProfileId, "mods");
+    btn.hidden = !(updates && updates.length > 0);
   } catch (_) {}
 }
 
 document.getElementById("btn-profile-edit-back")?.addEventListener("click", openProfileList);
+
+// 24-188차: 이름 옆 연필 - 누르면 입력칸을 잡고 전체 선택해서 바로 고쳐 쓸 수 있게 함
+// (저장은 아래 blur 핸들러가 그대로 담당)
+document.getElementById("btn-manage-profile-name-edit")?.addEventListener("click", () => {
+  const el = document.getElementById("manage-profile-name-input");
+  if (!el || el.readOnly) return;
+  el.focus();
+  el.select();
+});
 
 // 5-10(7차): 이름 입력창은 이제 헤더에 인라인으로만 있고 따로 "저장" 버튼이 없으므로,
 // 포커스를 벗어날 때(blur) 바뀐 값만 조용히 저장함
 document.getElementById("manage-profile-name-input")?.addEventListener("blur", async (e) => {
   const name = e.target.value.trim();
   if (!name || !managingProfileId || name === currentEditProfile?.name) return;
-  const res = await window.luna.updateProfile({ id: managingProfileId, name });
+  const res = await window.nova.updateProfile({ id: managingProfileId, name });
   if (res.ok) {
     currentEditProfile = res.profile;
     document.getElementById("profile-manage-title").textContent = res.profile.name;
     if (profileChipName) {
-      window.luna.listProfiles().then((profiles) => {
+      window.nova.listProfiles().then((profiles) => {
         const sel = profiles.find((p) => p.selected);
         if (sel && sel.id === managingProfileId) profileChipName.textContent = res.profile.name;
       });
@@ -7789,11 +10089,11 @@ document.addEventListener("click", (e) => {
 });
 document.getElementById("btn-hero-open-folder")?.addEventListener("click", () => {
   profileHeroKebabMenu.hidden = true;
-  window.luna.openProfileFolder?.(managingProfileId);
+  window.nova.openProfileFolder?.(managingProfileId);
 });
 document.getElementById("btn-hero-shortcut")?.addEventListener("click", async () => {
   profileHeroKebabMenu.hidden = true;
-  const res = await window.luna.createProfileShortcut(managingProfileId);
+  const res = await window.nova.createProfileShortcut(managingProfileId);
   if (res.ok) {
     // 5-8(5차): 프로필 아이콘을 못 쓰고 기본 앱 아이콘으로 폴백한 경우(형식 문제/256px 초과 등)
     // 조용히 넘어가지 않고 이유를 같이 알려줌
@@ -7814,7 +10114,7 @@ document.getElementById("btn-hero-export-modpack")?.addEventListener("click", as
   const btn = document.getElementById("btn-hero-export-modpack");
   if (!managingProfileId) return;
   await withBusyButton(btn, "내보내는 중...", async () => {
-    const res = await window.luna.exportModpack(managingProfileId);
+    const res = await window.nova.exportModpack(managingProfileId);
     if (res.canceled) return;
     if (res.ok) {
       showToast(`모드팩으로 내보냈어요 (${res.linkedCount + res.bundledCount}개 파일)`);
@@ -7849,7 +10149,7 @@ document.querySelectorAll(".profile-settings-nav-item").forEach((btn) => {
 
 async function openProfileSettingsModal() {
   if (!managingProfileId) return;
-  const profile = currentEditProfile || (await window.luna.listProfiles()).find((p) => p.id === managingProfileId);
+  const profile = currentEditProfile || (await window.nova.listProfiles()).find((p) => p.id === managingProfileId);
   if (!profile) return;
   currentEditProfile = profile;
 
@@ -7883,7 +10183,7 @@ async function openProfileSettingsModal() {
     javaInfoEl.removeAttribute("title");
     delete javaInfoEl.dataset.copyValue;
     javaInfoEl.textContent = "확인하는 중...";
-    window.luna.getJavaInfo().then((list) => {
+    window.nova.getJavaInfo().then((list) => {
       const entry = (list || []).find((e) => (e.mcVersions || []).includes(profile.mcVersion));
       if (!entry) {
         javaInfoEl.textContent = "정보 없음";
@@ -7904,7 +10204,7 @@ async function openProfileSettingsModal() {
   const diskEl = document.getElementById("manage-profile-disk-usage");
   if (diskEl) {
     diskEl.textContent = "계산하는 중...";
-    window.luna.getProfileFolderSize(managingProfileId).then((bytes) => {
+    window.nova.getProfileFolderSize(managingProfileId).then((bytes) => {
       diskEl.textContent = formatBytes(bytes);
     }).catch(() => { diskEl.textContent = "계산 실패"; });
   }
@@ -7949,7 +10249,7 @@ document.getElementById("btn-profile-settings-save")?.addEventListener("click", 
     if (syncCheckbox && !document.getElementById("manage-profile-updatesync-row").hidden) {
       partial.updateSync = syncCheckbox.checked;
     }
-    const res = await window.luna.updateProfile(partial);
+    const res = await window.nova.updateProfile(partial);
     if (res.ok) {
       currentEditProfile = res.profile;
       showToast("저장했어요");
@@ -7959,48 +10259,297 @@ document.getElementById("btn-profile-settings-save")?.addEventListener("click", 
     }
   });
 });
-document.getElementById("btn-manage-profile-refresh-share")?.addEventListener("click", async () => {
-  const btn = document.getElementById("btn-manage-profile-refresh-share");
-  await withBusyButton(btn, "갱신 중...", async () => {
-    const res = await window.luna.refreshShareProfile(managingProfileId);
-    if (res.ok) showToast("공유 코드에 지금 구성을 다시 올렸어요");
-    else showToast(res.error || "갱신 실패", "error");
-  });
+// 24-100차: "변경 사항 올리기"는 바로 올리지 않고 공유 창을 열어 옵션/알림 여부를 고르게 함
+document.getElementById("btn-manage-profile-refresh-share")?.addEventListener("click", () => {
+  openProfileShareModal();
 });
 
 // ---- 5-13(7차): 프로필 공유 - 작은 중앙 모달 -------------------------------------------
 const profileShareOverlay = document.getElementById("profile-share-overlay");
+// 24-100차: 옵션을 고르고 → [공유 코드 만들기] / 이미 공유했으면 코드 + [변경 사항 올리기]
+let profileShareState = null; // { profileId, shareCode }
 async function openProfileShareModal() {
   if (!managingProfileId) return;
-  const profile = currentEditProfile || (await window.luna.listProfiles()).find((p) => p.id === managingProfileId);
+  const profileId = managingProfileId;
   const blockedNote = document.getElementById("profile-share-blocked-note");
   const loadingEl = document.getElementById("profile-share-loading");
   const bodyEl = document.getElementById("profile-share-body");
+  const optsEl = document.getElementById("profile-share-options");
+  const submitBtn = document.getElementById("btn-profile-share-submit");
   profileShareOverlay.hidden = false;
-
-  if (profile?.fromPreset) {
-    blockedNote.textContent = "프리셋으로 만든 프로필은 공유할 수 없어요";
-    blockedNote.hidden = false;
-    loadingEl.hidden = true;
-    bodyEl.hidden = true;
-    return;
-  }
   blockedNote.hidden = true;
   bodyEl.hidden = true;
+  optsEl.hidden = true;
+  submitBtn.hidden = true;
+  loadingEl.textContent = wgT("profile_share_loading_info", "불러오는 중...");
   loadingEl.hidden = false;
 
-  const res = await window.luna.shareProfile(managingProfileId);
+  const info = await window.nova.shareInfo?.(profileId).catch(() => null);
   loadingEl.hidden = true;
-  if (res.ok) {
-    bodyEl.hidden = false;
-    document.getElementById("profile-share-code").textContent = res.code;
-    if (!res.reused) showToast("공유 코드를 만들었어요");
-    if (currentEditProfile) currentEditProfile.shareCode = res.code;
-  } else {
+  if (!info?.ok) {
     blockedNote.hidden = false;
-    blockedNote.textContent = res.error || "공유 코드를 만들지 못했어요";
+    blockedNote.textContent = info?.error || "공유 정보를 불러오지 못했어요";
+    return;
   }
+  if (info.blocked) {
+    blockedNote.hidden = false;
+    blockedNote.textContent = info.blocked;
+    return;
+  }
+  profileShareState = { profileId, shareCode: info.shareCode };
+  renderProfileShareModal(info);
 }
+
+function renderProfileShareModal(info) {
+  const bodyEl = document.getElementById("profile-share-body");
+  const optsEl = document.getElementById("profile-share-options");
+  const submitBtn = document.getElementById("btn-profile-share-submit");
+  const shared = !!profileShareState?.shareCode;
+
+  bodyEl.hidden = !shared;
+  if (shared) {
+    document.getElementById("profile-share-code").textContent = profileShareState.shareCode;
+    const lastEl = document.getElementById("profile-share-last");
+    lastEl.hidden = !info.lastUploadedAt;
+    if (info.lastUploadedAt) {
+      lastEl.textContent = wgT("profile_share_last", `마지막으로 올린 때: ${formatRelativeTime(info.lastUploadedAt)}`, { when: formatRelativeTime(info.lastUploadedAt) });
+    }
+  }
+
+  optsEl.hidden = false;
+  // 24-227차: 노바 모드 설정 공유 항목 제거 - 늘 꺼진 가짜 체크박스로 둔다
+  const modSettingsCb = { checked: false };
+  const configsCb = document.getElementById("profile-share-opt-configs");
+  configsCb.checked = !!info.shareOptions?.configs;
+  // 실을 게 없으면 체크해도 의미가 없어서 막아둠
+  const setCount = (el, cb, n) => {
+    el.textContent = n > 0 ? wgT("profile_share_files_count", `${n}개`, { n }) : wgT("profile_share_none", "없음");
+    cb.disabled = n === 0;
+    if (n === 0) cb.checked = false;
+    cb.closest(".profile-share-opt")?.classList.toggle("is-empty", n === 0);
+  };
+  setCount(document.getElementById("profile-share-count-configs"), configsCb, info.configCount || 0);
+
+  // 24-105차: 업데이트 공유(저장된 값, 기본 켬). 이번에 올릴 때 알릴지는 켜져 있을 때만 보임
+  const updatesCb = document.getElementById("profile-share-opt-updates");
+  updatesCb.checked = info.shareOptions?.updates !== false;
+  const syncNotifyRow = () => {
+    document.getElementById("profile-share-notify-row").hidden = !shared || !updatesCb.checked;
+  };
+  updatesCb.onchange = syncNotifyRow;
+  syncNotifyRow();
+  document.getElementById("profile-share-opt-notify").checked = true;
+
+  submitBtn.hidden = false;
+  // 24-225차: 이미 공유 중이면 설정을 바꿔 "새 코드로 다시 만들기"(옛 코드는 무효)
+  //           + 그대로 두고 파일만 갱신하는 "변경 사항 올리기"는 설정이 같을 때만
+  const savedOpts = {
+    modSettings: false,
+    configs: !!info.shareOptions?.configs,
+    updates: info.shareOptions?.updates !== false,
+  };
+  profileShareState.savedOpts = savedOpts;
+  const sameAsSaved = () =>
+    modSettingsCb.checked === savedOpts.modSettings &&
+    configsCb.checked === savedOpts.configs &&
+    updatesCb.checked === savedOpts.updates;
+  const syncSubmitLabel = () => {
+    submitBtn.textContent = !shared
+      ? wgT("profile_share_create_btn", "공유 코드 만들기")
+      : sameAsSaved()
+        ? wgT("profile_share_push_btn", "변경 사항 올리기")
+        : wgT("profile_share_reissue_btn", "새 코드 만들기");
+  };
+  configsCb.onchange = syncSubmitLabel;
+  updatesCb.onchange = () => {
+    syncNotifyRow();
+    syncSubmitLabel();
+  };
+  syncSubmitLabel();
+  document.getElementById("btn-profile-share-off").hidden = !shared;
+}
+
+// 24-225차: 공유 끄기 - 코드와 올린 파일을 모두 지운다
+document.getElementById("btn-profile-share-off")?.addEventListener("click", async () => {
+  if (!profileShareState?.shareCode) return;
+  const ok = await showConfirm("공유 코드를 지울까요? 이 코드로는 더 이상 받을 수 없어요.", "공유 끄기", "취소");
+  if (!ok) return;
+  const res = await window.nova.shareOff?.(profileShareState.profileId);
+  if (!res?.ok) {
+    showToast(res?.error || "지우지 못했어요", "error");
+    return;
+  }
+  showToast("공유를 껐어요");
+  profileShareState.shareCode = null;
+  if (currentEditProfile && currentEditProfile.id === profileShareState.profileId) currentEditProfile.shareCode = null;
+  const info = await window.nova.shareInfo(profileShareState.profileId).catch(() => null);
+  if (info?.ok) renderProfileShareModal(info);
+});
+
+document.getElementById("btn-profile-share-submit")?.addEventListener("click", async () => {
+  if (!profileShareState) return;
+  const { profileId, shareCode } = profileShareState;
+  const btn = document.getElementById("btn-profile-share-submit");
+  const options = {
+    modSettings: false,
+    configs: document.getElementById("profile-share-opt-configs").checked,
+    updates: document.getElementById("profile-share-opt-updates").checked, // 24-105차
+  };
+  await withBusyButton(btn, shareCode ? "올리는 중..." : "만드는 중...", async () => {
+    let res;
+    // 24-225차: 설정이 바뀌었으면 옛 코드를 지우고 새 코드를 낸다
+    const saved = profileShareState.savedOpts;
+    const changed =
+      !!shareCode &&
+      saved &&
+      (saved.modSettings !== options.modSettings || saved.configs !== options.configs || saved.updates !== options.updates);
+    if (changed) {
+      const ok = await showConfirm("설정을 바꾸면 새 코드가 만들어지고 지금 코드는 쓸 수 없게 돼요.", "새 코드 만들기", "취소");
+      if (!ok) return;
+      res = await window.nova.shareReissue?.(profileId, options);
+      if (res?.ok) {
+        showToast(`새 코드: ${res.code}`);
+        profileShareState.shareCode = res.code;
+        if (currentEditProfile && currentEditProfile.id === profileId) currentEditProfile.shareCode = res.code;
+      }
+    } else if (shareCode) {
+      const notify = options.updates && document.getElementById("profile-share-opt-notify").checked;
+      res = await window.nova.refreshShareProfile(profileId, { options, notify });
+      if (res?.ok) {
+        showToast(notify
+          ? wgT("profile_share_pushed_notify", "변경 사항을 올리고 받은 사람들에게 알렸어요")
+          : wgT("profile_share_pushed_silent", "변경 사항을 올렸어요(알림은 보내지 않음)"));
+      }
+    } else {
+      res = await window.nova.shareProfile(profileId, options);
+      if (res?.ok) {
+        showToast("공유 코드를 만들었어요");
+        profileShareState.shareCode = res.code;
+        if (currentEditProfile && currentEditProfile.id === profileId) currentEditProfile.shareCode = res.code;
+        const refreshBtn = document.getElementById("btn-manage-profile-refresh-share");
+        if (refreshBtn) refreshBtn.hidden = false;
+      }
+    }
+    if (!res?.ok) {
+      showToast(res?.error || "공유하지 못했어요", "error");
+      return;
+    }
+    if (res.skippedConfigs > 0) {
+      showToast(wgT("profile_share_skipped_configs", `크기 제한으로 빠진 컨피그 파일 ${res.skippedConfigs}개`, { n: res.skippedConfigs }));
+    }
+    const info = await window.nova.shareInfo(profileId).catch(() => null);
+    if (info?.ok) renderProfileShareModal(info);
+  });
+});
+
+// ---- 24-100차: 공유받은 프로필 업데이트 알림 ---------------------------------------
+// 앱 시작 때 + 10분마다 확인. 새 버전이 있으면 프로필마다 하나씩 창을 띄워 고르게 함.
+// "나중에"는 이번 실행 동안만 다시 안 묻고(다음 실행 때 또 물음), "건너뛰기"는 그 버전을 본
+// 것으로 저장(다음 업데이트 신호부터 다시 물음).
+const shareUpdateLaterKeys = new Set(); // `${profileId}@${updatedAt}`
+let shareUpdateQueue = [];
+let shareUpdateShowing = null;
+let shareUpdateTimer = null;
+
+async function checkSharedProfileUpdates() {
+  const res = await window.nova.checkShareUpdates?.().catch(() => null);
+  if (!res?.ok || !Array.isArray(res.pending)) return;
+  for (const u of res.pending) {
+    const key = `${u.profileId}@${u.updatedAt}`;
+    if (shareUpdateLaterKeys.has(key)) continue;
+    if (shareUpdateShowing && shareUpdateShowing.profileId === u.profileId) continue;
+    shareUpdateQueue = shareUpdateQueue.filter((q) => q.profileId !== u.profileId);
+    shareUpdateQueue.push(u);
+  }
+  showNextShareUpdate();
+}
+function startSharedProfileUpdateWatch() {
+  checkSharedProfileUpdates();
+  if (!shareUpdateTimer) shareUpdateTimer = setInterval(checkSharedProfileUpdates, 10 * 60 * 1000);
+}
+
+function shareUpdateChangesHtml(u) {
+  const d = u.diff || {};
+  const kinds = [
+    ["mods", wgT("share_update_kind_mods", "모드")],
+    ["resourcepacks", wgT("share_update_kind_rp", "리소스팩")],
+    ["shaderpacks", wgT("share_update_kind_shaders", "쉐이더")],
+  ];
+  const rows = [];
+  if (u.mcVersionChanged) {
+    rows.push(`<div class="share-update-row is-version">${escapeHtml(wgT("share_update_version", `마인크래프트 버전: ${u.fromVersion} → ${u.mcVersion}`, { from: u.fromVersion, to: u.mcVersion }))}</div>`);
+  }
+  if (d.knownPrev) {
+    for (const [k, label] of kinds) {
+      const add = d.added?.[k] || [];
+      const rem = d.removed?.[k] || [];
+      if (!add.length && !rem.length) continue;
+      const chips = [
+        ...add.map((f) => `<span class="share-update-chip is-add">+ ${escapeHtml(f)}</span>`),
+        ...rem.map((f) => `<span class="share-update-chip is-rem">− ${escapeHtml(f)}</span>`),
+      ].join("");
+      rows.push(`<div class="share-update-row"><div class="share-update-row-label">${escapeHtml(label)} <small>+${add.length} / −${rem.length}</small></div><div class="share-update-chips">${chips}</div></div>`);
+    }
+  } else {
+    rows.push(`<div class="share-update-row">${escapeHtml(wgT("share_update_unknown", "파일 구성이 바뀌었어요(이 프로필은 예전 방식으로 받아서 자세한 변경 내역을 몰라요)"))}</div>`);
+  }
+  if (d.novaSettingsChanged) rows.push(`<div class="share-update-row is-setting">${escapeHtml(wgT("share_update_modsettings", "노바 모드 설정이 바뀌어요(내 노바 모드 설정을 덮어써요)"))}</div>`);
+  if (d.configsChanged) rows.push(`<div class="share-update-row is-setting">${escapeHtml(wgT("share_update_configs", "모드 컨피그 파일이 바뀌어요(같은 이름의 내 설정 파일을 덮어써요)"))}</div>`);
+  if (!rows.length) rows.push(`<div class="share-update-row">${escapeHtml(wgT("share_update_nothing", "파일 목록은 그대로고 파일 내용이 바뀌었어요"))}</div>`);
+  return rows.join("");
+}
+
+function showNextShareUpdate() {
+  const overlay = document.getElementById("share-update-overlay");
+  if (!overlay || shareUpdateShowing || !shareUpdateQueue.length) return;
+  const u = shareUpdateQueue.shift();
+  shareUpdateShowing = u;
+  document.getElementById("share-update-title").textContent =
+    wgT("share_update_title", `"${u.profileName}" 프로필에 업데이트가 있어요`, { name: u.profileName });
+  document.getElementById("share-update-sub").textContent = u.author
+    ? wgT("share_update_sub", `${u.author}님이 공유한 구성이 바뀌었어요. 받을지 골라주세요.`, { author: u.author })
+    : wgT("share_update_sub_noauthor", "공유된 구성이 바뀌었어요. 받을지 골라주세요.");
+  document.getElementById("share-update-changes").innerHTML = shareUpdateChangesHtml(u);
+  const warn = document.getElementById("share-update-warn");
+  warn.hidden = !u.diff?.knownPrev;
+  warn.textContent = wgT("share_update_keep_mine", "내가 직접 넣은 모드는 그대로 남아요");
+  overlay.hidden = false;
+}
+function closeShareUpdate() {
+  document.getElementById("share-update-overlay").hidden = true;
+  shareUpdateShowing = null;
+  setTimeout(showNextShareUpdate, 250);
+}
+document.getElementById("btn-share-update-later")?.addEventListener("click", () => {
+  const u = shareUpdateShowing;
+  if (u) shareUpdateLaterKeys.add(`${u.profileId}@${u.updatedAt}`);
+  closeShareUpdate();
+});
+document.getElementById("btn-share-update-skip")?.addEventListener("click", async () => {
+  const u = shareUpdateShowing;
+  if (u) {
+    await window.nova.skipShareUpdate?.(u.profileId, u.updatedAt).catch(() => {});
+    showToast(wgT("share_update_skipped", "이번 업데이트는 건너뛰었어요"));
+  }
+  closeShareUpdate();
+});
+document.getElementById("btn-share-update-apply")?.addEventListener("click", async () => {
+  const u = shareUpdateShowing;
+  if (!u) return;
+  const btn = document.getElementById("btn-share-update-apply");
+  await withBusyButton(btn, "업데이트 중...", async () => {
+    const res = await window.nova.applyShareUpdate(u.profileId).catch((e) => ({ ok: false, error: String(e) }));
+    if (!res?.ok) {
+      // 게임 실행 중 등 - 창은 닫고 이번 실행 동안은 다시 안 물음(다음 확인 때 다시)
+      showToast(res?.error || "업데이트하지 못했어요", "error");
+      return;
+    }
+    showToast(wgT("share_update_done", `"${u.profileName}" 프로필을 업데이트했어요`, { name: u.profileName }));
+    closeShareUpdate();
+    refreshLaunchTargetLists?.().catch?.(() => {});
+  });
+});
+
 document.getElementById("btn-profile-share-close")?.addEventListener("click", () => { profileShareOverlay.hidden = true; });
 document.getElementById("btn-profile-share-copy")?.addEventListener("click", async () => {
   const code = document.getElementById("profile-share-code").textContent;
@@ -8014,7 +10563,7 @@ document.getElementById("btn-profile-share-copy")?.addEventListener("click", asy
 });
 
 // 10-3: 바로가기로 앱이 켜지거나(이미 켜져 있는데 바로가기를 또 눌렀을 때) 프로필이 자동으로 바뀌면 화면도 맞춰줌
-window.luna.onProfileSelectedExternally?.(async () => {
+window.nova.onProfileSelectedExternally?.(async () => {
   // 24-48차: 여기는 원래 listProfiles()로 토스트 문구만 만들고 정작 홈 화면 서버/프로필
   // 목록(lastProfilesData/lastServersData)은 다시 안 그려서, 바로가기로 프로필이 바뀌어도
   // 목록의 선택 표시는 예전 그대로 남아있었음 - 다른 선택 경로들과 동일하게 양쪽 목록을 같이 새로고침
@@ -8028,7 +10577,7 @@ window.luna.onProfileSelectedExternally?.(async () => {
   showToast(sel ? `"${sel.name}" 프로필로 전환됐어요` : "프로필이 전환됐어요");
 });
 document.getElementById("btn-manage-profile-icon")?.addEventListener("click", async () => {
-  const res = await window.luna.setProfileIcon(managingProfileId);
+  const res = await window.nova.setProfileIcon(managingProfileId);
   if (res.ok) {
     document.getElementById("manage-profile-icon-preview").src = res.iconUrl + "?t=" + Date.now(); // 캐시 무시하고 새로 불러오기
     showToast("아이콘을 바꿨어요");
@@ -8039,7 +10588,7 @@ document.getElementById("btn-manage-profile-icon")?.addEventListener("click", as
 // 17차 신규: 직접 고른 프로필 아이콘을 지워서 기본 아이콘으로 되돌림
 document.getElementById("btn-manage-profile-icon-remove")?.addEventListener("click", async () => {
   if (!managingProfileId) return;
-  const res = await window.luna.removeProfileIcon?.(managingProfileId);
+  const res = await window.nova.removeProfileIcon?.(managingProfileId);
   if (res?.ok) {
     document.getElementById("manage-profile-icon-preview").src = res.iconUrl + "?t=" + Date.now();
     showToast("기본 아이콘으로 되돌렸어요");
@@ -8048,18 +10597,33 @@ document.getElementById("btn-manage-profile-icon-remove")?.addEventListener("cli
   }
 });
 
-const MODS_LIST_COLLAPSE_THRESHOLD = 6; // 항목이 이 개수를 넘으면 접어서 "더보기"로 표시
+// 24-102차: "박스에서 휠로 내리는 게 아니라 프로필 수정창 자체가 밑으로 내려가는 식으로 하고
+// 모드나 이런 거 마지막은 박스가 끝나게" - 6개만 보이고 "더보기"로 접던 것을 없애고 전부
+// 보여줌. 목록 박스는 마지막 항목에서 끝나고, 길면 프로필 수정 화면 전체가 스크롤됨.
+// (값만 무한대로 바꿔서 기존 "더보기" 코드는 그대로 두되 절대 발동하지 않게 함)
+const MODS_LIST_COLLAPSE_THRESHOLD = Infinity;
 const manageFileSelection = { mods: new Set(), resourcepacks: new Set(), shaderpacks: new Set() };
 const manageFileListCache = { mods: [], resourcepacks: [], shaderpacks: [] };
 
+// 24-77차: 예전엔 3중 삼항연산자였는데 "all"(전체 탭)까지 들어오면서 맨 끝(쉐이더)으로 잘못
+// 떨어질 위험이 생겨서, 종류별 id를 표 하나로 모아둠 - 새 종류가 생겨도 여기만 고치면 됨
+const MANAGE_EL_IDS = {
+  all: { listElId: "manage-all-list", countElId: "manage-all-count", sortElId: "manage-all-sort", selectAllElId: "manage-all-select-all", bulkBarId: "manage-all-bulk-bar" },
+  mods: { listElId: "manage-mods-list", countElId: "manage-mods-count", sortElId: "manage-mods-sort", selectAllElId: "manage-mods-select-all", bulkBarId: "manage-mods-bulk-bar" },
+  resourcepacks: { listElId: "manage-rp-list", countElId: "manage-rp-count", sortElId: "manage-rp-sort", selectAllElId: "manage-rp-select-all", bulkBarId: "manage-rp-bulk-bar" },
+  shaderpacks: { listElId: "manage-shader-list", countElId: "manage-shader-count", sortElId: "manage-shader-sort", selectAllElId: "manage-shader-select-all", bulkBarId: "manage-shader-bulk-bar" },
+};
+const MANAGE_REAL_KINDS = ["mods", "resourcepacks", "shaderpacks"];
+
 function manageListElIds(kind) {
-  return {
-    listElId: kind === "mods" ? "manage-mods-list" : kind === "resourcepacks" ? "manage-rp-list" : "manage-shader-list",
-    countElId: kind === "mods" ? "manage-mods-count" : kind === "resourcepacks" ? "manage-rp-count" : "manage-shader-count",
-    sortElId: kind === "mods" ? "manage-mods-sort" : kind === "resourcepacks" ? "manage-rp-sort" : "manage-shader-sort",
-    selectAllElId: kind === "mods" ? "manage-mods-select-all" : kind === "resourcepacks" ? "manage-rp-select-all" : "manage-shader-select-all",
-    bulkBarId: kind === "mods" ? "manage-mods-bulk-bar" : kind === "resourcepacks" ? "manage-rp-bulk-bar" : "manage-shader-bulk-bar",
-  };
+  return MANAGE_EL_IDS[kind] || MANAGE_EL_IDS.shaderpacks;
+}
+
+// 전체 탭은 자기 선택 목록을 따로 갖지 않고 3종의 선택을 합친 것으로 봄(행 하나하나는 결국
+// 어느 한 종류에 속하므로, 선택 상태는 그 종류의 Set에 그대로 저장됨)
+function manageSelectionCount(kind) {
+  if (kind === "all") return MANAGE_REAL_KINDS.reduce((n, k) => n + manageFileSelection[k].size, 0);
+  return manageFileSelection[kind].size;
 }
 
 function sortManageFiles(files, sortMode) {
@@ -8079,7 +10643,7 @@ function updateManageBulkBar(kind) {
   const { bulkBarId } = manageListElIds(kind);
   const bar = document.getElementById(bulkBarId);
   if (!bar) return;
-  const shouldShow = manageFileSelection[kind].size > 0;
+  const shouldShow = manageSelectionCount(kind) > 0;
   if (manageBulkBarHideTimers[bulkBarId]) {
     clearTimeout(manageBulkBarHideTimers[bulkBarId]);
     manageBulkBarHideTimers[bulkBarId] = null;
@@ -8115,7 +10679,7 @@ const MANAGE_SEARCH_PLACEHOLDER_BY_KIND = { all: "전체 검색", mods: "모드 
 const MANAGE_KIND_LABEL = { mods: "모드", resourcepacks: "리소스팩", shaderpacks: "쉐이더팩" };
 
 async function refreshProfileFileList(kind) {
-  const rawFiles = await window.luna.listProfileFiles(managingProfileId, kind);
+  const rawFiles = await window.nova.listProfileFiles(managingProfileId, kind);
   manageFileListCache[kind] = rawFiles;
   // 지워진 파일은 선택 상태에서도 같이 정리
   const validNames = new Set(rawFiles.map((f) => f.fileName));
@@ -8130,7 +10694,7 @@ async function refreshProfileFileList(kind) {
 async function openModDetailFromProfileList(kind, file) {
   if (!file.projectId) return;
   await openExploreScopedToProfile(managingProfileId, kind);
-  const project = await window.luna.exploreGetProject(file.projectId);
+  const project = await window.nova.exploreGetProject(file.projectId);
   if (!project) {
     showToast("모드 정보를 찾을 수 없어요", "error");
     return;
@@ -8160,7 +10724,7 @@ async function openAuthorPage(authorUsername) {
   loadingEl.hidden = false;
   bodyEl.hidden = true;
 
-  const info = await window.luna.exploreAuthorProjects?.(uname);
+  const info = await window.nova.exploreAuthorProjects?.(uname);
   loadingEl.hidden = true;
   if (!info) {
     showToast("제작자 정보를 불러오지 못했어요", "error");
@@ -8248,6 +10812,66 @@ function fallbackIconColorFor(name) {
   return MANAGE_FILE_FALLBACK_PALETTE[Math.abs(hash) % MANAGE_FILE_FALLBACK_PALETTE.length];
 }
 
+// ---- 24-102차: 목록이 비었을 때 안내 ------------------------------------------------
+// "쉐이더랑 리소스팩 부분도 모드처럼 추가하러 가기 만들어줘 전체도 추가하러 가기 만들어주고
+//  전체는 모드로 가지게 해줘 그리고 모드나 리소스팩 이런 거 없을 때는 그 부분에 빈 박스 만들지
+//  말고 추가하기만 띄우기 대신 좀 크게 화면 대부분을 잡아야 해서"
+// 비었으면 패널에 is-empty를 붙여 목록 박스(헤더 포함)를 통째로 숨기고, 안내를 박스 밖에
+// 크게 띄움. 버튼은 새 로직 없이 툴바의 기존 버튼을 그대로 눌러 재사용(24-69차 방식).
+const MANAGE_EMPTY_CTA = {
+  mods: {
+    title: ["manage_empty_mods_title", "아직 추가한 모드가 없어요"],
+    browse: ["manage_empty_mods_browse", "모드 추가하러 가기"],
+    addBtn: "btn-manage-mods-add", browseBtn: "btn-manage-mods-browse",
+    icon: '<path d="M21 8.5 12 3 3 8.5v7L12 21l9-5.5v-7Z"/><path d="M3 8.5 12 14l9-5.5"/><path d="M12 14v7"/>',
+  },
+  resourcepacks: {
+    title: ["manage_empty_rp_title", "아직 추가한 리소스팩이 없어요"],
+    browse: ["manage_empty_rp_browse", "리소스팩 추가하러 가기"],
+    addBtn: "btn-manage-rp-add", browseBtn: "btn-manage-rp-browse",
+    icon: '<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="m21 15-5-5L5 21"/>',
+  },
+  shaderpacks: {
+    title: ["manage_empty_shader_title", "아직 추가한 쉐이더팩이 없어요"],
+    browse: ["manage_empty_shader_browse", "쉐이더팩 추가하러 가기"],
+    addBtn: "btn-manage-shader-add", browseBtn: "btn-manage-shader-browse",
+    icon: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  },
+  // 전체 탭 = 모드로 보냄
+  all: {
+    title: ["manage_empty_all_title", "아직 추가한 콘텐츠가 없어요"],
+    browse: ["manage_empty_mods_browse", "모드 추가하러 가기"],
+    addBtn: "btn-manage-mods-add", browseBtn: "btn-manage-mods-browse",
+    icon: '<path d="M21 8.5 12 3 3 8.5v7L12 21l9-5.5v-7Z"/><path d="M3 8.5 12 14l9-5.5"/><path d="M12 14v7"/>',
+  },
+};
+function renderManageEmptyCta(kind, listEl, isEmpty) {
+  const panel = document.getElementById(`profile-file-panel-${kind}`);
+  panel?.querySelector(":scope > .manage-list-empty-cta")?.remove();
+  panel?.classList.toggle("is-empty", !!isEmpty);
+  if (!isEmpty || !panel) return false;
+  const c = MANAGE_EMPTY_CTA[kind] || MANAGE_EMPTY_CTA.mods;
+  const cta = document.createElement("div");
+  cta.className = "manage-list-empty-cta is-large";
+  cta.innerHTML = `
+    <span class="manage-list-empty-cta-icon">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg>
+    </span>
+    <span class="manage-list-empty-cta-title">${escapeHtml(wgT(c.title[0], c.title[1]))}</span>
+    <span class="manage-list-empty-cta-subtitle">${escapeHtml(wgT("manage_empty_subtitle", "파일을 직접 추가하거나 Contents에서 찾아보세요"))}</span>
+    <span class="manage-list-empty-cta-actions">
+      <button type="button" class="btn btn-ghost" data-act="add">${escapeHtml(wgT("manage_file_upload_label", "파일 업로드"))}</button>
+      <button type="button" class="btn btn-fixed-green" data-act="browse">${escapeHtml(wgT(c.browse[0], c.browse[1]))}</button>
+    </span>
+  `;
+  cta.querySelector('[data-act="add"]').addEventListener("click", () => document.getElementById(c.addBtn)?.click());
+  cta.querySelector('[data-act="browse"]').addEventListener("click", () => document.getElementById(c.browseBtn)?.click());
+  // 박스(.manage-file-box) 바로 뒤에 둠 - 박스는 is-empty일 때 CSS로 숨겨짐
+  const box = listEl.closest(".manage-file-box") || listEl;
+  box.insertAdjacentElement("afterend", cta);
+  return true;
+}
+
 function renderProfileFileListFromCache(kind) {
   const { listElId, countElId, sortElId, selectAllElId } = manageListElIds(kind);
   const listEl = document.getElementById(listElId);
@@ -8263,6 +10887,7 @@ function renderProfileFileListFromCache(kind) {
   const files = sortManageFiles(searched, sortSelect?.value || "name");
 
   document.getElementById(countElId).textContent = rawFiles.length;
+  updateManageAllCount(); // 24-143차: 다른 탭을 보고 있어도 "전체" 개수가 맞게 유지됨
   listEl.innerHTML = "";
   listEl.parentElement.querySelector(`.manage-list-more-btn[data-for="${listElId}"]`)?.remove();
 
@@ -8274,36 +10899,16 @@ function renderProfileFileListFromCache(kind) {
   // 두 개(파일 업로드/모드 추가하러 가기) 구성으로 바꿈. 두 버튼은 새 로직을 만들지 않고
   // 위 툴바의 기존 버튼(btn-manage-mods-add/btn-manage-mods-browse)을 그대로 눌러서
   // 똑같은 동작을 재사용함
-  if (kind === "mods" && rawFiles.length === 0 && !query) {
-    listEl.innerHTML = `
-      <div class="manage-list-empty-cta">
-        <span class="manage-list-empty-cta-icon">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 8.5 12 3 3 8.5v7L12 21l9-5.5v-7Z"/>
-            <path d="M3 8.5 12 14l9-5.5"/>
-            <path d="M12 14v7"/>
-          </svg>
-        </span>
-        <span class="manage-list-empty-cta-title">아직 추가한 모드가 없어요</span>
-        <span class="manage-list-empty-cta-subtitle">파일을 직접 추가하거나 Contents에서 찾아보세요</span>
-        <span class="manage-list-empty-cta-actions">
-          <button type="button" class="btn btn-ghost btn-small" id="btn-manage-mods-empty-add">파일 업로드</button>
-          <button type="button" class="btn btn-fixed-green btn-small" id="btn-manage-mods-empty-browse">모드 추가하러 가기</button>
-        </span>
-      </div>
-    `;
-    listEl.querySelector("#btn-manage-mods-empty-add")?.addEventListener("click", () => {
-      document.getElementById("btn-manage-mods-add")?.click();
-    });
-    listEl.querySelector("#btn-manage-mods-empty-browse")?.addEventListener("click", () => {
-      document.getElementById("btn-manage-mods-browse")?.click();
-    });
-    return;
-  }
+  // 24-102차: 빈 안내를 모드뿐 아니라 리소스팩/쉐이더팩/전체에도 띄움(renderManageEmptyCta)
+  if (renderManageEmptyCta(kind, listEl, rawFiles.length === 0 && !query)) return;
 
   files.forEach((f, idx) => {
     const row = document.createElement("div");
-    row.className = "resourcepack-item manage-file-row" + (f.enabled ? "" : " is-disabled");
+    // 24-161차: 너굴마을에 연결된 프로필에서 허용 목록에 없는 모드는 켤 수 없음을 표시
+    row.className =
+      "resourcepack-item manage-file-row" +
+      (f.enabled ? "" : " is-disabled") +
+      (f.neogulBlocked ? " is-neogul-blocked" : "");
     if (idx >= MODS_LIST_COLLAPSE_THRESHOLD) row.classList.add("is-collapsed-hidden");
 
     const iconHtml = f.icon
@@ -8322,6 +10927,7 @@ function renderProfileFileListFromCache(kind) {
         ${iconHtml}
         <span class="manage-file-info">
           <b class="manage-file-name${f.projectId ? " manage-file-name-link" : ""}" ${f.projectId ? 'title="Contents에서 보기"' : ""}>${escapeHtml(f.title || f.fileName)}</b>
+          ${f.neogulBlocked ? `<span class="manage-file-blocked-tag" title="너굴마을에 등록된 프로필은 해당 모드가 사용 불가능합니다">너굴마을 불가</span>` : ""}
           ${authorHtml}
         </span>
       </span>
@@ -8332,7 +10938,7 @@ function renderProfileFileListFromCache(kind) {
       <span class="manage-file-actions">
         ${f.projectId && kind === "mods" ? `<button type="button" class="icon-btn manage-file-pin${f.pinned ? " is-pinned" : ""}" title="${f.pinned ? "버전 고정 해제" : "버전 고정 (자동 업데이트 제외)"}">${MANAGE_ICON_PIN_SVG}</button>` : ""}
         ${f.projectId ? `<button type="button" class="icon-btn manage-file-version-btn" title="버전 변경">${MANAGE_ICON_VERSION_SVG}</button>` : ""}
-        <label class="manage-toggle-switch" title="${f.enabled ? "비활성화" : "활성화"}">
+        <label class="manage-toggle-switch" title="${f.neogulBlocked ? "너굴마을에 등록된 프로필은 해당 모드가 사용 불가능합니다" : f.enabled ? "비활성화" : "활성화"}">
           <input type="checkbox" class="manage-file-toggle-input" ${f.enabled ? "checked" : ""} />
           <span class="manage-toggle-slider"></span>
         </label>
@@ -8347,12 +10953,12 @@ function renderProfileFileListFromCache(kind) {
     });
     row.querySelector(".manage-file-delete-btn").addEventListener("click", async () => {
       const profileIdAtDelete = managingProfileId;
-      await window.luna.removeProfileFile(profileIdAtDelete, kind, f.fileName);
+      await window.nova.removeProfileFile(profileIdAtDelete, kind, f.fileName);
       manageFileSelection[kind].delete(f.fileName);
       refreshProfileFileList(kind);
       if (kind === "mods") refreshModsUpdateIndicator();
       showUndoToast(`"${f.title || f.fileName}"을(를) 삭제했어요`, async () => {
-        await window.luna.restoreProfileFile(profileIdAtDelete, kind, f.fileName);
+        await window.nova.restoreProfileFile(profileIdAtDelete, kind, f.fileName);
         if (managingProfileId === profileIdAtDelete) {
           refreshProfileFileList(kind);
           if (kind === "mods") refreshModsUpdateIndicator();
@@ -8361,7 +10967,7 @@ function renderProfileFileListFromCache(kind) {
     });
     row.querySelector(".manage-file-toggle-input").addEventListener("change", async (e) => {
       const wantEnabled = e.target.checked;
-      const res = await window.luna.toggleProfileFile(managingProfileId, kind, f.fileName);
+      const res = await window.nova.toggleProfileFile(managingProfileId, kind, f.fileName);
       if (res.ok) refreshProfileFileList(kind);
       else {
         e.target.checked = !wantEnabled; // 실패하면 스위치를 원래 상태로 되돌림
@@ -8369,7 +10975,7 @@ function renderProfileFileListFromCache(kind) {
       }
     });
     row.querySelector(".manage-file-pin")?.addEventListener("click", async () => {
-      const res = await window.luna.toggleProfileFilePin(managingProfileId, kind, f.fileName);
+      const res = await window.nova.toggleProfileFilePin(managingProfileId, kind, f.fileName);
       if (res.ok) {
         showToast(res.pinned ? "버전을 고정했어요" : "버전 고정을 해제했어요");
         refreshProfileFileList(kind);
@@ -8420,6 +11026,20 @@ function renderProfileFileListFromCache(kind) {
 // 일괄선택/일괄작업 바는 일부러 넣지 않음(종류가 섞여있어 복잡해지는 걸 피하려고 범위를 좁힘) -
 // 대신 각 행의 고정/버전변경/토글/삭제/이름클릭 같은 개별 작업은 그대로 다 동작함(행마다 자기
 // 종류(kind)를 기억해서 해당 종류의 API를 그대로 호출).
+// 24-143차: "프로필에서 전체 안들어가면 0이라고 떠 있더라"
+// 모드/리소스팩/쉐이더 개수는 각 목록을 그릴 때마다 갱신되는데, "전체" 개수만
+// renderAllProfileFilesList() 안에서 갱신돼서 전체 탭을 직접 누르기 전에는 index.html 에
+// 하드코딩된 0 이 그대로 남아 있었음. 개수 갱신만 따로 떼어내서 캐시가 바뀔 때마다 부름
+function updateManageAllCount() {
+  const countEl = document.getElementById("manage-all-count");
+  if (!countEl) return;
+  const total = ["mods", "resourcepacks", "shaderpacks"].reduce(
+    (sum, kind) => sum + (manageFileListCache[kind] || []).length,
+    0
+  );
+  countEl.textContent = total;
+}
+
 function renderAllProfileFilesList() {
   const listEl = document.getElementById("manage-all-list");
   if (!listEl) return;
@@ -8436,15 +11056,23 @@ function renderAllProfileFilesList() {
   const sortSelect = document.getElementById("manage-all-sort");
   const files = sortManageFiles(searched, sortSelect?.value || "name");
 
-  const countEl = document.getElementById("manage-all-count");
-  if (countEl) countEl.textContent = allRaw.length;
+  updateManageAllCount();
   listEl.innerHTML = "";
   listEl.parentElement.querySelector(`.manage-list-more-btn[data-for="manage-all-list"]`)?.remove();
+  // 24-102차: 전체 탭도 비었으면 안내만 크게(버튼은 모드 쪽으로)
+  if (renderManageEmptyCta("all", listEl, allRaw.length === 0 && !query)) {
+    syncAllTabSelectionUi();
+    return;
+  }
 
   files.forEach((f, idx) => {
     const kind = f.__kind;
     const row = document.createElement("div");
-    row.className = "resourcepack-item manage-file-row" + (f.enabled ? "" : " is-disabled");
+    // 24-161차: 너굴마을에 연결된 프로필에서 허용 목록에 없는 모드는 켤 수 없음을 표시
+    row.className =
+      "resourcepack-item manage-file-row" +
+      (f.enabled ? "" : " is-disabled") +
+      (f.neogulBlocked ? " is-neogul-blocked" : "");
     if (idx >= MODS_LIST_COLLAPSE_THRESHOLD) row.classList.add("is-collapsed-hidden");
 
     const iconHtml = f.icon
@@ -8457,7 +11085,7 @@ function renderAllProfileFilesList() {
       : `<b class="manage-file-version-num manage-file-version-num-empty">-</b>`;
 
     row.innerHTML = `
-      <span class="manage-list-row-check-spacer"></span>
+      <input type="checkbox" class="manage-file-checkbox" ${manageFileSelection[kind].has(f.fileName) ? "checked" : ""} />
       <span class="manage-file-project">
         ${iconHtml}
         <span class="manage-file-info">
@@ -8472,7 +11100,7 @@ function renderAllProfileFilesList() {
       <span class="manage-file-actions">
         ${f.projectId && kind === "mods" ? `<button type="button" class="icon-btn manage-file-pin${f.pinned ? " is-pinned" : ""}" title="${f.pinned ? "버전 고정 해제" : "버전 고정 (자동 업데이트 제외)"}">${MANAGE_ICON_PIN_SVG}</button>` : ""}
         ${f.projectId ? `<button type="button" class="icon-btn manage-file-version-btn" title="버전 변경">${MANAGE_ICON_VERSION_SVG}</button>` : ""}
-        <label class="manage-toggle-switch" title="${f.enabled ? "비활성화" : "활성화"}">
+        <label class="manage-toggle-switch" title="${f.neogulBlocked ? "너굴마을에 등록된 프로필은 해당 모드가 사용 불가능합니다" : f.enabled ? "비활성화" : "활성화"}">
           <input type="checkbox" class="manage-file-toggle-input" ${f.enabled ? "checked" : ""} />
           <span class="manage-toggle-slider"></span>
         </label>
@@ -8480,15 +11108,22 @@ function renderAllProfileFilesList() {
       </span>
     `;
 
+    // 24-77차: 전체 탭 행에도 선택 체크박스를 둠. 선택 상태는 그 행이 속한 종류의 Set에
+    // 그대로 저장하므로, 탭을 오가도 선택이 유지되고 일괄 작업도 기존 로직을 그대로 씀
+    row.querySelector(".manage-file-checkbox").addEventListener("change", (e) => {
+      if (e.target.checked) manageFileSelection[kind].add(f.fileName);
+      else manageFileSelection[kind].delete(f.fileName);
+      syncAllTabSelectionUi();
+    });
     row.querySelector(".manage-file-delete-btn").addEventListener("click", async () => {
       const profileIdAtDelete = managingProfileId;
-      await window.luna.removeProfileFile(profileIdAtDelete, kind, f.fileName);
+      await window.nova.removeProfileFile(profileIdAtDelete, kind, f.fileName);
       manageFileSelection[kind].delete(f.fileName);
       await refreshProfileFileList(kind);
       renderAllProfileFilesList();
       if (kind === "mods") refreshModsUpdateIndicator();
       showUndoToast(`"${f.title || f.fileName}"을(를) 삭제했어요`, async () => {
-        await window.luna.restoreProfileFile(profileIdAtDelete, kind, f.fileName);
+        await window.nova.restoreProfileFile(profileIdAtDelete, kind, f.fileName);
         if (managingProfileId === profileIdAtDelete) {
           await refreshProfileFileList(kind);
           renderAllProfileFilesList();
@@ -8498,7 +11133,7 @@ function renderAllProfileFilesList() {
     });
     row.querySelector(".manage-file-toggle-input").addEventListener("change", async (e) => {
       const wantEnabled = e.target.checked;
-      const res = await window.luna.toggleProfileFile(managingProfileId, kind, f.fileName);
+      const res = await window.nova.toggleProfileFile(managingProfileId, kind, f.fileName);
       if (res.ok) {
         await refreshProfileFileList(kind);
         renderAllProfileFilesList();
@@ -8508,7 +11143,7 @@ function renderAllProfileFilesList() {
       }
     });
     row.querySelector(".manage-file-pin")?.addEventListener("click", async () => {
-      const res = await window.luna.toggleProfileFilePin(managingProfileId, kind, f.fileName);
+      const res = await window.nova.toggleProfileFilePin(managingProfileId, kind, f.fileName);
       if (res.ok) {
         showToast(res.pinned ? "버전을 고정했어요" : "버전 고정을 해제했어요");
         await refreshProfileFileList(kind);
@@ -8548,11 +11183,27 @@ function renderAllProfileFilesList() {
     });
     listEl.insertAdjacentElement("afterend", moreBtn);
   }
+
+  syncAllTabSelectionUi();
+}
+
+// 24-77차: 전체 탭의 "전체 선택" 체크 상태와 일괄 작업 바를 지금 선택 상태에 맞춰 갱신.
+// 전체 탭에는 3종이 섞여 있으므로 "전부 선택됨"의 기준도 3종 캐시 전체 개수로 판단함
+function syncAllTabSelectionUi() {
+  const total = MANAGE_REAL_KINDS.reduce((n, k) => n + (manageFileListCache[k] || []).length, 0);
+  const selected = manageSelectionCount("all");
+  const selectAllEl = document.getElementById("manage-all-select-all");
+  if (selectAllEl) {
+    selectAllEl.checked = total > 0 && selected === total;
+    // 일부만 선택된 상태는 중간(indeterminate) 표시로 - 다른 탭과 같은 체크박스 모양 유지
+    selectAllEl.indeterminate = selected > 0 && selected < total;
+  }
+  updateManageBulkBar("all");
 }
 
 // 1-9: 최신 버전 말고 원하는 버전으로 직접 변경
 async function openModVersionPicker(kind, file) {
-  const profile = (await window.luna.listProfiles()).find((p) => p.id === managingProfileId);
+  const profile = (await window.nova.listProfiles()).find((p) => p.id === managingProfileId);
   if (!profile) return;
   const overlay = document.getElementById("mod-version-overlay");
   const listEl = document.getElementById("mod-version-list");
@@ -8561,7 +11212,7 @@ async function openModVersionPicker(kind, file) {
   overlay.hidden = false;
 
   const projectType = kind === "mods" ? "mod" : kind === "shaderpacks" ? "shader" : "resourcepack";
-  const versions = await window.luna.exploreGetVersions(file.projectId, profile.mcVersion, projectType);
+  const versions = await window.nova.exploreGetVersions(file.projectId, profile.mcVersion, projectType);
   listEl.innerHTML = "";
   if (versions.length === 0) {
     listEl.innerHTML = `<div style="color:var(--text-2); font-size:12.5px;">이 마인크래프트 버전에 맞는 버전이 없어요</div>`;
@@ -8578,7 +11229,7 @@ async function openModVersionPicker(kind, file) {
     }`;
     if (!isCurrent) {
       row.querySelector("button").addEventListener("click", async () => {
-        const res = await window.luna.exploreApplyUpdate({
+        const res = await window.nova.exploreApplyUpdate({
           profileId: managingProfileId,
           kind,
           oldFileName: file.fileName,
@@ -8611,6 +11262,74 @@ document.getElementById("btn-mod-version-close")?.addEventListener("click", () =
 // 17차: "전체" 탭 전용 정렬(#manage-all-sort) - 캐시를 다시 받아올 필요 없이 다시 그리기만 함
 document.getElementById("manage-all-sort")?.addEventListener("change", () => renderAllProfileFilesList());
 
+// 24-77차: "전체는 그 모두 선택도 없고" - 전체 탭의 전체 선택 + 일괄 작업(활성화/비활성화/삭제).
+// 전체 탭은 3종이 섞여 있으므로, 선택은 각 종류의 Set에 저장하고 작업은 종류별로 나눠서
+// 기존 per-kind 동작을 그대로 실행함(새 IPC 없음 - 기존 toggle/remove/restore 그대로 재사용)
+document.getElementById("manage-all-select-all")?.addEventListener("change", (e) => {
+  if (e.target.checked) {
+    MANAGE_REAL_KINDS.forEach((k) => (manageFileListCache[k] || []).forEach((f) => manageFileSelection[k].add(f.fileName)));
+  } else {
+    MANAGE_REAL_KINDS.forEach((k) => manageFileSelection[k].clear());
+  }
+  renderAllProfileFilesList();
+});
+
+// 전체 탭 일괄 작업이 끝난 뒤: 3종 캐시를 모두 새로 읽고 전체 목록을 다시 그림
+async function refreshAllKindsAndRenderAllTab() {
+  for (const k of MANAGE_REAL_KINDS) await refreshProfileFileList(k);
+  renderAllProfileFilesList();
+  refreshModsUpdateIndicator();
+}
+
+document.getElementById("btn-manage-all-bulk-enable")?.addEventListener("click", async () => {
+  let count = 0;
+  for (const k of MANAGE_REAL_KINDS) {
+    for (const name of Array.from(manageFileSelection[k])) {
+      const file = (manageFileListCache[k] || []).find((f) => f.fileName === name);
+      if (file && !file.enabled) await window.nova.toggleProfileFile(managingProfileId, k, name);
+      count++;
+    }
+  }
+  showToast(`선택한 ${count}개를 활성화했어요`);
+  refreshAllKindsAndRenderAllTab();
+});
+
+document.getElementById("btn-manage-all-bulk-disable")?.addEventListener("click", async () => {
+  let count = 0;
+  for (const k of MANAGE_REAL_KINDS) {
+    for (const name of Array.from(manageFileSelection[k])) {
+      const file = (manageFileListCache[k] || []).find((f) => f.fileName === name);
+      if (file?.enabled) await window.nova.toggleProfileFile(managingProfileId, k, name);
+      count++;
+    }
+  }
+  showToast(`선택한 ${count}개를 비활성화했어요`);
+  refreshAllKindsAndRenderAllTab();
+});
+
+document.getElementById("btn-manage-all-bulk-delete")?.addEventListener("click", async () => {
+  const total = manageSelectionCount("all");
+  const confirmed = await showConfirm(`선택한 ${total}개를 삭제할까요?`, "삭제", "취소");
+  if (!confirmed) return;
+  const profileIdAtDelete = managingProfileId;
+  // 되돌리기에 쓰려고 (종류, 파일명) 쌍을 그대로 들고 있음 - 종류가 섞여 있어서 이름만으론 부족
+  const removed = [];
+  for (const k of MANAGE_REAL_KINDS) {
+    for (const name of Array.from(manageFileSelection[k])) {
+      await window.nova.removeProfileFile(profileIdAtDelete, k, name);
+      removed.push({ kind: k, name });
+    }
+    manageFileSelection[k].clear();
+  }
+  await refreshAllKindsAndRenderAllTab();
+  showUndoToast(`선택한 ${removed.length}개를 삭제했어요`, async () => {
+    for (const { kind, name } of removed) {
+      await window.nova.restoreProfileFile(profileIdAtDelete, kind, name);
+    }
+    if (managingProfileId === profileIdAtDelete) refreshAllKindsAndRenderAllTab();
+  });
+});
+
 ["mods", "resourcepacks", "shaderpacks"].forEach((kind) => {
   const { sortElId, selectAllElId, bulkBarId } = manageListElIds(kind);
   document.getElementById(sortElId)?.addEventListener("change", () => refreshProfileFileList(kind));
@@ -8633,7 +11352,7 @@ document.getElementById("manage-all-sort")?.addEventListener("change", () => ren
     const names = Array.from(manageFileSelection[kind]);
     for (const name of names) {
       const file = manageFileListCache[kind].find((f) => f.fileName === name);
-      if (file && !file.enabled) await window.luna.toggleProfileFile(managingProfileId, kind, name);
+      if (file && !file.enabled) await window.nova.toggleProfileFile(managingProfileId, kind, name);
     }
     showToast(`선택한 ${names.length}개를 활성화했어요`);
     refreshProfileFileList(kind);
@@ -8642,7 +11361,7 @@ document.getElementById("manage-all-sort")?.addEventListener("change", () => ren
     const names = Array.from(manageFileSelection[kind]);
     for (const name of names) {
       const file = manageFileListCache[kind].find((f) => f.fileName === name);
-      if (file?.enabled) await window.luna.toggleProfileFile(managingProfileId, kind, name);
+      if (file?.enabled) await window.nova.toggleProfileFile(managingProfileId, kind, name);
     }
     showToast(`선택한 ${names.length}개를 비활성화했어요`);
     refreshProfileFileList(kind);
@@ -8653,14 +11372,14 @@ document.getElementById("manage-all-sort")?.addEventListener("change", () => ren
     if (!confirmed) return;
     const profileIdAtDelete = managingProfileId;
     for (const name of names) {
-      await window.luna.removeProfileFile(profileIdAtDelete, kind, name);
+      await window.nova.removeProfileFile(profileIdAtDelete, kind, name);
     }
     manageFileSelection[kind].clear();
     refreshProfileFileList(kind);
     if (kind === "mods") refreshModsUpdateIndicator();
     showUndoToast(`선택한 ${names.length}개를 삭제했어요`, async () => {
       for (const name of names) {
-        await window.luna.restoreProfileFile(profileIdAtDelete, kind, name);
+        await window.nova.restoreProfileFile(profileIdAtDelete, kind, name);
       }
       if (managingProfileId === profileIdAtDelete) {
         refreshProfileFileList(kind);
@@ -8673,7 +11392,7 @@ document.getElementById("manage-all-sort")?.addEventListener("change", () => ren
 ["mods", "resourcepacks", "shaderpacks"].forEach((kind) => {
   const btnId = kind === "mods" ? "btn-manage-mods-add" : kind === "resourcepacks" ? "btn-manage-rp-add" : "btn-manage-shader-add";
   document.getElementById(btnId)?.addEventListener("click", async () => {
-    const res = await window.luna.addProfileFile(managingProfileId, kind);
+    const res = await window.nova.addProfileFile(managingProfileId, kind);
     if (res.ok) {
       showToast("폴더를 열었어요. 파일을 넣고 나서 창을 다시 열면 목록에 반영돼요");
       refreshProfileFileList(kind);
@@ -8688,6 +11407,17 @@ document.getElementById("manage-all-sort")?.addEventListener("change", () => ren
   document.getElementById(btnId)?.addEventListener("click", () => {
     openExploreScopedToProfile(managingProfileId, kind);
   });
+});
+
+// 24-75차: "전체" 탭용 파일 업로드/모드 추가 버튼(index.html의 data-kind="all" 묶음).
+// 전체 탭은 모드/리소스팩/쉐이더를 한 화면에 합쳐 보여주는 탭이라 "무엇을 추가할지"가 하나로
+// 정해지지 않는데, 실제로 이 자리에서 누르려는 건 사실상 모드 추가라서 기존 모드 버튼을 그대로
+// 클릭시켜 동작을 재사용함(새 IPC/로직 추가 없음 - 24-69차 빈 화면 버튼과 같은 방식)
+document.getElementById("btn-manage-all-add")?.addEventListener("click", () => {
+  document.getElementById("btn-manage-mods-add")?.click();
+});
+document.getElementById("btn-manage-all-browse")?.addEventListener("click", () => {
+  document.getElementById("btn-manage-mods-browse")?.click();
 });
 
 // 5-11(7차): 새로고침 - 서버에 다시 물어보지 않고도(=업로드 등으로 로컬 파일이 바뀐 뒤) 목록을 다시 읽음
@@ -8719,7 +11449,7 @@ let modsUpdateList = [];
 
 document.getElementById("btn-manage-mods-update")?.addEventListener("click", async () => {
   showToast("업데이트 확인 중...");
-  modsUpdateList = await window.luna.exploreCheckUpdates(managingProfileId, "mods");
+  modsUpdateList = await window.nova.exploreCheckUpdates(managingProfileId, "mods");
   const listEl = document.getElementById("mods-update-list");
   listEl.innerHTML = "";
 
@@ -8731,7 +11461,7 @@ document.getElementById("btn-manage-mods-update")?.addEventListener("click", asy
       row.className = "resourcepack-item";
       row.innerHTML = `<span>${u.title} → ${u.newVersionNumber}</span><button type="button" class="btn btn-primary btn-small">업데이트</button>`;
       row.querySelector("button").addEventListener("click", async () => {
-        const res = await window.luna.exploreApplyUpdate({
+        const res = await window.nova.exploreApplyUpdate({
           profileId: managingProfileId,
           kind: "mods",
           oldFileName: u.fileName,
@@ -8760,7 +11490,7 @@ document.getElementById("btn-mods-update-close")?.addEventListener("click", () =
 });
 document.getElementById("btn-mods-update-all")?.addEventListener("click", async () => {
   for (const u of modsUpdateList) {
-    await window.luna.exploreApplyUpdate({
+    await window.nova.exploreApplyUpdate({
       profileId: managingProfileId,
       kind: "mods",
       oldFileName: u.fileName,
@@ -8779,13 +11509,6 @@ document.getElementById("btn-mods-update-all")?.addEventListener("click", async 
   refreshModsUpdateIndicator();
 });
 
-// 프리셋으로 저장 (인라인으로 이름 입력창을 펼침)
-// 16-2(4차): 프리셋 만들기를 프로필 편집에서 분리 - 여기서는 만들지 않고, 독립된
-// "프리셋 관리" 탭으로 이동시키면서 지금 프로필을 소스로 미리 골라둠
-document.getElementById("btn-manage-profile-goto-preset")?.addEventListener("click", () => {
-  openPresetManage(managingProfileId);
-});
-
 document.getElementById("btn-manage-profile-delete")?.addEventListener("click", async () => {
   // 22차: "삭제할 때에는 재확인 메시지 대신 프로필 이름을 적는 걸로 하자" - 예/아니오를
   // 두 번 묻던 걸 프로필 이름을 정확히 입력해야 버튼이 눌리는 방식으로 교체
@@ -8796,7 +11519,7 @@ document.getElementById("btn-manage-profile-delete")?.addEventListener("click", 
     "완전히 삭제"
   );
   if (!confirmed) return;
-  const res = await window.luna.deleteProfile(managingProfileId);
+  const res = await window.nova.deleteProfile(managingProfileId);
   if (res.ok) {
     showToast("프로필을 삭제했어요");
     if (profileChipName) profileChipName.textContent = "프로필 선택";
@@ -8863,9 +11586,15 @@ function refreshSkinPreviewImage() {
   if (skinPreview3dEl) skinPreview3dEl.hidden = true;
   // 24-61차: 새 요청을 시작하는 시점에 스피너를 다시 보여줌(이전 이미지가 남아있는 채로
   // 새로고침되는 거라, load 이벤트가 다시 뜰 때까지는 스피너로 "갱신 중"임을 알림)
-  showSkinLoadingSpinner(document.getElementById("skin-preview-spinner"));
+  showSkinLoadingSpinner(document.getElementById("skin-preview-spinner"), skinPreview, skinPreview3dEl);
   skinPreview.src = `https://crafatar.com/renders/body/${currentProfile.uuid}?overlay&t=${Date.now()}`;
-  mountSkinViewer(skinPreview3dEl, skinPreview, currentProfile.uuid, { w: 100, h: 160 });
+  // 24-156차: 세션 서버(공개 프로필)가 늦거나 막히면 3D 가 아예 안 떴었다. 실패하면 로그인
+  // 토큰으로 받은 "계정에 등록된" 스킨/망토(=마크 런처에 등록한 그것)로 한 번 더 시도한다.
+  mountSkinViewer(skinPreview3dEl, skinPreview, currentProfile.uuid, { w: 100, h: 160 }).then(() => {
+    if (skinPreview3dEl && skinPreview3dEl.hidden) {
+      mountSkinViewerFromAccount(skinPreview3dEl, skinPreview, { w: 100, h: 160 });
+    }
+  });
 }
 
 async function loadSkinSection() {
@@ -8879,19 +11608,157 @@ async function loadSkinSection() {
   // 타임스탬프를 붙여서, Mojang에 새 스킨을 올린 직후에도 캐시된 옛날 스킨이 아니라 최신 스킨이 보이게 함
   refreshSkinPreviewImage();
 
-  const current = await window.luna.getCurrentSkin();
+  const current = await window.nova.getCurrentSkin();
   if (current?.variant) setSkinVariant.value = current.variant;
 
   loadCustomSkinsList();
   loadSkinHistoryList();
+  loadCapeList(); // 24-156차: 계정이 갖고 있는 망토 전부
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 24-156차: "런처 스킨에서 이미 마크 런처에 등록한 스킨이랑 플레이어 망토 로딩 전부 다 해줘"
+// 세션 서버(공개 프로필)로는 "지금 입고 있는" 망토 하나밖에 알 수 없어서, 로그인 토큰으로
+// 마인크래프트 서비스 API 를 직접 물어 계정이 가진 망토를 전부 가져온다(main.js
+// skin:get-account-profile). 카드를 누르면 위 3D 미리보기에 바로 입혀보고, "적용"을 누르면
+// 실제 계정에 반영한다(skin:set-cape).
+// ────────────────────────────────────────────────────────────────────────────
+let capeProfileCache = null;
+let capePreviewId = null; // 지금 미리보기 중인 망토(적용 전)
+
+// 망토 텍스처에서 "앞면"만 잘라 캔버스에 그린다.
+// 망토는 64x32(구형) / 128x64(2배) 등 배율이 달라서, 가로폭 기준으로 배율을 구해 잘라낸다.
+// 앞면 위치는 어떤 배율이든 (1,1)에서 10x16 칸.
+function drawCapeThumb(canvas, src) {
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  img.onload = () => {
+    const sc = img.width / 64 || 1;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try {
+      ctx.drawImage(img, 1 * sc, 1 * sc, 10 * sc, 16 * sc, 0, 0, canvas.width, canvas.height);
+    } catch (_) {}
+  };
+  img.src = src;
+}
+
+// 위 3D 미리보기에 망토를 바로 입혀봄(뷰어가 아직 안 떴으면 조용히 무시)
+function previewCapeOnSkinViewer(src) {
+  const canvasEl = document.getElementById("skin-preview-3d");
+  if (!canvasEl) return;
+  const viewer = skinViewerInstances.get(canvasEl);
+  if (!viewer) return;
+  try {
+    if (src) viewer.loadCape(src);
+    else viewer.loadCape(null);
+  } catch (err) {
+    window.nova?.logClient?.("[망토] 미리보기 실패: " + (err?.message || err));
+  }
+}
+
+async function loadCapeList() {
+  const listEl = document.getElementById("skin-cape-list");
+  if (!listEl) return;
+  const t = window.NovaI18n?.t;
+  listEl.innerHTML = `<div class="skin-preset-empty">${t?.("skin_cape_loading") || "망토를 불러오는 중이에요..."}</div>`;
+
+  const res = await window.nova.getAccountSkinProfile?.().catch(() => null);
+  if (!res?.ok) {
+    listEl.innerHTML = `<div class="skin-preset-empty">${escapeHtml(res?.error || "망토 정보를 불러오지 못했어요")}</div>`;
+    return;
+  }
+  capeProfileCache = res;
+  const capes = res.capes || [];
+  const activeId = capes.find((c) => c.state === "ACTIVE")?.id || null;
+  capePreviewId = activeId;
+
+  if (capes.length === 0) {
+    listEl.innerHTML = `<div class="skin-preset-empty">${t?.("skin_cape_empty") || "이 계정에는 망토가 없어요"}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = "";
+  // 맨 앞에 "안 쓰기" 카드
+  const makeCard = (opts) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "skin-cape-card" + (opts.selected ? " is-selected" : "");
+    card.innerHTML = `
+      <span class="skin-cape-thumb-wrap">${opts.canvas ? "" : `<span class="skin-cape-none">✕</span>`}</span>
+      <span class="skin-cape-name">${escapeHtml(opts.name)}</span>
+      ${opts.active ? `<span class="skin-cape-active-tag">${t?.("skin_cape_wearing") || "착용 중"}</span>` : ""}
+    `;
+    if (opts.canvas) {
+      const c = document.createElement("canvas");
+      c.width = 40;
+      c.height = 64;
+      c.className = "skin-cape-thumb";
+      card.querySelector(".skin-cape-thumb-wrap").appendChild(c);
+      drawCapeThumb(c, opts.src);
+    }
+    return card;
+  };
+
+  const select = (id, src, cardEl) => {
+    capePreviewId = id;
+    listEl.querySelectorAll(".skin-cape-card").forEach((el) => el.classList.remove("is-selected"));
+    cardEl.classList.add("is-selected");
+    previewCapeOnSkinViewer(src);
+    const applyBtn = document.getElementById("btn-skin-cape-apply");
+    if (applyBtn) applyBtn.disabled = id === activeId;
+  };
+
+  const noneCard = makeCard({
+    name: t?.("skin_cape_none") || "안 쓰기",
+    selected: !activeId,
+    active: !activeId,
+    canvas: false,
+  });
+  noneCard.addEventListener("click", () => select(null, null, noneCard));
+  listEl.appendChild(noneCard);
+
+  capes.forEach((cape) => {
+    const src = cape.dataUrl || cape.url;
+    const card = makeCard({
+      name: cape.alias || "망토",
+      selected: cape.id === activeId,
+      active: cape.state === "ACTIVE",
+      canvas: true,
+      src,
+    });
+    card.addEventListener("click", () => select(cape.id, src, card));
+    listEl.appendChild(card);
+  });
+
+  // 적용 버튼(목록 아래 한 줄)
+  const actions = document.createElement("div");
+  actions.className = "skin-cape-actions";
+  actions.innerHTML = `<button type="button" id="btn-skin-cape-apply" class="btn btn-primary btn-small" disabled>${t?.("btn_apply") || "적용"}</button>`;
+  listEl.appendChild(actions);
+  actions.querySelector("#btn-skin-cape-apply").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-skin-cape-apply");
+    btn.disabled = true;
+    const r = await window.nova.setActiveCape?.(capePreviewId);
+    if (r?.ok) {
+      showToast(capePreviewId ? "망토를 적용했어요" : "망토를 벗었어요");
+      await loadCapeList();
+      refreshSkinPreviewImage();
+    } else {
+      showToast(r?.error || "망토를 바꾸지 못했어요", "error");
+      btn.disabled = false;
+    }
+  });
+}
+
+document.getElementById("btn-skin-cape-refresh")?.addEventListener("click", () => loadCapeList());
 
 // 24-53차: 스킨 목록(내가 추가한 스킨/변경 기록) 행에 붙는 "공유" 버튼을 누르면 친구 목록을
 // 불러와서 이름을 고를 수 있는 작은 인라인 드롭다운을 그 자리에서 펼침 - 별도 팝업/모달 없이
 // 행 하나 안에서 바로 고르고 보낼 수 있게 함. 친구가 하나도 없으면 그냥 안내만 하고 끝
 async function openSkinSharePicker(anchorRow, entry) {
   anchorRow.querySelectorAll(".skin-share-picker").forEach((el) => el.remove());
-  const { friends } = await window.luna.friendsList();
+  const { friends } = await window.nova.friendsList();
   const picker = document.createElement("div");
   picker.className = "skin-share-picker";
   if (!friends?.length) {
@@ -8909,7 +11776,7 @@ async function openSkinSharePicker(anchorRow, entry) {
     const sendBtn = picker.querySelector(".skin-share-picker-send");
     const toUuid = picker.querySelector(".skin-share-picker-select").value;
     sendBtn.disabled = true;
-    const res = await window.luna.whisperSendSkin(toUuid, entry.filePath, entry.name, entry.variant);
+    const res = await window.nova.whisperSendSkin(toUuid, entry.filePath, entry.name, entry.variant);
     if (res.ok) {
       showToast("귓속말로 스킨을 공유했어요");
       picker.remove();
@@ -8943,7 +11810,7 @@ async function loadCustomSkinsList() {
   disposeSkinViewersIn(listEl);
   listEl.innerHTML = `<div class="skin-preset-empty">불러오는 중...</div>`;
 
-  const res = await window.luna.listCustomSkins?.();
+  const res = await window.nova.listCustomSkins?.();
   if (!res?.ok || !res.list?.length) {
     listEl.innerHTML = `<div class="skin-preset-empty" data-i18n="settings_skin_custom_empty">아직 직접 추가한 스킨이 없어요</div>`;
     return;
@@ -8968,7 +11835,7 @@ async function loadCustomSkinsList() {
 
     row.querySelector(".skin-custom-switch-btn")?.addEventListener("click", async () => {
       skinErrorEl.textContent = "";
-      const applyRes = await window.luna.uploadSkin(entry.filePath, entry.variant);
+      const applyRes = await window.nova.uploadSkin(entry.filePath, entry.variant);
       if (applyRes.ok) {
         setSkinVariant.value = entry.variant;
         listEl.querySelectorAll(".skin-custom-item").forEach((r) => r.classList.remove("is-active"));
@@ -8981,11 +11848,11 @@ async function loadCustomSkinsList() {
       }
     });
     row.querySelector(".skin-custom-remove-btn")?.addEventListener("click", async () => {
-      await window.luna.removeCustomSkin?.(entry.id);
+      await window.nova.removeCustomSkin?.(entry.id);
       loadCustomSkinsList();
     });
     row.querySelector(".skin-item-download-btn")?.addEventListener("click", async () => {
-      const res2 = await window.luna.downloadSkinFile(entry.filePath, entry.name);
+      const res2 = await window.nova.downloadSkinFile(entry.filePath, entry.name);
       if (res2.ok) showToast("스킨 파일을 저장했어요");
       else if (!res2.canceled) showToast(res2.error || "다운로드에 실패했어요", "error");
     });
@@ -9003,7 +11870,7 @@ async function loadSkinHistoryList() {
   disposeSkinViewersIn(listEl);
   listEl.innerHTML = `<div class="skin-preset-empty">불러오는 중...</div>`;
 
-  const res = await window.luna.getSkinHistory?.();
+  const res = await window.nova.getSkinHistory?.();
   if (!res?.ok || !res.list?.length) {
     listEl.innerHTML = `<div class="skin-preset-empty" data-i18n="settings_skin_history_empty">아직 변경 기록이 없어요</div>`;
     return;
@@ -9027,7 +11894,7 @@ async function loadSkinHistoryList() {
 
     row.querySelector(".skin-history-revert-btn")?.addEventListener("click", async () => {
       skinErrorEl.textContent = "";
-      const applyRes = await window.luna.revertSkin(entry.id);
+      const applyRes = await window.nova.revertSkin(entry.id);
       if (applyRes.ok) {
         setSkinVariant.value = entry.variant;
         skinFileNameEl.textContent = `${entry.name} 스킨으로 되돌렸어요!`;
@@ -9038,7 +11905,7 @@ async function loadSkinHistoryList() {
       }
     });
     row.querySelector(".skin-item-download-btn")?.addEventListener("click", async () => {
-      const res2 = await window.luna.downloadSkinFile(entry.filePath, entry.name);
+      const res2 = await window.nova.downloadSkinFile(entry.filePath, entry.name);
       if (res2.ok) showToast("스킨 파일을 저장했어요");
       else if (!res2.canceled) showToast(res2.error || "다운로드에 실패했어요", "error");
     });
@@ -9049,7 +11916,7 @@ async function loadSkinHistoryList() {
 }
 
 btnSkinPick?.addEventListener("click", async () => {
-  const filePath = await window.luna.pickSkinFile();
+  const filePath = await window.nova.pickSkinFile();
   if (!filePath) return;
   pickedSkinPath = filePath;
   skinFileNameEl.textContent = filePath.split(/[\\/]/).pop();
@@ -9065,7 +11932,7 @@ btnSkinApply?.addEventListener("click", async () => {
   // 19차: "내가 추가한 스킨들은 바뀌기만 하지 말고 리스트에 추가해줘" - 직접 고른 파일을
   // 적용할 때는 saveToList:true로 넘겨서 "내가 추가한 스킨" 목록에도 같이 저장되게 함
   const pickedName = pickedSkinPath.split(/[\\/]/).pop()?.replace(/\.png$/i, "") || "커스텀 스킨";
-  const res = await window.luna.uploadSkin(pickedSkinPath, setSkinVariant.value, { saveToList: true, name: pickedName });
+  const res = await window.nova.uploadSkin(pickedSkinPath, setSkinVariant.value, { saveToList: true, name: pickedName });
 
   btnSkinApply.textContent = "적용";
   if (res.ok) {
@@ -9090,18 +11957,29 @@ const sfxCoin = document.getElementById("sfx-coin");
 let sfxCoinReady = false;
 
 (async () => {
-  const path = await window.luna.getCoinSfx?.();
+  const path = await window.nova.getCoinSfx?.();
   if (path && sfxCoin) {
     sfxCoin.src = "file://" + path;
     sfxCoinReady = true;
   }
 })();
 
+// 24-81차: "출석받을 때 소리가 너무너무 커 50%인데도"
+// 원인은 파일이 크게 녹음된 게 아니라(측정해보니 최대 -15.3dB로 오히려 여유 있음) 볼륨을
+// 다루는 방식이었음. HTML audio의 volume은 "진폭"을 그대로 곱하는 값인데 사람이 느끼는
+// 소리 크기는 로그에 가까워서, 50%로 낮춰도 실제로는 -6dB밖에 안 줄어 거의 그대로 크게 들림.
+// 설정값을 제곱해서 진폭으로 바꾸면 50% -> 0.25(-12dB)가 되어 체감상 정말 절반쯤으로 줄어듦.
+// (100%일 때는 1.0 그대로라 최대 음량은 변하지 않고, 슬라이더 중간값만 제대로 동작하게 됨)
+function sfxAmplitudeFromPercent(percent) {
+  const p = Math.max(0, Math.min(100, Number(percent) || 0)) / 100;
+  return p * p;
+}
+
 async function playCoinSfx() {
   if (!sfxCoinReady || !sfxCoin) return;
   try {
-    const s = await window.luna.getSettings();
-    sfxCoin.volume = Math.max(0, Math.min(100, s.sfxVolume)) / 100;
+    const s = await window.nova.getSettings();
+    sfxCoin.volume = sfxAmplitudeFromPercent(s.sfxVolume);
     sfxCoin.currentTime = 0;
     sfxCoin.play().catch(() => {});
   } catch (_) {
@@ -9117,8 +11995,9 @@ async function playCoinSfx() {
 let profileSwitchAudioCtx = null;
 async function playProfileSwitchDing() {
   try {
-    const s = await window.luna.getSettings();
-    const vol = Math.max(0, Math.min(100, s.sfxVolume)) / 100;
+    const s = await window.nova.getSettings();
+    // 코인 효과음과 같은 체감 볼륨 곡선을 씀(위 sfxAmplitudeFromPercent 주석 참고)
+    const vol = sfxAmplitudeFromPercent(s.sfxVolume);
     if (vol <= 0) return;
     if (!profileSwitchAudioCtx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -9158,13 +12037,13 @@ async function playProfileSwitchDing() {
 
 // ---- 디스코드 버튼 -----------------------------------------------------------
 document.getElementById("btn-discord")?.addEventListener("click", () => {
-  window.luna.openDiscord();
+  window.nova.openDiscord();
 });
 
 // ---- 홈 화면 스크린샷 슬라이드쇼 ----------------------------------------------
 (async () => {
   try {
-    const files = await window.luna.getScreenshots();
+    const files = await window.nova.getScreenshots();
     if (!files || files.length === 0) return;
 
     const container = document.getElementById("screenshot-slideshow");
@@ -9201,14 +12080,14 @@ const resourcepackUserList = document.getElementById("resourcepack-user-list");
 
 async function loadUserResourcePacks() {
   if (!resourcepackUserList) return;
-  const list = await window.luna.listUserResourcePacks();
+  const list = await window.nova.listUserResourcePacks();
   resourcepackUserList.innerHTML = "";
   (list || []).forEach((fileName) => {
     const row = document.createElement("div");
     row.className = "resourcepack-item";
     row.innerHTML = `<span>${fileName}</span><button type="button">삭제</button>`;
     row.querySelector("button").addEventListener("click", async () => {
-      await window.luna.removeUserResourcePack(fileName);
+      await window.nova.removeUserResourcePack(fileName);
       loadUserResourcePacks();
     });
     resourcepackUserList.appendChild(row);
@@ -9217,7 +12096,7 @@ async function loadUserResourcePacks() {
 
 btnResourcepackAdd?.addEventListener("click", async () => {
   if (resourcepackStatus) resourcepackStatus.textContent = "추가하는 중...";
-  const res = await window.luna.addResourcePack();
+  const res = await window.nova.addResourcePack();
   if (!res) {
     if (resourcepackStatus) resourcepackStatus.textContent = "";
     return;
@@ -9298,7 +12177,7 @@ function applyThemeColor(colorItem, modeItem) {
 
 // ---- 코인 -----------------------------------------------------------------
 async function refreshCoins() {
-  const status = await window.luna.getRewardStatus();
+  const status = await window.nova.getRewardStatus();
   const coinAmount = document.getElementById("coin-amount");
   const shopCoins = document.getElementById("shop-coins");
   // 24-14차: "출첵에서도 코인 보이게 하기"
@@ -9310,10 +12189,49 @@ async function refreshCoins() {
   if (coinAmount) coinAmount.textContent = status.coins;
   if (shopCoins) shopCoins.textContent = status.coins;
   if (attendanceCoins) attendanceCoins.textContent = status.coins;
-  if (inventoryDot) inventoryDot.hidden = !status.canClaimToday;
-  if (attendanceTabDot) attendanceTabDot.hidden = !status.canClaimToday;
+  await syncRewardDots(status);
   return status;
 }
+
+// 24-154차: "출석체크/퀘스트 보상 안받았으면 선물 버튼 오른쪽에 띄우기"
+// 예전엔 사이드바 보관함 아이콘의 알림 점이 출석(canClaimToday)만 보고 있어서, 받을 수 있는
+// 퀘스트 보상이 쌓여 있어도 보관함에 직접 들어가 보기 전엔 알 수가 없었다. 일일/주간 퀘스트의
+// claimable 도 같이 봐서 둘 중 하나라도 있으면 점을 켠다.
+// (보관함 안 "출석체크" 탭 옆 점은 뜻 그대로 출석 여부만 따른다)
+async function syncRewardDots(statusMaybe) {
+  const inventoryDot = document.getElementById("inventory-notif-dot");
+  const attendanceTabDot = document.getElementById("inventory-attendance-tab-dot");
+  const homeGiftDot = document.getElementById("home-gift-dot"); // 24-155차: 메인 화면 선물 버튼
+  let status = statusMaybe;
+  if (!status) {
+    try {
+      status = await window.nova.getRewardStatus();
+    } catch (_) {
+      return;
+    }
+  }
+  let questClaimable = false;
+  try {
+    const q = await window.nova.getQuestStatus?.();
+    questClaimable =
+      !!q &&
+      ((q.dailyTiers || []).some((t) => t.claimable) || (q.weeklyTiers || []).some((t) => t.claimable));
+  } catch (_) {}
+  const hasReward = !!status.canClaimToday || questClaimable;
+  if (inventoryDot) inventoryDot.hidden = !hasReward;
+  if (homeGiftDot) homeGiftDot.hidden = !hasReward;
+  // 선물 버튼 자체도 받을 게 있을 때만 눈에 띄게(있을 땐 살짝 빛남)
+  document.getElementById("btn-home-gift")?.classList.toggle("has-reward", hasReward);
+  if (attendanceTabDot) attendanceTabDot.hidden = !status.canClaimToday;
+}
+
+// 24-155차: 메인 화면 선물 버튼 - 누르면 보관함의 출석체크 탭으로 바로 이동
+document.getElementById("btn-home-gift")?.addEventListener("click", () => {
+  document.querySelector('.sidebar-icon[data-panel="inventory"]')?.click();
+  showInventoryTab("attendance");
+  refreshAttendanceCalendar().catch(() => {});
+  loadQuests?.();
+});
 
 // ---- 출석체크 (달력 형식, 매월 1일 초기화, 토요일마다 보너스) ---------------------
 const attendanceCalendarEl = document.getElementById("attendance-calendar");
@@ -9364,7 +12282,7 @@ async function refreshAttendanceCalendar() {
     if (canClaimNow) {
       el.title = `${day}일 출석 받기${isBonus ? " (토요일 보너스!)" : ""}`;
       el.addEventListener("click", async () => {
-        const res = await window.luna.claimReward(day);
+        const res = await window.nova.claimReward(day);
         if (res.ok) {
           showToast(`${res.day}일 출석! +${res.amount} 코인 획득!`);
           playCoinSfx();
@@ -9381,13 +12299,14 @@ async function refreshAttendanceCalendar() {
           // 서버 상태를 다시 조회해 점을 갱신함)가 끝나길 기다렸다가 "방금 성공적으로 받았다"는
           // 확실한 사실(res.ok)을 기준으로 한 번 더 강제로 꺼줌 - 재조회 결과가 뭐라 나오든
           // 이 클릭 흐름의 맨 마지막엔 항상 꺼진 상태로 확정됨
-          const inventoryDot = document.getElementById("inventory-notif-dot");
+          // 24-154차: 여기서 두 점을 무조건 꺼버리면, 출석을 받아서 그제서야 받을 수 있게
+          // 된 일일 퀘스트 보상이 있어도 점이 꺼져버린다. 출석 탭 점만 즉시 끄고(방금 받은 게
+          // 확실하므로) 사이드바 점은 퀘스트까지 다시 따져서 정한다.
           const attendanceTabDot = document.getElementById("inventory-attendance-tab-dot");
-          if (inventoryDot) inventoryDot.hidden = true;
           if (attendanceTabDot) attendanceTabDot.hidden = true;
           await refreshAttendanceCalendar();
-          if (inventoryDot) inventoryDot.hidden = true;
           if (attendanceTabDot) attendanceTabDot.hidden = true;
+          await syncRewardDots();
         } else {
           showToast(res.error || "받을 수 없어요", "error");
         }
@@ -9444,18 +12363,18 @@ function renderQuestList(containerId, tiers, playSeconds, onClaim, lockedNote) {
 }
 
 async function loadQuests() {
-  const status = await window.luna.getQuestStatus?.();
+  const status = await window.nova.getQuestStatus?.();
   if (!status) return;
   renderQuestList(
     "quest-daily-list",
     status.dailyTiers,
     status.dailyPlaySeconds,
     async (hours) => {
-      const res = await window.luna.claimDailyQuest(hours);
+      const res = await window.nova.claimDailyQuest(hours);
       if (res.ok) {
         showToast(`일일 퀘스트 완료! +${res.amount} 코인 획득!`);
         playCoinSfx();
-        refreshCoins();
+        refreshCoins(); // 24-154차: 안에서 syncRewardDots 로 사이드바 점까지 같이 갱신됨
         loadQuests();
       } else {
         showToast(res.error || "받을 수 없어요", "error");
@@ -9468,11 +12387,11 @@ async function loadQuests() {
     status.weeklyTiers,
     status.weekPlaySeconds,
     async (hours) => {
-      const res = await window.luna.claimWeeklyQuest(hours);
+      const res = await window.nova.claimWeeklyQuest(hours);
       if (res.ok) {
         showToast(`주간 퀘스트 완료! +${res.amount} 코인 획득!`);
         playCoinSfx();
-        refreshCoins();
+        refreshCoins(); // 24-154차
         loadQuests();
       } else {
         showToast(res.error || "받을 수 없어요", "error");
@@ -9495,7 +12414,7 @@ function formatLogDate(iso) {
 async function loadCoinLog(listId = "coin-log-list") {
   const list = document.getElementById(listId);
   if (!list) return;
-  const log = await window.luna.getCoinLog();
+  const log = await window.nova.getCoinLog();
   list.innerHTML = "";
   if (!log || log.length === 0) {
     list.innerHTML = `<div class="coin-log-empty">아직 내역이 없어요</div>`;
@@ -9540,6 +12459,30 @@ document.addEventListener("click", (e) => {
 });
 
 // ---- 공통 토스트 알림 (성공/에러 둘 다 이걸로 통일) ---------------------------
+// 24-81차: "받을 때 코인이랑 받았습니다 메시지가 2개라 겹쳐서 하나가 안보여 /
+// 메시지 위에 뜨는 거 3개까지 따로 보이게 해줘"
+// 원인: 토스트가 하나하나 `position:absolute; top:44px; left:50%`로 **똑같은 자리**에 뜨도록
+// 돼 있어서, 두 개가 동시에 뜨면 같은 좌표에 겹쳐 쌓여 아래 것이 완전히 가려졌음.
+// 이제 토스트를 세로로 쌓는 컨테이너 하나를 만들어 그 안에 넣음(먼저 뜬 게 위, 새 게 아래).
+const TOAST_STACK_MAX = 3;
+function getToastStack() {
+  let stack = document.getElementById("toast-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toast-stack";
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+// 3개를 넘으면 가장 오래된 것부터 밀어냄 - 화면이 토스트로 뒤덮이지 않게
+function pushToast(toast) {
+  const stack = getToastStack();
+  stack.appendChild(toast);
+  while (stack.children.length > TOAST_STACK_MAX) {
+    stack.firstElementChild.remove();
+  }
+}
+
 function showToast(message, type = "success") {
   const toast = document.createElement("div");
   toast.className = "coin-toast" + (type === "error" ? " coin-toast-error" : "");
@@ -9551,7 +12494,7 @@ function showToast(message, type = "success") {
   const text = String(message ?? "");
   toast.textContent = text.length > 120 ? text.slice(0, 120) + "…" : text;
   // 스크롤 위치나 어떤 화면이 열려있든 항상 창 위쪽 가운데 고정으로 보이게 함
-  document.body.appendChild(toast);
+  pushToast(toast);
   // 24-12차: "코인 부족하면 부족하다고 해야지" - 실패 이유를 읽기도 전에 사라진다는 지적으로,
   // 오류 토스트는 성공 토스트보다 더 오래(2.2초→3.6초) 떠 있도록 함(읽고 판단할 시간을 더 줌)
   setTimeout(() => toast.remove(), type === "error" ? 3600 : 2200);
@@ -9571,7 +12514,7 @@ function showUndoToast(message, onUndo) {
     await onUndo();
   });
   toast.appendChild(undoBtn);
-  document.body.appendChild(toast);
+  pushToast(toast);
   setTimeout(() => toast.remove(), 6000);
 }
 
@@ -9595,7 +12538,7 @@ function shopItemBadge(item) {
 
 // 24-14차 신규: "상점에 상품들 바로 구매 말고 상품 보기 해서 창 띄우고 그 색이 입혀진 클라이언트
 // 사진을 앞에 보여주고 구매할지 고르게 하고 x 버튼으로 나갈 수도 있게 하고" - 캐러셀/그리드의
-// 구매 버튼을 눌러도 곧장 구매하지 않고 이 미리보기 창을 먼저 띄움. 실제 구매(luna.buyColor
+// 구매 버튼을 눌러도 곧장 구매하지 않고 이 미리보기 창을 먼저 띄움. 실제 구매(nova.buyColor
 // 호출 + 토스트 + 상점 새로고침)는 원래 각 버튼 핸들러에 있던 걸 여기 "구매하기" 버튼으로 그대로
 // 옮겨옴. 실제 스크린샷이 없어서 설정 > 테마 갤러리와 같은 .theme-gallery-preview 미니 목업을
 // 재사용해 "이 색이 클라이언트에 입혀지면 이런 느낌"을 보여줌
@@ -9608,6 +12551,25 @@ function openShopPreview(item) {
   if (!overlay || !mockup || !nameEl || !priceEl || !buyBtn) return;
   const t = window.NovaI18n?.t;
 
+  // 24-86차: "그 색이랑 테마 미리보기 할 수 있게 해줘 실제 클라이언트 메인화면만" -
+  // 색/테마 상품은 추상 목업(띠 하나 + 글줄 3개) 대신 진짜 메인화면 축소판을 보여줌.
+  // 실제로 샀을 때와 똑같이 보이도록 착용 규칙을 그대로 흉내냄:
+  //   · 완전 테마를 사면 포인트색이 초기화되므로(24-72차) accent는 비움
+  //   · 색을 사면 지금 쓰고 있는 완전 테마 위에 그 색만 덮임
+  const live = document.getElementById("shop-preview-live");
+  const isThemeLike = !!item.hex && !item.consumable && !item.frame; // 24-229차: 테두리는 사진으로 미리보기
+  if (live) live.hidden = !isThemeLike;
+  mockup.hidden = isThemeLike;
+
+  if (isThemeLike) {
+    const isFullTheme = item.category === "fulltheme";
+    sendThemePreview(document.getElementById("shop-preview-iframe"), {
+      theme: currentPreviewThemeMode(),
+      colorTheme: isFullTheme ? item.mode || null : document.body.dataset.colorTheme || null,
+      accent: isFullTheme ? null : item.hex,
+    });
+  }
+
   // 24-66차 신규: hex가 없는 소모품(닉네임 변경권 등)은 icon만 있음 - 배경 대신 아이콘만 표시
   mockup.style.background = item.hex || (item.icon ? "var(--surface-2, #2a2a2e)" : "");
   mockup.querySelectorAll(".shop-preview-plate, .shop-preview-icon").forEach((el) => el.remove());
@@ -9616,6 +12578,14 @@ function openShopPreview(item) {
     plate.className = "shop-preview-plate";
     plate.style.background = item.plateColor;
     mockup.appendChild(plate);
+  } else if (item.frame) {
+    // 24-229차: 내 사진에 테두리를 씌운 모습
+    const iconEl = document.createElement("div");
+    iconEl.className = "shop-preview-icon shop-preview-frame";
+    iconEl.innerHTML = `<span class="shop-frame-big has-frame frame-${escapeHtml(item.frame)}">${
+      myAvatarUrl ? `<img src="${escapeHtml(myAvatarUrl)}" alt="" />` : "<i></i>"
+    }</span>`;
+    mockup.appendChild(iconEl);
   } else if (!item.hex && item.icon) {
     const iconEl = document.createElement("div");
     iconEl.className = "shop-preview-icon";
@@ -9631,7 +12601,7 @@ function openShopPreview(item) {
   buyBtn.textContent = t?.("shop_buy_now") || "구매하기";
   buyBtn.onclick = () =>
     withBusyButton(buyBtn, t?.("shop_buying") || "구매 중...", async () => {
-      const res = await window.luna.buyColor(item.id);
+      const res = await window.nova.buyColor(item.id);
       if (!res.ok) {
         showToast(res.error || t?.("shop_buy_fail") || "구매 실패", "error");
         return;
@@ -9685,7 +12655,11 @@ function renderShopCarousel(catalog, state) {
   const wrap = document.getElementById("shop-carousel");
   if (!track || !dotsWrap || !wrap) return;
 
-  const slideDefs = [catalog.find((c) => c.featuredMain), catalog.find((c) => c.featuredSub)].filter(Boolean);
+  // 24-152차: "상점 메인상품 2페이지 말고 한 페이지에 검/핑 같이 팔고" - 블랙&화이트와
+  // 핑크를 한 장씩 번갈아 보여주던 2슬라이드를, 두 상품이 좌우로 같이 보이는 한 장으로 합침.
+  // slideDefs 의 원소가 이제 "상품 하나"가 아니라 "그 슬라이드에 올릴 상품 묶음"이 됨.
+  const featured = [catalog.find((c) => c.featuredMain), catalog.find((c) => c.featuredSub)].filter(Boolean);
+  const slideDefs = featured.length ? [featured] : [];
   if (shopCarouselTimer) { clearInterval(shopCarouselTimer); shopCarouselTimer = null; }
   if (shopCarouselDragCleanup) { shopCarouselDragCleanup(); shopCarouselDragCleanup = null; }
 
@@ -9707,12 +12681,14 @@ function renderShopCarousel(catalog, state) {
   // 안에서도 이미 절반쯤 옆 색으로 물들어 보였음. 이제 각 슬라이드 구간(1/n)의 대부분은
   // 자기 색으로 고정하고, 슬라이드끼리 맞닿는 이음매(seam) 근처에서만 짧게(blend폭) 섞이게 함
   const shopBgBlend = 6;
-  const bgStops = slideDefs
+  // 24-152차: 이제 한 슬라이드 안에서 왼쪽 상품 색 -> 오른쪽 상품 색으로 나뉘고,
+  // 가운데 이음매 근처에서만 짧게 섞인다(각 상품 구간의 대부분은 자기 색 그대로)
+  const bgStops = featured
     .map((item, i) => {
-      const start = (i / slideDefs.length) * 100;
-      const end = ((i + 1) / slideDefs.length) * 100;
+      const start = (i / featured.length) * 100;
+      const end = ((i + 1) / featured.length) * 100;
       const innerStart = i === 0 ? start : start + shopBgBlend;
-      const innerEnd = i === slideDefs.length - 1 ? end : end - shopBgBlend;
+      const innerEnd = i === featured.length - 1 ? end : end - shopBgBlend;
       return `${item.hex} ${innerStart}%, ${item.hex} ${innerEnd}%`;
     })
     .join(", ");
@@ -9721,15 +12697,12 @@ function renderShopCarousel(catalog, state) {
   // 24-2차: 슬라이드 폭(flex-basis)을 슬라이드 개수 기준으로 인라인 지정 - 레일 폭이
   // 슬라이드 수 × 100%라, 슬라이드 하나는 그 1/n이어야 뷰포트 폭과 정확히 맞음
   const slideBasis = 100 / slideDefs.length;
-  const slidesHtml = slideDefs
-    .map((item, i) => {
-      const pair = catalog.find((c) => c.id === item.featuredPairColorId);
-      const owned = state.owned.includes(item.id);
-      const hasDiscount = item.originalPrice && item.originalPrice > item.price;
-      const reversed = i % 2 === 1;
-      return `
-        <div class="shop-carousel-slide${reversed ? " is-reversed" : ""}" style="flex:0 0 ${slideBasis}%;">
-          <div class="shop-carousel-info">
+  const infoHtml = (item, alignRight) => {
+    const pair = catalog.find((c) => c.id === item.featuredPairColorId);
+    const owned = state.owned.includes(item.id);
+    const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+    return `
+          <div class="shop-carousel-info${alignRight ? " is-right" : ""}">
             <div class="shop-carousel-name">${item.name}${pair ? ` <span class="shop-carousel-pair-dot" style="background:${pair.hex}" title="${pair.name}"></span>` : ""}</div>
             <div class="shop-carousel-price-row">
               ${hasDiscount ? `<span class="shop-carousel-discount-badge">${item.discountPercent || 30}% OFF</span>` : ""}
@@ -9739,14 +12712,42 @@ function renderShopCarousel(catalog, state) {
             <button type="button" class="shop-carousel-buy" data-item-id="${item.id}" ${owned ? "disabled" : ""}>
               ${owned ? t?.("shop_owned") || "구매함" : t?.("shop_buy_now") || "바로 구매하기"}
             </button>
+          </div>`;
+  };
+  // 24-224차: "메탈 가격 판매가 3할 정도 있고 7할은 미리보기 보여줘"
+  // 메인 상품이 하나일 때는 그 자리를 7:3 으로 나눠 왼쪽 7할에 실제 클라이언트 미리보기를,
+  // 오른쪽 3할에 이름/가격/구매를 둔다(상품이 둘이면 예전처럼 좌우로 나란히).
+  const solo = featured.length === 1 ? featured[0] : null;
+  const slidesHtml = solo
+    ? `
+        <div class="shop-carousel-slide is-solo" style="flex:0 0 ${slideBasis}%; --feat-hex:${solo.hex}; --feat-plate:${solo.plateColor || solo.hex};">
+          <div class="shop-featured-preview">
+            <iframe id="shop-featured-iframe" class="theme-preview-iframe" src="theme-preview.html" title="미리보기" tabindex="-1" scrolling="no"></iframe>
           </div>
+          ${infoHtml(solo, true)}
+        </div>`
+    : slideDefs
+        .map((group) => {
+          const duo = group.length > 1;
+          return `
+        <div class="shop-carousel-slide${duo ? " is-duo" : ""}" style="flex:0 0 ${slideBasis}%;">
+          ${group.map((item, gi) => infoHtml(item, duo && gi === group.length - 1)).join("")}
         </div>`;
-    })
-    .join("");
+        })
+        .join("");
 
   track.innerHTML = bgHtml + `<div class="shop-carousel-rail" style="width:${slideDefs.length * 100}%;">${slidesHtml}</div>`;
   const bgEl = track.querySelector(".shop-carousel-bg");
   const railEl = track.querySelector(".shop-carousel-rail");
+
+  // 24-224차: 메인 상품 미리보기에 그 테마를 실제로 입혀서 보여준다
+  if (solo) {
+    sendThemePreview(document.getElementById("shop-featured-iframe"), {
+      theme: currentPreviewThemeMode(),
+      colorTheme: solo.mode || null,
+      accent: null,
+    });
+  }
 
   // 24-14차: "상품들 바로 구매 말고 상품 보기 해서 창 띄우고" - 눌러도 바로 구매하지 않고
   // 미리보기 창(openShopPreview)을 먼저 띄움. 실제 구매는 그 창의 구매 버튼에서 일어남
@@ -9758,7 +12759,11 @@ function renderShopCarousel(catalog, state) {
     });
   });
 
-  dotsWrap.innerHTML = slideDefs.map((_, i) => `<button type="button" class="shop-carousel-dot" data-index="${i}"></button>`).join("");
+  // 24-152차: 한 장짜리가 되면 점(페이지 표시)도 의미가 없으므로 아예 안 그림
+  dotsWrap.innerHTML =
+    slideDefs.length > 1
+      ? slideDefs.map((_, i) => `<button type="button" class="shop-carousel-dot" data-index="${i}"></button>`).join("")
+      : "";
 
   // 24-2차: 지금 실제로 화면에 적용된 translateX 값(px) - 드래그/애니메이션 모두 이 값을
   // 갱신하며, .shop-carousel-bg는 기존 scale(1.08) 장식을 유지한 채 translateX만 같이 더함
@@ -9875,6 +12880,30 @@ function renderShopCarousel(catalog, state) {
 // 죽은 코드였음(index.html에 이 함수가 찾는 shop-featured-main/shop-featured-sub 같은
 // id 자체가 없음) - 정리 차원에서 제거함. 실제로 쓰이는 메인상품 렌더링은 renderShopCarousel().
 
+// 24-152차: 상점 진열 순서. 카테고리 탭이든 "전체" 탭이든 같은 규칙으로 정렬해서
+// 테마와 단색이 섞여 보이지 않게 한다.
+//   1) 완전 테마(fulltheme)  2) 단색(theme)  3) 나머지(소모품 등)
+// 단색끼리는 id 의 색상환 각도(hue-0 ~ hue-345) 순, 무채색(mono-*)은 그 뒤.
+const SHOP_CATEGORY_RANK = { fulltheme: 0, theme: 1 };
+function shopSortRank(item, indexInCatalog) {
+  const category = item.category || "theme";
+  const group = SHOP_CATEGORY_RANK[category] ?? 2;
+  let inner = indexInCatalog;
+  if (category === "theme") {
+    const m = /^hue-(\d+)$/.exec(item.id || "");
+    inner = m ? Number(m[1]) : 1000 + indexInCatalog; // 무채색은 무지개 뒤로
+  }
+  return [group, inner];
+}
+function sortShopItems(list, catalog) {
+  const at = new Map(catalog.map((c, i) => [c.id, i]));
+  return list.slice().sort((a, b) => {
+    const ra = shopSortRank(a, at.get(a.id) ?? 0);
+    const rb = shopSortRank(b, at.get(b.id) ?? 0);
+    return ra[0] - rb[0] || ra[1] - rb[1];
+  });
+}
+
 function renderShopGrid() {
   if (!shopCatalogCache || !shopStateCache) return;
   const catalog = shopCatalogCache;
@@ -9903,17 +12932,12 @@ function renderShopGrid() {
 
   const tShop = window.NovaI18n?.t;
   const hasDiscountFn = (c) => c.originalPrice && c.originalPrice > c.price;
-  // 24-11차: "할인 상품이 가운데(검정 근처)로 몰려있다, 원래처럼 양 끝에 있어야지" -
-  // "전체" 탭에서만 할인 상품을 목록 맨 앞/맨 뒤로 나눠 배치함(카테고리별 탭은 원래
-  // 카탈로그 순서를 그대로 씀)
-  let ordered = filtered;
-  if (shopCurrentCategory === "all") {
-    const discounted = filtered.filter(hasDiscountFn);
-    const rest = filtered.filter((c) => !hasDiscountFn(c));
-    const front = discounted.filter((_, i) => i % 2 === 0);
-    const back = discounted.filter((_, i) => i % 2 === 1);
-    ordered = [...front, ...rest, ...back];
-  }
+  // 24-152차: "상점에 배열이 이상해 테마랑 색상이 뒤죽박죽이야 정렬좀"
+  // 원인은 24-11차의 "할인 상품을 목록 양 끝에 배치" 규칙이었음 - 완전 테마가 전부 할인
+  // 상품이라 절반은 맨 앞, 절반은 맨 뒤로 찢어지고 그 사이에 단색 24개가 끼어 있었다.
+  // 이제 그 규칙을 버리고 종류별로 묶어서 정렬한다:
+  //   완전 테마(fulltheme) -> 단색(무지개 색상환 순, 무채색은 그 뒤) -> 기타(소모품 등)
+  const ordered = sortShopItems(filtered, catalog);
   if (ordered.length === 0) {
     grid.innerHTML = `<div style="grid-column:1/-1; color:var(--text-2); font-size:12px; padding:30px 0; text-align:center;">${tShop?.("shop_empty_category") || "이 카테고리는 곧 채워질 예정이에요!"}</div>`;
   } else {
@@ -9926,21 +12950,71 @@ function renderShopGrid() {
       // 24-66차 신규: hex가 없는 소모품은 스와치 배경을 중립 색으로 깔고 그 위에 icon을 얹음
       const swatchBg = color.hex || "var(--surface-2, #2a2a2e)";
 
+      // 24-145차: "상점에 구매함이랑 가격이랑 버튼 크기가 다르고 구매하면 구매 대신 장착이
+      // 뜨게 해주고 테마는 2가지색 동그란거 보기 안뻐 다른 식으로 하자"
+      //  · 이미 산 물건은 "구매함"(누를 수 없는 회색)이 아니라 바로 "장착"이 뜨고, 눌러서
+      //    그 자리에서 착용됨(보관함까지 갈 필요 없음). 지금 착용 중이면 "착용 중"으로 표시.
+      //  · 완전 테마(plateColor 가 있는 상품)는 동심원 대신 작은 창 모양 미리보기로 보여줌.
+      const isEquipped = color.frame
+        ? state.equippedFrame === color.id
+        : color.category === "fulltheme"
+          ? state.equippedMode === color.id
+          : state.equipped === color.id;
+      const canEquip = owned && !color.consumable && !!(color.hex || color.mode);
+      // 24-229차: 개수 제한 소모품(서버 슬롯 +1)을 이미 가졌으면 더 못 산다
+      const maxed = !!(color.consumable && color.maxCount && ownedCount >= color.maxCount);
+
+      let btnClass, btnLabel, btnDisabled;
+      if (maxed) {
+        btnClass = "equipped";
+        btnDisabled = true;
+        btnLabel = "보유";
+      } else if (!owned) {
+        btnClass = "buy";
+        btnDisabled = false;
+        btnLabel = `${hasDiscount ? `<span class="shop-swatch-price-original">🪙 ${color.originalPrice}</span>` : ""}<span class="coin-icon">🪙</span> ${color.price}`;
+      } else if (!canEquip) {
+        btnClass = "equipped";
+        btnDisabled = true;
+        btnLabel = tShop?.("shop_owned") || "구매함";
+      } else if (isEquipped) {
+        btnClass = "equipped";
+        btnDisabled = true;
+        btnLabel = window.NovaI18n?.t?.("equip_equipped") || "착용 중";
+      } else {
+        btnClass = "equip";
+        btnDisabled = false;
+        btnLabel = window.NovaI18n?.t?.("shop_equip_now") || "장착";
+      }
+
       const el = document.createElement("div");
       el.className = "shop-swatch";
       el.innerHTML = `
-        <div class="shop-swatch-color" style="background:${swatchBg}">${color.plateColor ? `<div class="shop-swatch-plate" style="background:${color.plateColor}"></div>` : ""}${color.icon ? `<span class="shop-swatch-icon">${color.icon}</span>` : ""}${shopItemBadge(color)}${hasDiscount ? `<span class="shop-swatch-discount-badge">${color.discountPercent || 30}%</span>` : ""}${ownedCount > 0 ? ` <span class="shop-swatch-owned-count">×${ownedCount}</span>` : ""}</div>
+        <div class="shop-swatch-color${color.plateColor ? " is-theme-preview" : ""}" style="background:${swatchBg}">${frameSwatchHtml(color)}${color.plateColor ? `<span class="shop-swatch-theme-bar" style="background:${color.plateColor}"></span><span class="shop-swatch-theme-line"></span><span class="shop-swatch-theme-line is-short"></span>` : ""}${color.icon ? `<span class="shop-swatch-icon">${color.icon}</span>` : ""}${shopItemBadge(color)}${hasDiscount ? `<span class="shop-swatch-discount-badge">${color.discountPercent || 30}%</span>` : ""}${ownedCount > 0 ? ` <span class="shop-swatch-owned-count">×${ownedCount}</span>` : ""}</div>
         <div class="shop-swatch-price">${color.name}</div>
-        <button type="button" class="${owned ? "equipped" : "buy"}" ${owned ? "disabled" : ""}>
-          ${owned
-            ? tShop?.("shop_owned") || "구매함"
-            : `${hasDiscount ? `<span class="shop-swatch-price-original">🪙 ${color.originalPrice}</span>` : ""}<span class="coin-icon">🪙</span> ${color.price}`}
-        </button>
+        <button type="button" class="${btnClass}" ${btnDisabled ? "disabled" : ""}>${btnLabel}</button>
       `;
-      if (!owned) {
+      const actionBtn = el.querySelector("button");
+      if (maxed) {
+        // 보유 - 누를 것 없음
+      } else if (!owned) {
         // 24-14차: 그리드도 캐러셀과 동일하게 바로 구매 대신 미리보기 창을 먼저 띄움
-        const buyBtn = el.querySelector("button");
-        buyBtn.addEventListener("click", () => openShopPreview(color));
+        actionBtn.addEventListener("click", () => openShopPreview(color));
+      } else if (canEquip && !isEquipped) {
+        actionBtn.addEventListener("click", async () => {
+          const res = await window.nova.equipColor(color.id);
+          if (!res?.ok) {
+            showToast(res?.error || "착용하지 못했어요", "error");
+            return;
+          }
+          const equippedColorItem = res.equipped ? catalog.find((c) => c.id === res.equipped) : null;
+          const equippedModeItem = res.equippedMode ? catalog.find((c) => c.id === res.equippedMode) : null;
+          applyThemeColor(equippedColorItem, equippedModeItem);
+          if (color.frame) applyMyFrame(); // 24-229차
+          showToast(`${color.name} 착용했어요`);
+          shopLoaded = false;
+          await loadShop();
+        });
       }
       grid.appendChild(el);
     });
@@ -9952,11 +13026,75 @@ function renderShopGrid() {
   renderShopCarousel(catalog, state);
 }
 
+// 24-146차: 청약철회(환불) 목록. 구매 후 24시간이 안 지난 항목만 메인에서 내려줌.
+// 남은 시간을 같이 보여줘서 언제까지 가능한지 알 수 있게 함
+function refundLeftText(msLeft) {
+  const min = Math.max(0, Math.floor(msLeft / 60000));
+  if (min < 60) return `${min}분 남음`;
+  const hr = Math.floor(min / 60);
+  return `${hr}시간 ${min % 60}분 남음`;
+}
+
+async function loadRefundPanel() {
+  const panel = document.getElementById("refund-panel");
+  const list = document.getElementById("refund-list");
+  if (!panel || !list) return;
+
+  const items = (await window.nova.listRefundablePurchases?.()) || [];
+  if (items.length === 0) {
+    panel.hidden = true;
+    return;
+  }
+
+  list.innerHTML = "";
+  items.forEach((it) => {
+    const row = document.createElement("div");
+    row.className = "refund-item";
+    row.innerHTML =
+      `<span class="refund-item-info"><b>${escapeHtml(it.name)}</b>` +
+      `<span class="refund-item-left">${escapeHtml(refundLeftText(it.msLeft))}</span></span>` +
+      `<span class="refund-item-right"><span class="refund-item-paid">🪙 ${it.paid}</span></span>`;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-ghost btn-small";
+    btn.textContent = "환불";
+    btn.addEventListener("click", async () => {
+      const confirmed = await showConfirm(
+        `<b>${escapeHtml(it.name)}</b> 구매를 취소할까요?<br><br>` +
+          `쓴 코인 <b>${it.paid}</b>개를 그대로 돌려드려요.<br>` +
+          `지금 착용 중이라면 기본 모습으로 되돌아가요.`,
+        "환불",
+        "취소"
+      );
+      if (!confirmed) return;
+
+      const res = await window.nova.refundPurchase?.(it.id);
+      if (!res?.ok) {
+        showToast(res?.error || "환불하지 못했어요", "error");
+        return;
+      }
+      // 착용 중이던 걸 환불했으면 화면 색도 즉시 기본으로 되돌림
+      const catalog = (await window.nova.getShopCatalog()) || [];
+      const equippedColorItem = res.equipped ? catalog.find((c) => c.id === res.equipped) : null;
+      const equippedModeItem = res.equippedMode ? catalog.find((c) => c.id === res.equippedMode) : null;
+      applyThemeColor(equippedColorItem, equippedModeItem);
+      showToast(`${res.name} 환불했어요 (🪙 ${res.refunded} 반환)`);
+      shopLoaded = false;
+      await loadShop();
+    });
+    row.querySelector(".refund-item-right").appendChild(btn);
+    list.appendChild(row);
+  });
+  panel.hidden = false;
+}
+
 async function loadShop() {
   await refreshCoins();
   loadRedeemDevPanel();
+  loadRefundPanel(); // 24-146차: 청약철회 가능한 구매 목록
   if (!shopLoaded) {
-    const [catalog, state] = await Promise.all([window.luna.getShopCatalog(), window.luna.getShopState()]);
+    const [catalog, state] = await Promise.all([window.nova.getShopCatalog(), window.nova.getShopState()]);
     shopCatalogCache = catalog;
     shopStateCache = state;
     shopLoaded = true;
@@ -9981,7 +13119,7 @@ function readableTextColorFor(hex) {
 const INVENTORY_CATEGORY_LABELS = { theme: "색상", fulltheme: "테마", cosmetic: "꾸미기", special: "스페셜" };
 
 async function renderEquipGrid(gridId, defaultBtnId, onChanged) {
-  const [catalog, state] = await Promise.all([window.luna.getShopCatalog(), window.luna.getShopState()]);
+  const [catalog, state] = await Promise.all([window.nova.getShopCatalog(), window.nova.getShopState()]);
 
   const invGrid = document.getElementById(gridId);
   if (!invGrid) return;
@@ -10025,7 +13163,11 @@ async function renderEquipGrid(gridId, defaultBtnId, onChanged) {
       // 17차: "테마모드(다크/화이트)랑 색상을 동시에 착용할 수 있게 해줘" - 착용 슬롯이
       // 이제 색상(equippedColor)/완전 테마(equippedMode) 둘로 나뉘어 있어서, 카테고리에 따라
       // 서로 다른 슬롯과 비교해야 함
-      const equipped = cat === "fulltheme" ? state.equippedMode === color.id : state.equipped === color.id;
+      const equipped = color.frame
+        ? state.equippedFrame === color.id
+        : cat === "fulltheme"
+          ? state.equippedMode === color.id
+          : state.equipped === color.id;
       // 17차: "구매한 테마 버튼은 그 테마 색상으로 해줘" - 착용하기 버튼 자체를 그 아이템의 실제 색으로 물들임
       const textColor = readableTextColorFor(color.hex);
 
@@ -10033,18 +13175,34 @@ async function renderEquipGrid(gridId, defaultBtnId, onChanged) {
       el.className = "shop-swatch";
       el.dataset.colorId = color.id;
       el.innerHTML = `
-        <div class="shop-swatch-color" style="background:${color.hex}">${shopItemBadge(color)}</div>
+        <div class="shop-swatch-color" style="background:${color.hex}">${frameSwatchHtml(color)}${shopItemBadge(color)}</div>
         <div class="shop-swatch-price">${color.name}</div>
-        <button type="button" class="${equipped ? "equipped" : "equip"} is-color-tinted" ${equipped ? "disabled" : ""}
-          style="background:${color.hex}; border-color:${color.hex}; color:${textColor};">${window.NovaI18n?.t?.(equipped ? "equip_equipped" : "equip_wear") || (equipped ? "착용 중" : "착용하기")}</button>
+        ${
+          color.frame
+            ? `<button type="button" class="${equipped ? "equipped is-unequip" : "equip"}">${equipped ? "해제" : "착용하기"}</button>`
+            : `<button type="button" class="${equipped ? "equipped" : "equip"} is-color-tinted" ${equipped ? "disabled" : ""}
+          style="background:${color.hex}; border-color:${color.hex}; color:${textColor};">${window.NovaI18n?.t?.(equipped ? "equip_equipped" : "equip_wear") || (equipped ? "착용 중" : "착용하기")}</button>`
+        }
       `;
+      // 24-229차: 테두리는 착용 중이면 "해제"
+      if (color.frame && equipped) {
+        el.querySelector("button").addEventListener("click", async () => {
+          const res = await window.nova.unequipShopCategory("cosmetic");
+          if (res?.ok) {
+            applyMyFrame();
+            await renderEquipGrid(gridId, defaultBtnId, onChanged);
+            if (onChanged) onChanged();
+          }
+        });
+      }
       if (!equipped) {
         el.querySelector("button").addEventListener("click", async () => {
-          const res = await window.luna.equipColor(color.id);
+          const res = await window.nova.equipColor(color.id);
           if (res.ok) {
             const equippedColorItem = res.equipped ? catalog.find((c) => c.id === res.equipped) : null;
             const equippedModeItem = res.equippedMode ? catalog.find((c) => c.id === res.equippedMode) : null;
             applyThemeColor(equippedColorItem, equippedModeItem);
+            if (color.frame) applyMyFrame(); // 24-229차
             // 24-69차: "보관함에서 테마 바꾸면 장착중이 빠뀌여야 하는데 안바뀌여" - 예전엔
             // 착용 API만 부르고 방금 누른 버튼에만 팝 애니메이션을 붙였을 뿐, 그리드 자체를
             // 다시 그리지 않아서 이전에 "장착 중"이던 다른 스와치가 그대로 "장착 중"으로
@@ -10096,7 +13254,7 @@ document.getElementById("btn-shop-default")?.addEventListener("click", async () 
   // 예전엔 shop:equip("default")를 써서 색상/완전 테마 슬롯을 둘 다 초기화했는데, 이제 이
   // 버튼은 "색상" 슬롯만 초기화하고 착용 중인 완전 테마는 그대로 유지해야 함. 이미 있던
   // shop:unequip-category 핸들러(한 슬롯만 해제)를 대신 씀
-  const res = await window.luna.unequipShopCategory("theme");
+  const res = await window.nova.unequipShopCategory("theme");
   if (res.ok) {
     await applyEquippedShopTheme(); // 실제 남아있는 착용 상태(완전 테마 포함)를 다시 조회해서 반영
     shopLoaded = false;
@@ -10110,7 +13268,7 @@ const redeemMessage = document.getElementById("redeem-message");
 document.getElementById("btn-redeem")?.addEventListener("click", async () => {
   const code = redeemInput.value;
 
-  const res = await window.luna.submitRedeemCode(code);
+  const res = await window.nova.submitRedeemCode(code);
   if (res.ok) {
     showToast(`+${res.amount} 코인 획득!`);
     playCoinSfx();
@@ -10129,19 +13287,28 @@ async function loadRedeemDevPanel() {
   const list = document.getElementById("redeem-dev-list");
   if (!panel || !list) return;
 
-  const codes = await window.luna.getRedeemCodesDev?.();
+  const codes = await window.nova.getRedeemCodesDev?.();
   if (!codes || codes.length === 0) {
     panel.hidden = true;
     return;
   }
 
   list.innerHTML = "";
-  codes.forEach(({ label, amount }) => {
+  codes.forEach(({ label, amount, hint, hash8 }) => {
     const row = document.createElement("div");
     row.className = "redeem-dev-item";
-    row.innerHTML = `<span>${label}</span><b>${amount} 코인</b>`;
+    // 24-143차: 무엇을 입력해야 하는지 알아볼 수 있게 힌트와 해시 앞자리를 같이 보여줌.
+    // (코드 원문은 저장하지 않아서 표시할 수 없음 - 아래 안내 문구 참고)
+    // label/hint 는 값이 바뀔 수 있으니 escapeHtml 을 거침
+    row.innerHTML =
+      `<span class="redeem-dev-label">${escapeHtml(label || "")}` +
+      (hint ? `<span class="redeem-dev-hint">${escapeHtml(hint)}</span>` : "") +
+      `</span>` +
+      `<span class="redeem-dev-right"><code class="redeem-dev-hash">${escapeHtml(hash8 || "")}</code><b>${amount} 코인</b></span>`;
     list.appendChild(row);
   });
+  const note = document.getElementById("redeem-dev-note");
+  if (note) note.hidden = false;
   panel.hidden = false;
 }
 
@@ -10151,10 +13318,10 @@ async function loadRedeemDevPanel() {
 // 상태가 잘못 계산될 수 있었음 - 그 확인이 끝난 뒤에만 진행하도록 기다림
 (async () => {
   await siteAccountReadyPromise;
-  const state = await window.luna.getShopState();
+  const state = await window.nova.getShopState();
   // 17차: 색상/완전 테마가 서로 다른 슬롯이라 둘 다 따로 찾아서 동시에 적용해야 함
   if (state.equipped || state.equippedMode) {
-    const catalog = await window.luna.getShopCatalog();
+    const catalog = await window.nova.getShopCatalog();
     const color = state.equipped ? catalog.find((c) => c.id === state.equipped) : null;
     const mode = state.equippedMode ? catalog.find((c) => c.id === state.equippedMode) : null;
     applyThemeColor(color, mode);
@@ -10169,7 +13336,7 @@ const accountMenuList = document.getElementById("account-menu-list");
 const btnAccountAdd = document.getElementById("btn-account-add");
 
 async function openAccountMenu() {
-  const accounts = await window.luna.listAccounts();
+  const accounts = await window.nova.listAccounts();
   accountMenuList.innerHTML = "";
   accounts.forEach((a) => {
     const item = document.createElement("div");
@@ -10178,7 +13345,7 @@ async function openAccountMenu() {
     if (!a.active) {
       item.addEventListener("click", async () => {
         accountMenu.hidden = true;
-        const res = await window.luna.switchAccount(a.uuid);
+        const res = await window.nova.switchAccount(a.uuid);
         if (res.ok) {
           // 24-30차: 착용 테마 재적용은 이제 showHome() 안의 applyEquippedShopTheme()가
           // 항상 같이 해주므로(앱 첫 진입 시에도 빠지지 않게 하려고 그쪽으로 옮김) 여기서
@@ -10262,7 +13429,7 @@ function applyHomeForumNotice(notice) {
 }
 
 async function refreshHomeForumNotice() {
-  const notice = await window.luna.getLatestForumNotice?.();
+  const notice = await window.nova.getLatestForumNotice?.();
   applyHomeForumNotice(notice);
 }
 refreshHomeForumNotice();
@@ -10270,7 +13437,7 @@ refreshHomeForumNotice();
 announcementCard?.addEventListener("click", () => {
   if (!currentHomeNotice) return;
   if (!currentHomeNotice.seen) {
-    window.luna.dismissForumNotice?.(currentHomeNotice.id);
+    window.nova.dismissForumNotice?.(currentHomeNotice.id);
     announcementCard.classList.remove("has-unread-dot");
   }
   showAppPanel("view-forum");
@@ -10294,7 +13461,7 @@ function updatePlayLockState() {
   }
 }
 
-window.luna.onStatusUpdate?.(({ maintenance, maintenanceMessage, forceUpdate }) => {
+window.nova.onStatusUpdate?.(({ maintenance, maintenanceMessage, forceUpdate }) => {
   isMaintenance = !!maintenance;
   isForceUpdate = !!forceUpdate;
 
@@ -10312,7 +13479,7 @@ window.luna.onStatusUpdate?.(({ maintenance, maintenanceMessage, forceUpdate }) 
 });
 
 document.getElementById("btn-force-update")?.addEventListener("click", () => {
-  window.luna.openReleases?.();
+  window.nova.openReleases?.();
 });
 
 // ---- 재접속 배너 --------------------------------------------------------------
@@ -10349,7 +13516,7 @@ document.getElementById("btn-reconnect-cancel")?.addEventListener("click", cance
 const crashBanner = document.getElementById("crash-banner");
 let lastCrashText = "";
 
-window.luna.onGameCrashed?.(({ text }) => {
+window.nova.onGameCrashed?.(({ text }) => {
   lastCrashText = text || "";
   if (crashBanner) crashBanner.hidden = false;
 });
@@ -10371,6 +13538,16 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
   const canvas = document.getElementById("cursor-trail");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
+  // 24-98차: "마우스 잔상이 길게 늘었을 때 중간에 점이 하나씩 보여" - 원인은 두 가지였음.
+  //  ① 선을 조각(점과 점 사이 곡선)마다 따로 긋는데 끝을 둥글게(round cap) 그려서, 이음매마다
+  //     앞 조각의 둥근 끝과 뒤 조각의 둥근 시작이 겹침 → 반투명이 두 번 칠해져 그 자리만 진해짐
+  //  ② 빛 번짐(shadowBlur)도 조각마다 따로 계산돼서 이음매에서 두 조각의 빛이 겹침
+  //  빨리 그어서 잔상이 길게 늘어나면 조각 하나가 길어져 이음매가 띄엄띄엄 보이니 "점"으로 보였음.
+  // 고친 방법: 조각끝을 평평하게(butt) 해서 이음매가 겹치지 않게 하고(조각들이 이음매에서
+  //  방향까지 똑같이 이어지는 곡선이라 틈도 안 생김), 선은 따로 준비한 투명 레이어에 빛 없이
+  //  그린 다음 그 레이어 전체를 한 번에 빛 번짐과 함께 화면에 옮김(빛이 선 전체에 고르게 한 번만).
+  const layer = document.createElement("canvas");
+  const lctx = layer.getContext("2d");
   let points = []; // {x, y, life}
   let mouseX = null;
   let mouseY = null;
@@ -10417,14 +13594,33 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
   //  작은 영역으로만 잡히는 문제가 있었음)
   // 단, 캔버스가 position:absolute라 뷰포트 기준(clientX/Y) 좌표와 캔버스 자체 좌표계 사이에
   // 오프셋(카드 프레임 여백만큼)이 생길 수 있어서, 그 오프셋을 따로 구해서 보정해줌
+  // 24-247차: "노트북이 마우스 잔상이 이상한 곳에 남아 동떨어져있는 경우가 있어"
+  // 원인: 캔버스 그림판 크기를 "창 전체"로 잡았는데, 화면에서 캔버스는 사이드바·제목줄을 뺀
+  // 본문 칸 크기(inset:0)라 브라우저가 그림을 그 크기로 줄여 그렸다 - 커서에서 멀어질수록 잔상이
+  // 점점 더 어긋났다(창이 작은 노트북일수록 심함). 이제 캔버스가 실제로 차지하는 크기로 맞추고,
+  // 그 크기나 화면 배율(dpr)이 바뀌면 바로 다시 맞춘다.
+  let cssW = 1;
+  let cssH = 1;
+  let lastDpr = devicePixelRatio;
   function resize() {
-    canvas.width = Math.max(1, Math.round(window.innerWidth * devicePixelRatio));
-    canvas.height = Math.max(1, Math.round(window.innerHeight * devicePixelRatio));
+    const rect = canvas.getBoundingClientRect();
+    cssW = Math.max(1, rect.width);
+    cssH = Math.max(1, rect.height);
+    lastDpr = devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(cssW * lastDpr));
+    canvas.height = Math.max(1, Math.round(cssH * lastDpr));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.scale(canvas.width / cssW, canvas.height / cssH);
+    layer.width = canvas.width;
+    layer.height = canvas.height;
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.scale(canvas.width / cssW, canvas.height / cssH);
   }
   resize();
   window.addEventListener("resize", resize);
+  try {
+    new ResizeObserver(() => resize()).observe(canvas);
+  } catch (_) {}
 
   // 마우스가 실제로 움직인 프레임에만 true - 이게 없으면 마우스가 멈춘 뒤에도
   // drawX/drawY가 목표 지점으로 서서히(비선형적으로) 다가가는 동안 계속 점을 새로 찍어서,
@@ -10438,19 +13634,38 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
   // 그래서 오프셋을 미리 구해두지 않고, 마우스가 움직일 때마다 그 즉시
   // getBoundingClientRect()로 새로 구해서 쓰도록 바꿔 어떤 레이아웃 변화가 와도
   // 항상 정확한 위치를 따라가게 함 (mousemove에서만 호출되므로 매 프레임 비용은 없음).
+  // 24-247차: 창 밖에 나갔다 들어오거나(터치패드로 휙 옮김), 한동안 멈췄다가 멀리서 다시 움직이면
+  // 예전 자리에서 새 자리까지 선이 쭉 그어졌다. 그런 "건너뜀"은 선을 끊고 새로 시작한다.
+  let lastMoveAt = 0;
+  let breakNext = true;
+  const markBreak = () => {
+    breakNext = true;
+  };
+  document.documentElement.addEventListener("mouseleave", markBreak);
+  window.addEventListener("blur", markBreak);
   document.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-    hasMouseMovedThisFrame = true;
-    if (drawX === null) {
-      drawX = mouseX;
-      drawY = mouseY;
+    if (Math.abs(rect.width - cssW) > 0.5 || Math.abs(rect.height - cssH) > 0.5 || devicePixelRatio !== lastDpr) resize();
+    const nx = e.clientX - rect.left;
+    const ny = e.clientY - rect.top;
+    const now = performance.now();
+    const jumped = mouseX !== null && Math.hypot(nx - mouseX, ny - mouseY) > 160;
+    if (breakNext || jumped || now - lastMoveAt > 250 || drawX === null) {
+      drawX = nx;
+      drawY = ny;
+      breakNext = false;
+      pendingBreak = true;
     }
+    lastMoveAt = now;
+    mouseX = nx;
+    mouseY = ny;
+    hasMouseMovedThisFrame = true;
   });
+  let pendingBreak = false;
 
   function frame() {
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.clearRect(0, 0, cssW, cssH);
+    lctx.clearRect(0, 0, cssW, cssH);
 
     // 매 프레임 getComputedStyle을 부르는 대신(불필요한 비용) 대략 0.5초(30프레임)마다만
     // 다시 읽어와서, 테마/색상을 바꾼 뒤 다음 잔상부터 곧바로 새 색이 반영되게 함
@@ -10476,17 +13691,17 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
           // 점 하나가 남아있는 것처럼 보였음. 새 점을 찍을 때 방금 막 찍힌 점이 아니면서
           // 그 근처(6px 이내)에 있는 오래된 점들을 먼저 솎아내서 한 자리에 겹치는 걸 줄임
           points = points.filter((p) => p.life > 0.9 || Math.hypot(p.x - drawX, p.y - drawY) > 6);
-          points.push({ x: drawX, y: drawY, life: 1 });
+          points.push({ x: drawX, y: drawY, life: 1, brk: pendingBreak });
+          pendingBreak = false;
         }
       }
     }
     hasMouseMovedThisFrame = false;
 
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.shadowColor = `rgba(${trailAccentStrong.r}, ${trailAccentStrong.g}, ${trailAccentStrong.b}, 0.6)`;
-    ctx.shadowBlur = 5;
-    ctx.lineWidth = 1.6;
+    // 24-98차: 레이어에는 빛 없이, 끝이 평평한 선으로(위 주석 참고)
+    lctx.lineCap = "butt";
+    lctx.lineJoin = "round";
+    lctx.lineWidth = 1.6;
 
     // 점들 사이를 끊김 없이 이어지는 부드러운 곡선으로 그림
     // (각 구간의 시작/끝점이 이웃 구간과 정확히 맞물리게 계산해서 틈이 안 생기게 함)
@@ -10494,6 +13709,7 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
       const prev = points[i - 1];
       const curr = points[i];
       const next = points[i + 1];
+      if (curr.brk || next.brk) continue; // 24-247차: 끊긴 자리는 잇지 않는다
       const startX = (prev.x + curr.x) / 2;
       const startY = (prev.y + curr.y) / 2;
       const endX = (curr.x + next.x) / 2;
@@ -10508,11 +13724,22 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
       const g = trailAccent.g + (trailBg.g - trailAccent.g) * mixT * 0.5;
       const b = trailAccent.b + (trailBg.b - trailAccent.b) * mixT * 0.5;
 
-      ctx.strokeStyle = `rgba(${r.toFixed(0)}, ${g.toFixed(0)}, ${b.toFixed(0)}, ${alpha})`;
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.quadraticCurveTo(curr.x, curr.y, endX, endY);
-      ctx.stroke();
+      lctx.strokeStyle = `rgba(${r.toFixed(0)}, ${g.toFixed(0)}, ${b.toFixed(0)}, ${alpha})`;
+      lctx.beginPath();
+      lctx.moveTo(startX, startY);
+      lctx.quadraticCurveTo(curr.x, curr.y, endX, endY);
+      lctx.stroke();
+    }
+
+    // 다 그린 레이어를 한 번에 옮기면서 빛 번짐도 한 번만(이음매에서 빛이 겹치지 않음).
+    // 그릴 게 없는 프레임(마우스가 가만히 있을 때)은 건너뜀 - 빈 레이어에 그림자 계산 낭비 방지
+    if (points.length > 2) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.shadowColor = `rgba(${trailAccentStrong.r}, ${trailAccentStrong.g}, ${trailAccentStrong.b}, 0.6)`;
+      ctx.shadowBlur = 5;
+      ctx.drawImage(layer, 0, 0);
+      ctx.restore();
     }
 
     // 잔상이 서서히 옅어지다 사라지게 (프레임마다 조금씩)
@@ -10526,3 +13753,2433 @@ document.getElementById("btn-crash-close")?.addEventListener("click", () => {
 
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 24-83차: 런처 글꼴(설정 > 폰트) + 리소스팩/폰트 만들기
+// "그 설정에서 폰트란 하나 만들어줘서 거기에 폰트 고를 수 있게 해주고 지금 우리가 쓰고 있는거,
+//  직접 추가하기 이렇게 해주라"
+// "폰트를 넣으면 그 폰트를 리소스팩으로 만들어서 그 프로필에 넣어주고 리소스팩을 넣으면 그
+//  프로필에 맞는 버전, 파일 형식으로 바꿔서 넣어주는 걸 만들어줘"
+// ═══════════════════════════════════════════════════════════════════════════
+
+function pmT(key, fallback, vars) {
+  const r = window.NovaI18n?.t?.(key, vars);
+  return r && r !== key ? r : fallback;
+}
+
+// ── 런처 글꼴 ──────────────────────────────────────────────────────────────
+// 고른 글꼴 파일은 main.js가 앱 데이터 폴더(fonts/)로 복사해두고, 여기서 @font-face로 올린 뒤
+// --font-body / --font-soft 두 변수를 덮어써서 런처 전체에 적용함(두 변수 모두 style.css
+// 맨 위 :root에 있고, 나중에 선언된 이 :root 규칙이 같은 우선순위에서 이깁니다).
+function uiFontFileUrl(filePath) {
+  const normalized = String(filePath || "").replace(/\\/g, "/");
+  const withSlash = normalized.startsWith("/") ? normalized : "/" + normalized;
+  // 경로에 공백이나 한글(AppData\Roaming 아래 사용자 이름 등)이 들어가도 CSS url()이
+  // 깨지지 않도록 인코딩함
+  return "file://" + encodeURI(withSlash);
+}
+
+function applyUiFont(settings) {
+  const STYLE_ID = "nova-ui-font-style";
+  let styleEl = document.getElementById(STYLE_ID);
+  const isCustom = settings?.uiFont === "custom" && settings?.uiFontPath;
+  if (!isCustom) {
+    styleEl?.remove();
+    return;
+  }
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = STYLE_ID;
+    document.head.appendChild(styleEl);
+  }
+  const stack = `"NovaUserFont", "SUIT", "Malgun Gothic", "Segoe UI", sans-serif`;
+  // 24-136차: size-adjust 는 "그 글꼴의 글자 크기"만 배율로 키우고 줄임. font-size(px) 값은
+  // 그대로라서 버튼/칸/줄간격 같은 레이아웃은 전혀 흔들리지 않음
+  const scale = clampFontScale(settings?.uiFontScale);
+  const sizeAdjust = scale === 1 ? "" : ` size-adjust: ${Math.round(scale * 100)}%;`;
+  styleEl.textContent =
+    `@font-face { font-family: "NovaUserFont"; src: url("${uiFontFileUrl(settings.uiFontPath)}"); font-display: swap;${sizeAdjust} }\n` +
+    `:root { --font-body: ${stack}; --font-soft: ${stack}; }`;
+}
+
+// 0.5 ~ 2.0 사이 0.1 단위로 맞춤
+function clampFontScale(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(2, Math.max(0.5, Math.round(n * 10) / 10));
+}
+
+// 설정 > 폰트의 글꼴 크기 줄(슬라이더/숫자/미리보기/비활성화 상태)을 지금 설정에 맞춤
+function refreshUiFontScale(settings) {
+  const slider = document.getElementById("ui-font-scale");
+  const valueEl = document.getElementById("ui-font-scale-value");
+  const row = document.getElementById("ui-font-scale-row");
+  const preview = document.getElementById("ui-font-scale-preview");
+  const hint = document.getElementById("ui-font-scale-hint");
+  if (!slider) return;
+
+  const isCustom = settings?.uiFont === "custom" && settings?.uiFontPath;
+  const scale = clampFontScale(settings?.uiFontScale);
+  slider.value = String(scale);
+  if (valueEl) valueEl.textContent = `${scale.toFixed(1)}배`;
+
+  // 기본 글꼴일 때는 배율을 걸 대상이 없어서 못 쓰게 막고 이유를 알려줌
+  slider.disabled = !isCustom;
+  document.getElementById("ui-font-scale-reset")?.toggleAttribute("disabled", !isCustom);
+  row?.classList.toggle("is-disabled", !isCustom);
+  if (hint) {
+    hint.textContent = isCustom
+      ? pmT("settings_font_scale_hint_on", "글자 크기만 바뀌고 버튼·칸 크기는 그대로예요.")
+      : pmT("settings_font_scale_hint", "직접 추가한 글꼴에만 적용돼요.");
+  }
+  if (preview) {
+    preview.style.fontFamily = isCustom ? `"NovaUserFont", var(--font-soft)` : "";
+    preview.style.opacity = isCustom ? "" : "0.45";
+  }
+}
+
+// 슬라이더를 끄는 동안은 화면에만 바로 반영하고, 손을 뗐을 때 저장함
+document.getElementById("ui-font-scale")?.addEventListener("input", async (e) => {
+  const scale = clampFontScale(e.target.value);
+  document.getElementById("ui-font-scale-value").textContent = `${scale.toFixed(1)}배`;
+  const s = await window.nova.getSettings();
+  applyUiFont({ ...s, uiFontScale: scale });
+});
+
+document.getElementById("ui-font-scale")?.addEventListener("change", async (e) => {
+  const scale = clampFontScale(e.target.value);
+  const merged = await window.nova.setSettings({ uiFontScale: scale });
+  applyUiFont(merged);
+  refreshUiFontScale(merged);
+});
+
+document.getElementById("ui-font-scale-reset")?.addEventListener("click", async () => {
+  const merged = await window.nova.setSettings({ uiFontScale: 1 });
+  applyUiFont(merged);
+  refreshUiFontScale(merged);
+  showToast(pmT("settings_font_scale_reverted", "글꼴 크기를 원래대로 되돌렸어요"));
+});
+
+// 설정 > 폰트 목록의 선택 표시와 "직접 추가하기" 줄의 안내 문구를 지금 설정에 맞춤
+function refreshUiFontPicker(settings) {
+  const picker = document.getElementById("ui-font-picker");
+  if (!picker) return;
+  const isCustom = settings?.uiFont === "custom" && settings?.uiFontPath;
+  picker.querySelectorAll(".font-picker-item").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.font === (isCustom ? "custom" : "default"));
+  });
+  const sample = document.getElementById("ui-font-custom-sample");
+  if (sample) {
+    if (isCustom) {
+      // 고른 글꼴로 실제로 어떻게 보이는지 이 줄에서 바로 확인할 수 있게 함
+      sample.textContent = `${settings.uiFontName || ""} - Nova Client 가나다 AaBb 0123`.trim();
+      sample.style.fontFamily = `"NovaUserFont", var(--font-soft)`;
+      sample.removeAttribute("data-i18n");
+    } else {
+      sample.setAttribute("data-i18n", "settings_font_custom_hint");
+      sample.textContent = pmT(
+        "settings_font_custom_hint",
+        "내 컴퓨터에 있는 글꼴 파일(.ttf/.otf/.woff)을 고르면 런처 전체 글꼴이 바뀌어요"
+      );
+      sample.style.fontFamily = "";
+    }
+  }
+}
+
+document.getElementById("ui-font-picker")?.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".font-picker-item");
+  if (!btn) return;
+
+  if (btn.dataset.font === "default") {
+    const res = await window.nova.useDefaultUiFont?.();
+    if (res?.ok) {
+      applyUiFont(res.settings);
+      refreshUiFontPicker(res.settings);
+      refreshUiFontScale(res.settings);
+      showToast(pmT("settings_font_reverted", "기본 글꼴로 되돌렸어요"));
+    }
+    return;
+  }
+
+  // 직접 추가하기 - 파일 고르기 창을 띄우고, 고르면 바로 적용(취소하면 아무것도 안 바뀜)
+  const res = await window.nova.pickUiFont?.();
+  if (!res?.ok) {
+    if (res?.error) showToast(res.error, "error");
+    return;
+  }
+  applyUiFont(res.settings);
+  refreshUiFontPicker(res.settings);
+  refreshUiFontScale(res.settings);
+  showToast(pmT("settings_font_applied", "글꼴을 바꿨어요"));
+});
+
+// 앱을 켤 때부터 저장된 글꼴 적용 (테마를 적용하는 위쪽 코드와 같은 방식)
+window.nova.getSettings().then((s) => {
+  applyUiFont(s);
+  refreshUiFontPicker(s);
+  refreshUiFontScale(s);
+});
+
+// ── 리소스팩/폰트 만들기 ───────────────────────────────────────────────────
+const packmakerOverlay = document.getElementById("packmaker-overlay");
+const packmakerProfileSelect = document.getElementById("packmaker-profile-select");
+const packmakerSourceName = document.getElementById("packmaker-source-name");
+const packmakerNameInput = document.getElementById("packmaker-name-input");
+const packmakerDescInput = document.getElementById("packmaker-desc-input");
+const packmakerIconPreview = document.getElementById("packmaker-icon-preview");
+const packmakerIconName = document.getElementById("packmaker-icon-name");
+const packmakerIconClearBtn = document.getElementById("btn-packmaker-clear-icon");
+const packmakerFontOnly = document.getElementById("packmaker-font-only");
+const packmakerFontSize = document.getElementById("packmaker-font-size");
+const packmakerFontSizeValue = document.getElementById("packmaker-font-size-value");
+const packmakerFormatHint = document.getElementById("packmaker-format-hint");
+const packmakerResult = document.getElementById("packmaker-result");
+const packmakerCreateBtn = document.getElementById("btn-packmaker-create");
+
+let packmakerSource = null; // { filePath, fileName, kind: "font" | "resourcepack" }
+let packmakerIcon = null; // { filePath, fileName, previewUrl }
+let packmakerBusy = false;
+
+function setPackmakerResult(text, kind) {
+  if (!packmakerResult) return;
+  packmakerResult.className = "packmaker-result" + (kind ? ` is-${kind}` : "");
+  packmakerResult.textContent = text || "";
+  packmakerResult.hidden = !text;
+}
+
+// 고른 파일이 폰트냐 리소스팩이냐에 따라 폰트 전용 칸(글자 크기)을 보이고 숨김
+function updatePackmakerKindUI() {
+  const isFont = packmakerSource?.kind === "font";
+  if (packmakerFontOnly) packmakerFontOnly.hidden = !isFont;
+  if (packmakerSourceName) {
+    packmakerSourceName.classList.toggle("has-file", !!packmakerSource);
+    if (packmakerSource) {
+      // 파일 이름이 들어간 뒤에는 언어를 바꿔도 이 자리가 안내 문구로 되돌아가면 안 되므로
+      // data-i18n을 떼어둠(i18n의 applyI18n이 textContent를 통째로 덮어쓰기 때문)
+      packmakerSourceName.removeAttribute("data-i18n");
+      packmakerSourceName.textContent = `${packmakerSource.fileName} · ${
+        isFont
+          ? pmT("packmaker_kind_font", "폰트 → 리소스팩으로 만들기")
+          : pmT("packmaker_kind_pack", "리소스팩 → 이 버전에 맞게 변환")
+      }`;
+    } else {
+      packmakerSourceName.setAttribute("data-i18n", "packmaker_no_file");
+      packmakerSourceName.textContent = pmT("packmaker_no_file", "아직 고른 파일이 없어요");
+    }
+  }
+}
+
+// 고른 프로필의 마인크래프트 버전이면 pack_format 몇으로 만들어지는지 미리 알려줌
+async function updatePackmakerFormatHint() {
+  if (!packmakerFormatHint) return;
+  const profileId = packmakerProfileSelect?.value;
+  if (!profileId) {
+    packmakerFormatHint.textContent = "";
+    return;
+  }
+  const info = await window.nova.packMakerPackFormat?.(profileId);
+  const name = packmakerProfileSelect.selectedOptions[0]?.dataset.name || "";
+  if (!info?.ok) {
+    packmakerFormatHint.textContent = "";
+    return;
+  }
+  packmakerFormatHint.textContent = pmT(
+    "packmaker_format_hint",
+    `${name} (${info.mcVersion}) - pack_format ${info.packFormat}으로 만들어요`,
+    { name, version: info.mcVersion, format: info.packFormat }
+  );
+}
+
+async function openPackMaker() {
+  if (!packmakerOverlay) return;
+
+  const profiles = await window.nova.listProfiles();
+  packmakerProfileSelect.innerHTML = "";
+  if (!profiles.length) {
+    showToast(pmT("packmaker_no_profile", "먼저 프로필을 만들어주세요"), "error");
+    return;
+  }
+  profiles.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `${p.name} (${p.mcVersion})`;
+    opt.dataset.name = p.name;
+    packmakerProfileSelect.appendChild(opt);
+  });
+  // Explore 왼쪽에서 이미 고른 프로필이 있으면 그걸 기본값으로(없으면 선택된 프로필)
+  const preferred =
+    profiles.find((p) => p.id === exploreCurrentProfile?.id) || profiles.find((p) => p.selected) || profiles[0];
+  packmakerProfileSelect.value = preferred.id;
+
+  packmakerSource = null;
+  packmakerIcon = null;
+  packmakerNameInput.value = "";
+  packmakerDescInput.value = "";
+  if (packmakerFontSize) packmakerFontSize.value = 11;
+  if (packmakerFontSizeValue) packmakerFontSizeValue.textContent = "11";
+  if (packmakerIconPreview) {
+    packmakerIconPreview.hidden = true;
+    packmakerIconPreview.style.backgroundImage = "";
+  }
+  if (packmakerIconName) packmakerIconName.textContent = "";
+  if (packmakerIconClearBtn) packmakerIconClearBtn.hidden = true;
+  setPackmakerResult("");
+  updatePackmakerKindUI();
+  await updatePackmakerFormatHint();
+
+  packmakerOverlay.hidden = false;
+}
+
+function closePackMaker() {
+  if (packmakerOverlay) packmakerOverlay.hidden = true;
+}
+
+document.getElementById("btn-open-pack-maker")?.addEventListener("click", openPackMaker);
+document.getElementById("btn-packmaker-close")?.addEventListener("click", closePackMaker);
+document.getElementById("btn-packmaker-cancel")?.addEventListener("click", closePackMaker);
+packmakerOverlay?.addEventListener("click", (e) => {
+  if (e.target === packmakerOverlay && !packmakerBusy) closePackMaker();
+});
+packmakerProfileSelect?.addEventListener("change", updatePackmakerFormatHint);
+packmakerFontSize?.addEventListener("input", () => {
+  if (packmakerFontSizeValue) packmakerFontSizeValue.textContent = packmakerFontSize.value;
+});
+
+document.getElementById("btn-packmaker-pick-source")?.addEventListener("click", async () => {
+  const res = await window.nova.packMakerPickSource?.();
+  if (!res?.ok) return;
+  packmakerSource = res;
+  // 이름을 아직 안 적었으면 파일 이름을 기본값으로 채워둠(그대로 써도 되고 고쳐도 됨)
+  if (!packmakerNameInput.value.trim()) {
+    packmakerNameInput.value = res.fileName.replace(/\.[^.]+$/, "");
+  }
+  setPackmakerResult("");
+  updatePackmakerKindUI();
+});
+
+document.getElementById("btn-packmaker-pick-icon")?.addEventListener("click", async () => {
+  const res = await window.nova.packMakerPickIcon?.();
+  if (!res?.ok) return;
+  packmakerIcon = res;
+  if (packmakerIconPreview) {
+    packmakerIconPreview.style.backgroundImage = `url("${res.previewUrl}")`;
+    packmakerIconPreview.hidden = false;
+  }
+  if (packmakerIconName) packmakerIconName.textContent = res.fileName;
+  if (packmakerIconClearBtn) packmakerIconClearBtn.hidden = false;
+});
+
+packmakerIconClearBtn?.addEventListener("click", () => {
+  packmakerIcon = null;
+  if (packmakerIconPreview) {
+    packmakerIconPreview.hidden = true;
+    packmakerIconPreview.style.backgroundImage = "";
+  }
+  if (packmakerIconName) packmakerIconName.textContent = "";
+  packmakerIconClearBtn.hidden = true;
+});
+
+packmakerCreateBtn?.addEventListener("click", async () => {
+  if (packmakerBusy) return;
+  if (!packmakerSource) {
+    setPackmakerResult(pmT("packmaker_need_file", "폰트나 리소스팩 파일을 먼저 골라주세요"), "error");
+    return;
+  }
+
+  packmakerBusy = true;
+  packmakerCreateBtn.disabled = true;
+  setPackmakerResult(pmT("packmaker_working", "만드는 중..."));
+
+  const res = await window.nova.packMakerCreate({
+    profileId: packmakerProfileSelect.value,
+    sourcePath: packmakerSource.filePath,
+    kind: packmakerSource.kind,
+    name: packmakerNameInput.value.trim(),
+    description: packmakerDescInput.value.trim(),
+    iconPath: packmakerIcon?.filePath || "",
+    fontSize: Number(packmakerFontSize?.value) || 11,
+  });
+
+  packmakerBusy = false;
+  packmakerCreateBtn.disabled = false;
+
+  if (!res?.ok) {
+    setPackmakerResult(res?.error || "만들지 못했어요", "error");
+    return;
+  }
+
+  // 만들어진 zip은 프로필의 resourcepacks 폴더에 들어갔을 뿐이라, 게임 안에서 켜야 적용됨
+  const lines = [
+    pmT("packmaker_done", `${res.fileName} 을(를) 넣었어요`, { file: res.fileName }),
+    pmT("packmaker_note_ingame", "게임 안에서 [설정 > 리소스팩]에 들어가 켜주면 적용돼요."),
+  ];
+  if (res.flattened) {
+    lines.push(
+      pmT(
+        "packmaker_note_flattened",
+        "폴더가 한 겹 더 있어서 게임이 못 읽던 팩이라, 안쪽 폴더를 바깥으로 펴서 넣었어요."
+      )
+    );
+  }
+  if (packmakerSource.kind === "font") {
+    lines.push(
+      res.keptVanillaGlyphs
+        ? pmT("packmaker_note_kept_vanilla", "고른 폰트에 없는 글자는 마인크래프트 기본 글꼴로 나와요.")
+        : pmT(
+            "packmaker_note_no_reference",
+            "이 버전(1.20 미만)은 기본 글꼴을 함께 쓰는 기능이 없어서, 고른 폰트에 없는 글자는 안 보일 수 있어요."
+          )
+    );
+  }
+  setPackmakerResult(lines.join("\n"), "ok");
+  showToast(pmT("packmaker_done_toast", "리소스팩을 프로필에 넣었어요"));
+
+  // 프로필 관리 화면(리소스팩 목록)을 보고 있었다면 방금 넣은 팩이 바로 보이도록 다시 그림
+  if (managingProfileId && managingProfileId === packmakerProfileSelect.value) {
+    const activeTab = document.querySelector(".profile-file-tab.is-active")?.dataset.tab;
+    if (activeTab === "resourcepacks" || activeTab === "all") {
+      // refreshProfileFileList가 캐시(manageFileListCache)를 다시 채워줌 - "전체" 탭은
+      // 그 캐시를 모아 그리는 방식이라 캐시를 채운 다음에 다시 그려야 함
+      await refreshProfileFileList("resourcepacks");
+      if (activeTab === "all") renderAllProfileFilesList();
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 24-85차: 가입 축하 선물 (완전 테마 1개 + 색 1개 무료 선택, 닉네임 변경권 1개)
+// "처음 회원가입하면 테마랑 색 하나씩 공짜로 고르게 해주고 닉네임 변경권도 1개 처음에 무료로 줘
+//  이거 지금 이미 회원가입 돼있는 사람들도 보상 안받았으면 주라"
+//
+// 변경권은 고를 게 없어서 main.js가 welcome:sync에서 바로 넣어주고, 이 창은 테마/색
+// 고르기만 합니다. "받았는지"는 사이트 계정 공용 데이터에 남으므로, 이미 가입한 사람도
+// 아직 안 받았으면 앱을 켤 때 자동으로 이 창이 뜹니다(소급 지급).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── 24-86차: 색/테마 미리보기 액자 공용 헬퍼 ─────────────────────────────
+// "그 색이랑 테마 미리보기 할 수 있게 해줘 실제 클라이언트 메인화면만"
+//
+// theme-preview.html을 iframe으로 띄워두고, 고른 값을 postMessage로 넘겨줍니다.
+// 별도 문서라서 그 안의 body가 "그 테마의 body"가 되고, 테마 CSS(body[data-color-theme])가
+// 원본 그대로 적용됩니다(같은 문서 안의 div에 속성만 붙이면 아무 일도 안 일어납니다).
+// file:// 문서끼리는 서로의 DOM에 직접 접근할 수 없어서 postMessage만 씁니다.
+const themePreviewPending = new WeakMap();
+const themePreviewBound = new WeakSet();
+
+// 24-88차 버그 수정: "미리보기가 안되고" - 색을 골라도 미리보기가 기본 초록 그대로였음.
+//
+// 원인은 준비 신호(ready) 경쟁이었습니다. iframe은 index.html을 파싱하는 도중에 이미 로드가
+// 끝나고 부모에게 "ready"를 쏘는데, 그 신호를 받는 리스너는 renderer.js(620KB) 맨 끝에서야
+// 등록됩니다. 그래서 ready가 리스너보다 먼저 도착해버리면 영영 "준비됨"으로 기록되지 않고,
+// 그 뒤로는 값을 보관만 하고 한 번도 보내지 않았습니다.
+//
+// 그래서 ready 신호에 의존하지 않도록 바꿨습니다:
+//   ① 일단 지금 바로 보낸다(이미 떠 있으면 그대로 먹음 - 대부분 이 경우)
+//   ② 아직 안 떴을 수도 있으니 load 때 한 번 더 보낸다
+//   ③ ready 신호가 오면 그때도 한 번 더 보낸다(위 둘이 다 빗나갈 때를 위한 보험)
+// 같은 값을 여러 번 보내도 결과가 같아서(멱등) 중복 전송은 문제가 없습니다.
+function sendThemePreview(iframe, payload) {
+  if (!iframe) return;
+  themePreviewPending.set(iframe, payload);
+
+  const post = () => {
+    try {
+      iframe.contentWindow?.postMessage({ type: "nova-theme-preview", ...payload }, "*");
+    } catch (_) {
+      /* 프레임이 막 사라진 경우 등 - 아래 load에서 다시 보내면 됨 */
+    }
+  };
+  post();
+
+  if (!themePreviewBound.has(iframe)) {
+    themePreviewBound.add(iframe);
+    iframe.addEventListener("load", () => {
+      const pending = themePreviewPending.get(iframe);
+      if (pending) {
+        try {
+          iframe.contentWindow?.postMessage({ type: "nova-theme-preview", ...pending }, "*");
+        } catch (_) {}
+      }
+    });
+  }
+}
+
+window.addEventListener("message", (e) => {
+  if (e.data?.type !== "nova-theme-preview-ready") return;
+  document.querySelectorAll(".theme-preview-iframe").forEach((f) => {
+    if (f.contentWindow !== e.source) return;
+    const pending = themePreviewPending.get(f);
+    if (pending) {
+      try {
+        f.contentWindow?.postMessage({ type: "nova-theme-preview", ...pending }, "*");
+      } catch (_) {}
+    }
+  });
+});
+
+// 지금 화면에 적용돼 있는 밝기 모드(다크/화이트)를 그대로 물려줌
+function currentPreviewThemeMode() {
+  return document.body.dataset.theme === "light" ? "light" : "dark";
+}
+
+const welcomeGiftOverlay = document.getElementById("welcome-gift-overlay");
+const welcomeGiftThemesEl = document.getElementById("welcome-gift-themes");
+const welcomeGiftColorsEl = document.getElementById("welcome-gift-colors");
+const welcomeGiftThemeSection = document.getElementById("welcome-gift-theme-section");
+const welcomeGiftColorSection = document.getElementById("welcome-gift-color-section");
+const welcomeGiftClaimBtn = document.getElementById("btn-welcome-gift-claim");
+
+let welcomeGiftSyncedThisSession = false;
+let welcomeGiftPending = false; // 아직 테마/색을 안 고른 상태인지
+let welcomeGiftPickedTheme = null;
+let welcomeGiftPickedColor = null;
+// 미리보기에 그대로 넘겨줄 값(테마는 data-color-theme 값, 색은 hex)
+let welcomeGiftPickedThemeMode = null;
+let welcomeGiftPickedColorHex = null;
+let welcomeGiftBusy = false;
+// 24-89차: 그 칸에 "아직 안 가진 것"이 하나라도 있는지 = 골라야 하는 칸인지.
+// 전부 가진 칸은 고를 게 없고 대신 코인을 받으므로 선택을 요구하지 않습니다.
+let welcomeGiftThemePickable = false;
+let welcomeGiftColorPickable = false;
+// 24-192차: 추천인 - 선물 수령과 같이 처리하되, 실패해도 선물 수령 자체는 막지 않는다
+const welcomeGiftReferralBox = document.getElementById("welcome-gift-referral");
+const welcomeGiftReferralInput = document.getElementById("welcome-gift-referral-input");
+const welcomeGiftReferralHint = document.getElementById("welcome-gift-referral-hint");
+let welcomeGiftReferralReward = 200;
+let welcomeGiftReferralDone = false;
+
+function setWelcomeGiftReferralHint(text, kind) {
+  if (!welcomeGiftReferralHint) return;
+  welcomeGiftReferralHint.textContent = text;
+  welcomeGiftReferralHint.classList.toggle("is-error", kind === "error");
+  welcomeGiftReferralHint.classList.toggle("is-done", kind === "done");
+}
+
+function resetWelcomeGiftReferral(res) {
+  if (!welcomeGiftReferralBox) return;
+  welcomeGiftReferralDone = false;
+  welcomeGiftReferralReward = res?.referralReward || 200;
+  // 이미 넣은 계정(또는 확인이 안 된 경우)에는 아예 안 띄운다
+  welcomeGiftReferralBox.hidden = !!res?.referralUsed;
+  if (welcomeGiftReferralInput) {
+    welcomeGiftReferralInput.value = "";
+    welcomeGiftReferralInput.disabled = false;
+  }
+  const amount = welcomeGiftReferralReward.toLocaleString();
+  setWelcomeGiftReferralHint(
+    wgT(
+      "welcome_gift_referral_hint",
+      `추천인을 넣으면 나와 추천인 모두에게 ${amount}코인이 지급돼요. 한 번만 넣을 수 있어요.`,
+      { coins: amount }
+    ),
+    null
+  );
+}
+
+// 입력한 게 있을 때만 보낸다. 성공/실패 문구는 그 자리(힌트 줄)에 보여주고, 결과를
+// 돌려줘서 수령 완료 토스트에 같이 실을 수 있게 한다.
+async function submitWelcomeGiftReferral() {
+  if (!welcomeGiftReferralInput || welcomeGiftReferralBox?.hidden || welcomeGiftReferralDone) return null;
+  const nickname = welcomeGiftReferralInput.value.trim();
+  if (!nickname) return null;
+
+  let res = await window.nova.referralApply?.(nickname).catch(() => null);
+  // 24-239차: 이메일 인증이 안 된 계정이면 그 자리에서 인증하고 다시 시도
+  if (!res?.ok && res?.code === "email_unverified") {
+    const sent = await window.nova.emailVerifySend?.().catch(() => null);
+    if (sent?.ok && !sent.alreadyVerified) {
+      const code = await showPrompt(`${sent.email || "가입한 이메일"}로 받은 인증 코드`, "", "인증", "취소", 6);
+      if (code === null) {
+        setWelcomeGiftReferralHint("이메일 인증이 필요해요.", "error");
+        return null;
+      }
+      const ok = await window.nova.emailVerifyConfirm?.(code).catch(() => null);
+      if (!ok?.ok) {
+        setWelcomeGiftReferralHint(ok?.error || "인증하지 못했어요.", "error");
+        return null;
+      }
+      res = await window.nova.referralApply?.(nickname).catch(() => null);
+    } else if (!sent?.ok) {
+      setWelcomeGiftReferralHint(sent?.error || "인증 코드를 보내지 못했어요.", "error");
+      return null;
+    } else {
+      res = await window.nova.referralApply?.(nickname).catch(() => null);
+    }
+  }
+  if (!res?.ok) {
+    setWelcomeGiftReferralHint(res?.error || "추천인을 적용하지 못했어요.", "error");
+    return null;
+  }
+  welcomeGiftReferralDone = true;
+  welcomeGiftReferralInput.disabled = true;
+  const amount = (res.reward || welcomeGiftReferralReward).toLocaleString();
+  setWelcomeGiftReferralHint(
+    wgT(
+      "welcome_gift_referral_done",
+      `${res.referrerNickname}님을 추천인으로 등록했어요 - 서로 ${amount}코인씩 받았어요`,
+      { name: res.referrerNickname, coins: amount }
+    ),
+    "done"
+  );
+  return res;
+}
+
+function wgT(key, fallback, vars) {
+  const r = window.NovaI18n?.t?.(key, vars);
+  return r && r !== key ? r : fallback;
+}
+
+// 24-89차: "미리보기에 왜 색이 3개밖에 없어? 그리고 테마는 어디갔고?"
+// 예전에는 이미 가진 것을 main.js가 목록에서 통째로 빼고 내려줬습니다. 그래서 상점에서
+// 많이 산 사람일수록 목록이 짧아지고, 한 칸을 다 가졌으면 그 칸 자체가 사라졌습니다.
+// 이제 전체 목록이 내려오고, 가진 것은 여기서 "보유 중"으로 흐리게 그려 못 고르게 합니다.
+function renderWelcomeGiftGrid(container, items, kind) {
+  container.innerHTML = "";
+  const ownedLabel = wgT("welcome_gift_owned", "보유 중");
+  items.forEach((item) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "welcome-gift-item";
+    btn.dataset.id = item.id;
+    // 툴팁은 상품 이름만 - i18n-ui의 자동 번역표가 "정확히 이 한국어"일 때만 영어로 바꿔주므로
+    // 뒤에 "보유 중"을 붙이면 영어 모드에서 이름이 한국어로 남습니다(보유 표시는 ✓와 라벨로 함)
+    btn.title = item.name;
+    const bg = item.hex || "var(--bg-3)";
+    btn.innerHTML = `
+      <span class="welcome-gift-item-swatch" style="background:${bg}">${
+        item.plateColor ? `<span class="welcome-gift-item-plate" style="background:${item.plateColor}"></span>` : ""
+      }${item.owned ? `<span class="welcome-gift-item-check" aria-hidden="true">✓</span>` : ""}</span>
+      <span class="welcome-gift-item-name">${escapeHtml(item.name)}${
+        item.owned ? ` <span class="welcome-gift-item-owned">${escapeHtml(ownedLabel)}</span>` : ""
+      }</span>
+    `;
+    // 이미 가진 것은 눌러도 아무 일도 없어야 함(main.js도 owned는 후보로 안 쳐줌)
+    if (item.owned) {
+      btn.classList.add("is-owned");
+      btn.disabled = true;
+      container.appendChild(btn);
+      return;
+    }
+    btn.addEventListener("click", () => {
+      container.querySelectorAll(".welcome-gift-item").forEach((b) => b.classList.remove("is-picked"));
+      btn.classList.add("is-picked");
+      if (kind === "theme") {
+        welcomeGiftPickedTheme = item.id;
+        welcomeGiftPickedThemeMode = item.mode || null;
+      } else {
+        welcomeGiftPickedColor = item.id;
+        welcomeGiftPickedColorHex = item.hex || null;
+      }
+      updateWelcomeGiftPreview();
+      updateWelcomeGiftClaimBtn();
+    });
+    container.appendChild(btn);
+  });
+}
+
+// 고를 게 있는 칸은 다 골라야 받기 버튼이 켜짐(main.js도 같은 규칙으로 다시 검사함).
+// 24-89차: 기준을 "칸이 보이는지"에서 "그 칸에 고를 게 남아있는지"로 바꿨습니다 -
+// 전부 보유한 칸도 이제 목록은 보이지만(보유 중 표시) 고를 게 없으니까요.
+function updateWelcomeGiftClaimBtn() {
+  if (!welcomeGiftClaimBtn) return;
+  const ready =
+    (!welcomeGiftThemePickable || welcomeGiftPickedTheme) &&
+    (!welcomeGiftColorPickable || welcomeGiftPickedColor);
+  welcomeGiftClaimBtn.disabled = !ready || welcomeGiftBusy;
+}
+
+// 그 칸을 전부 가진 사람에게만 뜨는 줄 - "고를 게 없어서 코인으로 대신 드립니다"
+function setWelcomeGiftCoinNote(id, coins, kind) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!coins) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  const amount = coins.toLocaleString();
+  el.textContent =
+    kind === "theme"
+      ? wgT("welcome_gift_all_owned_theme", `보유하지 않은 테마가 없어 코인 ${amount}개로 지급됩니다.`, { coins: amount })
+      : wgT("welcome_gift_all_owned_color", `보유하지 않은 색상이 없어 코인 ${amount}개로 지급됩니다.`, { coins: amount });
+  el.hidden = false;
+}
+
+// 아직 아무것도 안 골랐으면 지금 쓰고 있는 화면 그대로 보여줌(비교 기준이 됨)
+function updateWelcomeGiftPreview() {
+  sendThemePreview(document.getElementById("welcome-gift-preview"), {
+    theme: currentPreviewThemeMode(),
+    colorTheme: welcomeGiftPickedThemeMode || document.body.dataset.colorTheme || null,
+    accent: welcomeGiftPickedColorHex || null,
+  });
+}
+
+// 24-89차: 인자를 welcome:sync 응답 그대로 받습니다(themes/colors + 코인 대체 금액).
+function openWelcomeGift(res) {
+  if (!welcomeGiftOverlay) return;
+  const themes = res?.themes || [];
+  const colors = res?.colors || [];
+  welcomeGiftPickedTheme = null;
+  welcomeGiftPickedColor = null;
+  welcomeGiftPickedThemeMode = null;
+  welcomeGiftPickedColorHex = null;
+
+  // 카탈로그 자체가 비는 경우(있을 수 없지만)만 칸을 숨김 - 전부 보유한 칸도 목록은 보여줌
+  welcomeGiftThemeSection.hidden = themes.length === 0;
+  welcomeGiftColorSection.hidden = colors.length === 0;
+  renderWelcomeGiftGrid(welcomeGiftThemesEl, themes, "theme");
+  renderWelcomeGiftGrid(welcomeGiftColorsEl, colors, "color");
+
+  welcomeGiftThemePickable = themes.some((c) => !c.owned);
+  welcomeGiftColorPickable = colors.some((c) => !c.owned);
+  setWelcomeGiftCoinNote("welcome-gift-theme-coins", res?.themeCoins || 0, "theme");
+  setWelcomeGiftCoinNote("welcome-gift-color-coins", res?.colorCoins || 0, "color");
+  resetWelcomeGiftReferral(res); // 24-192차
+
+  updateWelcomeGiftClaimBtn();
+  updateWelcomeGiftPreview();
+  welcomeGiftOverlay.hidden = false;
+}
+
+function closeWelcomeGift() {
+  if (welcomeGiftOverlay) welcomeGiftOverlay.hidden = true;
+}
+
+// 앱을 켜고 홈 화면까지 온 다음 한 번만 확인함(계정을 바꿔가며 여러 번 뜨지 않게).
+// 선물을 안 받은 계정으로 바꾸면 다음 실행 때 뜹니다.
+async function syncWelcomeGift() {
+  if (welcomeGiftSyncedThisSession) return;
+  welcomeGiftSyncedThisSession = true;
+
+  const res = await window.nova.welcomeGiftSync?.().catch(() => null);
+  if (!res?.ok || !res.eligible) return;
+
+  // 24-89차: "이름변경권 지급 메시지 아예 치우라고" - 변경권은 조용히 들어가기만 합니다
+  // (main.js welcome:sync에서 그대로 지급, 보유 개수는 설정 > 내 프로필에서 확인 가능).
+  welcomeGiftPending = !!res.needsPick;
+  updateWelcomeGiftBanner();
+  if (res.needsPick) {
+    // 부팅 직후에는 화면이 아직 자리를 잡는 중이라 조금 늦게 띄움
+    setTimeout(() => openWelcomeGift(res), 900);
+  }
+}
+
+// "나중에 고르기"로 닫았을 때 다시 열 수 있는 자리 - 상점 화면 맨 위에 안내 줄을 붙임
+function updateWelcomeGiftBanner() {
+  const body = document.querySelector("#view-shop .shop-modal-body");
+  if (!body) return;
+  let banner = document.getElementById("welcome-gift-banner");
+  if (!welcomeGiftPending) {
+    banner?.remove();
+    return;
+  }
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "welcome-gift-banner";
+    banner.className = "welcome-gift-banner";
+    banner.innerHTML = `
+      <span data-i18n="welcome_gift_banner">아직 수령하지 않은 가입 축하 선물이 있습니다 (테마 1개 + 색상 1개)</span>
+      <button type="button" class="btn btn-primary btn-small" data-i18n="welcome_gift_banner_btn">수령하기</button>
+    `;
+    banner.querySelector("button").addEventListener("click", async () => {
+      const res = await window.nova.welcomeGiftSync?.().catch(() => null);
+      if (res?.ok && res.eligible && res.needsPick) openWelcomeGift(res);
+      else {
+        welcomeGiftPending = false;
+        updateWelcomeGiftBanner();
+      }
+    });
+    body.insertBefore(banner, body.firstChild);
+    window.NovaI18n?.applyI18n?.();
+  }
+}
+
+document.getElementById("btn-welcome-gift-close")?.addEventListener("click", closeWelcomeGift);
+document.getElementById("btn-welcome-gift-later")?.addEventListener("click", closeWelcomeGift);
+
+welcomeGiftClaimBtn?.addEventListener("click", async () => {
+  if (welcomeGiftBusy) return;
+  welcomeGiftBusy = true;
+  updateWelcomeGiftClaimBtn();
+
+  // 24-192차: 추천인을 적었으면 같이 처리한다. 추천인 쪽이 실패해도(오타 등) 선물
+  // 수령 자체는 그대로 진행한다 - 이유는 입력칸 아래 줄에 그대로 남는다.
+  const referral = await submitWelcomeGiftReferral();
+
+  const res = await window.nova.welcomeGiftClaim({
+    themeId: welcomeGiftPickedTheme,
+    colorId: welcomeGiftPickedColor,
+  });
+
+  welcomeGiftBusy = false;
+  updateWelcomeGiftClaimBtn();
+
+  if (!res?.ok) {
+    showToast(res?.error || wgT("welcome_gift_failed", "선물을 수령하지 못했습니다"), "error");
+    return;
+  }
+
+  closeWelcomeGift();
+  welcomeGiftPending = false;
+  updateWelcomeGiftBanner();
+
+  // 방금 고른 테마/색이 바로 보이도록 적용하고, 상점/보관함 캐시도 다시 읽게 함
+  applyEquippedShopTheme?.();
+  shopLoaded = false;
+
+  const parts = [res.themeName, res.colorName].filter(Boolean);
+  // 24-89차: 전부 보유한 칸은 코인으로 받았으므로 그 금액도 같이 알려주고 잔액도 갱신함
+  if (res.coins > 0) {
+    const amount = res.coins.toLocaleString();
+    parts.push(wgT("welcome_gift_coin_item", `코인 ${amount}개`, { coins: amount }));
+    refreshCoins().catch(() => {});
+  }
+  // 24-192차: 추천인 보상은 서버가 양쪽에 따로 넣어준 것이라 위 res.coins 와 별개다
+  if (referral?.ok) {
+    const amount = (referral.reward || welcomeGiftReferralReward).toLocaleString();
+    parts.push(
+      wgT("welcome_gift_referral_item", `추천인 보상 ${amount}코인`, { coins: amount })
+    );
+    refreshCoins().catch(() => {});
+  }
+  const picked = parts.join(" · ");
+  showToast(
+    picked
+      ? wgT("welcome_gift_done", `${picked} 지급이 완료되었습니다`, { items: picked })
+      : wgT("welcome_gift_done_plain", "선물 지급이 완료되었습니다")
+  );
+});
+
+// ============================================================================
+// 24-195차: 클라이언트로 서버 열기
+// "클라이언트로 서버 열기 기능도 있으면 좋을 듯"
+//
+// 홈 화면 "서버" 칸 머리의 서버 아이콘 버튼으로 연다. 이 창 하나에서 서버를 만들고,
+// 켜고 끄고, 콘솔을 보고 명령까지 보낸다. 실제 실행은 전부 main.js 가 한다
+// (hosted:* IPC - 서버 폴더는 %APPDATA%/NovaClient/hosted/<id>/ 에 따로 만든다).
+// ============================================================================
+(() => {
+  // 24-208차: #host-overlay(가운데 창) → #view-host(보통 화면)
+  const overlay = document.getElementById("view-host");
+  if (!overlay) return;
+  const $ = (id) => document.getElementById(id);
+  const listEl = $("host-list");
+  const createEl = $("host-create");
+  const detailEl = $("host-detail");
+  const emptyEl = $("host-empty");
+  const consoleEl = $("host-console");
+  const errorEl = $("host-error");
+  const cmdInput = $("host-cmd-input");
+  const cmdBtn = $("btn-host-cmd");
+
+  let servers = [];
+  let selectedId = null;
+  let status = { state: "stopped", serverId: null, addresses: [] };
+
+  // 24-227차: 사전에 없는 키는 t() 가 키를 그대로 돌려줘서 "host_prop_..." 같은 코드네임이 떴다
+  const hT = (k, fb, v) => {
+    const r = window.NovaI18n?.t ? window.NovaI18n.t(k, v) : "";
+    return r && r !== k ? r : fb;
+  };
+  // 24-233차: 몇 초 뒤 저절로 사라진다
+  let errorTimer = null;
+  const setError = (msg) => {
+    if (!errorEl) return;
+    clearTimeout(errorTimer);
+    errorEl.textContent = msg || "";
+    errorEl.classList.toggle("is-shown", !!msg);
+    if (msg) errorTimer = setTimeout(() => setError(""), 7000);
+  };
+
+  const STATE_LABEL = {
+    stopped: "꺼짐",
+    preparing: "준비 중",
+    starting: "켜는 중",
+    running: "켜짐",
+    stopping: "끄는 중",
+  };
+
+  function selected() {
+    return servers.find((s) => s.id === selectedId) || null;
+  }
+  // 이 서버가 지금 돌고 있는 그 서버인가
+  function isSelectedRunning() {
+    return !!selectedId && status.serverId === selectedId && status.state !== "stopped";
+  }
+
+  function renderList() {
+    if (!listEl) return;
+    if (!servers.length) {
+      listEl.innerHTML = `<div class="host-list-empty">${escapeHtml(
+        hT("host_list_empty", "아직 만든 서버가 없어요")
+      )}</div>`;
+      return;
+    }
+    listEl.innerHTML = "";
+    servers.forEach((s) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      const live = status.serverId === s.id && status.state !== "stopped";
+      row.className = "host-list-item" + (s.id === selectedId ? " is-active" : "") + (live ? " is-live" : "");
+      row.innerHTML = `
+        <span class="host-list-info">
+          <b>${escapeHtml(s.name)}</b>
+          <span>${escapeHtml(s.mcVersion)} · ${s.loader === "fabric" ? "Fabric" : "바닐라"}</span>
+        </span>
+        ${live ? `<span class="launch-item-playing"><i></i>${escapeHtml(hT("host_state_running", "켜짐"))}</span>` : ""}
+      `;
+      row.addEventListener("click", () => {
+        selectedId = s.id;
+        createEl.hidden = true;
+        render();
+        renderSettings();
+      });
+      listEl.appendChild(row);
+    });
+  }
+
+  // 24-205차: 주소에 관한 건 한 칸(#host-addr)에서 전부 그린다.
+  //   · 주소가 없으면 "이름 + .도메인 + 주소 만들기"
+  //   · 있으면 그 주소 + 복사/떼기
+  //   · 서버가 켜져 있으면 집 안에서 쓰는 주소도 같이
+  //   · 맨 아래 한 줄로 밖에서 들어올 수 있는 상태인지
+  let addrDomain = "";
+
+  // 24-212차: 연필(수정)을 누르면 입력줄을 다시 열어 이름만 바꾼다(주소 떼기는 없앴다 -
+  // 주소가 아예 없는 상태로 두는 건 쓸 일이 없다. main 의 claim 이 옛 주소를 알아서 뗀다).
+  let addrEditing = false;
+  function renderAddrName() {
+    const s = selected();
+    if (!s) return;
+    const have = s.addressFqdn || null;
+    const row = $("host-addrname-row");
+    if (row) row.hidden = !!have && !addrEditing;
+    $("host-addrname-have").hidden = !have || addrEditing;
+
+    const hint = $("host-addrname-hint");
+    if (have && !addrEditing) {
+      $("host-addrname-fqdn").textContent = have;
+      // 24-211차: "런처가 알아서 맞춰줘요 이런 것도" 없앤다 - 주소가 있으면 주소만 보여준다
+      hint.className = "host-portfwd-hint";
+      hint.textContent = "";
+      return;
+    }
+
+    const ready = !!addrDomain;
+    const suffix = ready ? "." + addrDomain : hT("host_addrname_pending", ".(도메인 준비 중)");
+    $("host-addrname-suffix").textContent = suffix;
+    const typed = $("host-addrname-input").value.trim().toLowerCase();
+    hint.className = "host-portfwd-hint";
+    // 24-212차: "문장 싹 다 빼" - 만들어질 주소만 보여준다
+    hint.textContent = !ready
+      ? hT("host_addrname_notready", "도메인 준비 중")
+      : typed
+        ? typed + suffix
+        : "";
+  }
+
+  // 24-213차: 집 안에서는 공인 주소로 되돌아올 수 없어서(헤어핀 NAT) 본인은 이 주소로
+  // 들어가야 한다. 서버가 꺼져 있어도 포트는 알고 있으니 늘 보여준다.
+  function renderLocalAddresses() {
+    const s = selected();
+    const el = $("host-myaddr");
+    if (!el || !s) return;
+    const running = isSelectedRunning();
+    const lan = (status.addresses || []).find((a) => a.host && a.host !== "localhost");
+    const value = running && lan ? `${lan.host}:${lan.port}` : `localhost:${s.port}`;
+    $("host-myaddr-value").textContent = value;
+    el.hidden = false;
+    $("btn-host-myaddr-copy").onclick = () => {
+      navigator.clipboard?.writeText(value);
+      showToast(hT("host_addr_copied", "복사했어요"));
+    };
+  }
+
+  // 서버가 도는 동안의 상태 - 메모리 / TPS / 인원 / 가동 시간
+  let liveStats = null;
+  function fmtUptime(ms) {
+    const sec = Math.floor((ms || 0) / 1000);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return h ? `${h}시간 ${m}분` : `${m}분`;
+  }
+  function renderStats() {
+    const el = $("host-stats");
+    if (!el) return;
+    if (!isSelectedRunning()) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    const st = liveStats || {};
+    const tps = st.tps == null ? "-" : st.tps.toFixed(1);
+    const cells = [
+      [hT("host_stat_memory", "메모리"), st.memoryMB ? `${(st.memoryMB / 1024).toFixed(1)}GB` : "-"],
+      ["TPS", tps + (st.mspt != null ? ` (${st.mspt.toFixed(1)}ms)` : "")],
+      [hT("host_stat_players", "접속"), st.players == null ? "-" : `${st.players}${st.maxPlayers ? ` / ${st.maxPlayers}` : ""}`],
+      [hT("host_stat_uptime", "가동"), fmtUptime(st.uptimeMs)],
+    ];
+    el.innerHTML = cells
+      .map(([k, v]) => `<div class="host-stat"><span>${escapeHtml(k)}</span><b>${escapeHtml(String(v))}</b></div>`)
+      .join("");
+    // TPS 가 낮으면 눈에 띄게
+    el.classList.toggle("is-slow", st.tps != null && st.tps < 18);
+  }
+  window.nova.onHostedStats?.((p) => {
+    liveStats = p;
+    renderStats();
+  });
+
+  // "밖에서 들어오게 하기"는 사용자가 할 일이 아니다 - 서버를 켜면 런처가 알아서 연다.
+  // 여기서는 결과만 한 줄로 알려주고, 실패했을 때만 다시 시도 버튼을 보여준다.
+  let autoPortTriedFor = null;
+  let portFailed = false;
+  function renderPortFwd() {
+    const stateEl = $("host-port-state");
+    const btnRetry = $("btn-host-open-port");
+    const btnClose = $("btn-host-close-port");
+    if (!stateEl) return;
+
+    const running = isSelectedRunning();
+    const opened = !!status.portOpened && running;
+    btnClose.hidden = !opened;
+    btnRetry.hidden = !(running && !opened && portFailed);
+
+    // 24-211차: "밖에서 들어올 수 있게 준비중 이런 메시지 다 없애 필요없어"
+    // 잘 되는 건 당연한 것이라 말할 필요가 없다. 안 될 때만(=사용자가 할 일이 생겼을 때만) 말한다.
+    if (running && !opened && portFailed) {
+      stateEl.textContent = hT("host_port_manual", "공유기가 막고 있어요 - 공유기 설정에서 포트포워딩이 필요해요");
+      stateEl.className = "host-port-state is-error";
+    } else {
+      stateEl.textContent = "";
+      stateEl.className = "host-port-state";
+    }
+    // 할 말도 버튼도 없으면 줄 자체를 접는다
+    const lineEl = $("host-port-line");
+    if (lineEl) lineEl.hidden = !stateEl.textContent && btnClose.hidden && btnRetry.hidden;
+  }
+
+  async function autoOpenPort() {
+    const s = selected();
+    if (!s || !isSelectedRunning() || status.portOpened) return;
+    if (autoPortTriedFor === s.id) return;
+    autoPortTriedFor = s.id;
+    const res = await window.nova.hostedOpenPort?.(s.id).catch(() => null);
+    portFailed = !res?.ok;
+    await reload();
+  }
+
+  // 24-207차 복구: 24-205차에 주소 칸을 합치면서 renderDetail / renderSettings 두 함수가
+  // 통째로 날아갔다. render() 가 renderDetail() 을 부르니 서버를 눌러도 조작판이 아예 안
+  // 떴고, 그래서 "수정도 안 되고 삭제도 안 되고 기본 설정도 안 된다"로 보였다.
+  function renderDetail() {
+    const s = selected();
+    // 만들기 폼이 열려 있으면 조작판은 비킨다(둘이 같이 보이면 안 된다 - 24-205차)
+    if (!createEl.hidden) {
+      detailEl.hidden = true;
+      emptyEl.hidden = true;
+      return;
+    }
+    if (!s) {
+      detailEl.hidden = true;
+      emptyEl.hidden = false;
+      // 24-225차: 안 고른 상태에서도 뭐라도 보이게 - 서버 수와 바로가기
+      emptyEl.innerHTML = servers.length
+        ? `<div class="host-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="4" width="17" height="7" rx="1.8"/><rect x="3.5" y="13" width="17" height="7" rx="1.8"/><path d="M7 7.5h.01M7 16.5h.01" stroke-linecap="round" stroke-width="2.2"/></svg></div>
+           <b>${escapeHtml(hT("host_pick", "서버 선택"))}</b>
+           <span>${servers.length}${escapeHtml(hT("host_count_suffix", "개"))}</span>`
+        : `<div class="host-empty-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></div>
+           <b>${escapeHtml(hT("host_none", "서버 없음"))}</b>`;
+      return;
+    }
+    detailEl.hidden = false;
+    emptyEl.hidden = true;
+
+    $("host-detail-name").textContent = s.name;
+    // 24-207차: "서버 설명도 버전이랑 패브릭/바닐라 이것만 뜨게"
+    $("host-detail-meta").textContent =
+      `${s.mcVersion} · ${s.loader === "fabric" ? "Fabric" : "바닐라"}`;
+
+    const live = isSelectedRunning();
+    const stateKey = live ? status.state : "stopped";
+    const stateEl = $("host-state");
+    stateEl.textContent = hT("host_state_" + stateKey, STATE_LABEL[stateKey] || stateKey);
+    stateEl.className = "host-state is-" + stateKey;
+
+    // 예전 방식으로 만든 서버만 동의 줄이 필요하다
+    $("host-eula").hidden = !!s.eulaAccepted;
+
+    $("btn-host-start").hidden = live;
+    $("btn-host-stop").hidden = !live;
+    // 24-209차: "서버 시작 안했으면 로그 보여주지마 ... 설정창이 없어지고 내가 설정한 게
+    // 간결하게 서버 정보랑 뜨고 로그창 뜨게" - 켜짐/꺼짐으로 화면 자체를 바꾼다.
+    detailEl.classList.toggle("is-live", live);
+    $("host-settings").hidden = live;
+    $("host-live-info").hidden = !live;
+    // 24-213차: "화이트리스트도 서버 시작하면 안보이게"
+    $("host-whitelist").hidden = live;
+    renderStats();
+    if (live) renderLiveInfo(s);
+    $("btn-host-copy-mods").hidden = s.loader !== "fabric";
+    $("btn-host-remove").disabled = live;
+
+    // 24-207차: 런처를 다시 켜서 되찾은 서버는 콘솔로 명령을 넣을 수 없다
+    const canCmd = live && !status.adopted;
+    cmdInput.disabled = !canCmd;
+    cmdBtn.disabled = !canCmd;
+    cmdInput.placeholder = status.adopted && live
+      ? hT("host_cmd_adopted", "런처를 다시 켠 뒤에는 명령을 보낼 수 없어요")
+      : hT("host_cmd_ph", "서버 명령 (예: op 닉네임)");
+
+    // 24-207차: 서버 자체 값(이름·메모리·포트)도 이 창에서 고친다
+    if ($("host-edit-name")) {
+      $("host-edit-name").value = s.name || "";
+      $("host-edit-memory").value = s.memoryGB || 2;
+      $("host-edit-port").value = s.port || 25565;
+    }
+
+    renderAddrName();
+    renderLocalAddresses();
+    renderPortFwd();
+    renderWhitelist();
+    renderHostIcon();
+  }
+
+  // ------------------------------------------------------------------
+  // 24-210차: 화이트리스트
+  // ------------------------------------------------------------------
+  function setWlHint(msg, cls) {
+    const el = $("host-wl-hint");
+    if (!el) return;
+    el.className = "host-portfwd-hint" + (cls ? " " + cls : "");
+    el.textContent = msg || "";
+  }
+  async function renderWhitelist() {
+    const s = selected();
+    const listEl2 = $("host-wl-list");
+    if (!s || !listEl2) return;
+    const res = await window.nova.hostedWhitelistList?.(s.id).catch(() => null);
+    if (!res?.ok) {
+      listEl2.innerHTML = "";
+      return;
+    }
+    const players = res.players || [];
+    // 화이트리스트를 꺼 둔 채로 이름만 넣으면 아무 효과가 없다 - 그 상태를 머리에 알려준다
+    const stateEl = $("host-wl-state");
+    if (stateEl) {
+      stateEl.textContent = res.enabled
+        ? hT("host_wl_on", "켜짐")
+        : hT("host_wl_off", "꺼짐 - 설정에서 켜야 적용돼요");
+      stateEl.className = "host-wl-state" + (res.enabled ? " is-on" : "");
+    }
+    listEl2.innerHTML = players.length
+      ? players
+          .map(
+            (pl) => `
+        <div class="host-wl-row">
+          <span class="host-wl-name">${escapeHtml(pl.name)}</span>
+          <button type="button" class="btn btn-ghost btn-small btn-danger-ghost" data-wl-remove="${escapeHtml(
+            pl.name
+          )}">${escapeHtml(hT("host_wl_remove", "빼기"))}</button>
+        </div>`
+          )
+          .join("")
+      : `<div class="host-wl-empty">${escapeHtml(hT("host_wl_empty", "아직 아무도 없어요"))}</div>`;
+    listEl2.querySelectorAll("[data-wl-remove]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        const out = await window.nova.hostedWhitelistRemove?.(s.id, b.dataset.wlRemove);
+        if (!out?.ok) setWlHint(out?.error || "빼지 못했어요.", "is-error");
+        else setWlHint("");
+        renderWhitelist();
+      });
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // 24-211차: 서버 아이콘
+  // ------------------------------------------------------------------
+  async function renderHostIcon() {
+    const s = selected();
+    const box = $("host-icon-box");
+    if (!s || !box) return;
+    const res = await window.nova.hostedGetIcon?.(s.id).catch(() => null);
+    const url = res?.dataUrl || null;
+    box.innerHTML = url
+      ? `<img src="${url}" alt="" />`
+      : `<span>${escapeHtml(hT("host_icon_none", "없음"))}</span>`;
+    box.classList.toggle("has-icon", !!url);
+    $("btn-host-icon-clear").hidden = !url;
+  }
+  $("btn-host-icon-pick")?.addEventListener("click", async () => {
+    const s = selected();
+    if (!s) return;
+    const res = await window.nova.hostedSetIcon?.(s.id);
+    if (res?.error) {
+      setError(res.error);
+      return;
+    }
+    if (res?.ok) renderHostIcon();
+  });
+  $("btn-host-icon-clear")?.addEventListener("click", async () => {
+    const s = selected();
+    if (!s) return;
+    await window.nova.hostedClearIcon?.(s.id);
+    renderHostIcon();
+  });
+
+  // ------------------------------------------------------------------
+  // 24-211차: MOTD 색 / 그라데이션
+  // 마인크래프트는 §(U+00A7) 다음 글자로 색을 정한다. 1.16 부터는 §x§R§R§G§G§B§B 로 아무 색이나
+  // 쓸 수 있다. server.properties 는 자바 Properties 파일이라 § 를 글자 그대로 "\\u00A7" 라고
+  // 적어두면 서버가 읽을 때 풀어준다 - 파일 인코딩에 휘둘리지 않는 가장 안전한 방법이다.
+  // ------------------------------------------------------------------
+  const MOTD_SEC = "\\u00A7"; // 파일에 적히는 여섯 글자 그대로
+  function motdStrip(v) {
+    return String(v || "")
+      .replace(/\\u00A7./gi, "")
+      .replace(/§./g, "");
+  }
+  function hexToRgb(h) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(h || ""));
+    if (!m) return [255, 255, 255];
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function rgbToHex(r, g, b) {
+    return "#" + [r, g, b].map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
+  }
+  function motdCode(hex) {
+    const hh = hexToRgb(hex)
+      .map((v) => Math.round(v).toString(16).padStart(2, "0"))
+      .join("");
+    return MOTD_SEC + "x" + hh.split("").map((c) => MOTD_SEC + c).join("");
+  }
+  function motdBuild(text, from, to, gradient) {
+    const chars = [...String(text || "")];
+    if (!chars.length) return "";
+    if (!gradient) return motdCode(from) + chars.join("");
+    const a = hexToRgb(from);
+    const b = hexToRgb(to);
+    const n = Math.max(1, chars.length - 1);
+    return chars
+      .map((ch, i) => {
+        if (ch === " ") return ch; // 공백은 색을 줘도 똑같이 보인다 - 길이만 아낀다
+        const mix = rgbToHex(...[0, 1, 2].map((k) => a[k] + ((b[k] - a[k]) * i) / n));
+        return motdCode(mix) + ch;
+      })
+      .join("");
+  }
+  const MOTD_LEGACY = {
+    "0": "#000000", "1": "#0000aa", "2": "#00aa00", "3": "#00aaaa", "4": "#aa0000",
+    "5": "#aa00aa", "6": "#ffaa00", "7": "#aaaaaa", "8": "#555555", "9": "#5555ff",
+    a: "#55ff55", b: "#55ffff", c: "#ff5555", d: "#ff55ff", e: "#ffff55", f: "#ffffff",
+  };
+  function motdPreviewHtml(value) {
+    const src = String(value || "").replace(/\\u00A7/gi, "§");
+    let color = null;
+    let out = "";
+    for (let i = 0; i < src.length; i++) {
+      if (src[i] === "§") {
+        const c = (src[i + 1] || "").toLowerCase();
+        if (c === "x") {
+          let hex = "";
+          for (let k = 0; k < 6; k++) hex += src[i + 3 + k * 2] || "";
+          color = "#" + hex;
+          i += 13;
+          continue;
+        }
+        if (MOTD_LEGACY[c]) color = MOTD_LEGACY[c];
+        if (c === "r") color = null;
+        i += 1;
+        continue;
+      }
+      out += `<span${color ? ` style="color:${color}"` : ""}>${escapeHtml(src[i])}</span>`;
+    }
+    return out || `<span class="host-motd-empty">${escapeHtml(hT("host_motd_empty", "글자를 적으면 여기에 보여요"))}</span>`;
+  }
+
+  // 설정 그리드를 다시 그릴 때마다 MOTD 칸 아래에 색 도구를 붙인다
+  function mountMotdTools() {
+    const input = document.querySelector('#host-settings-grid [data-prop="motd"]');
+    if (!input || input.dataset.motdTools) return;
+    input.dataset.motdTools = "1";
+    const wrap = document.createElement("div");
+    wrap.className = "host-motd-tools";
+    wrap.innerHTML = `
+      <div class="host-motd-preview" id="host-motd-preview"></div>
+      <div class="host-motd-row">
+        <label class="host-motd-color"><span>${escapeHtml(hT("host_motd_from", "색"))}</span><input type="color" id="host-motd-from" value="#55ff55" /></label>
+        <label class="host-motd-color"><span>${escapeHtml(hT("host_motd_to", "끝 색"))}</span><input type="color" id="host-motd-to" value="#55ffff" /></label>
+        <label class="host-switch-row host-motd-grad">
+          <span>${escapeHtml(hT("host_motd_gradient", "그라데이션"))}</span>
+          <input type="checkbox" class="host-switch" id="host-motd-grad" checked />
+          <i class="host-switch-track"></i>
+        </label>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-host-motd-apply">${escapeHtml(hT("host_motd_apply", "색 입히기"))}</button>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-host-motd-plain">${escapeHtml(hT("host_motd_plain", "색 빼기"))}</button>
+      </div>`;
+    input.parentElement.insertAdjacentElement("afterend", wrap);
+
+    const preview = () => {
+      document.getElementById("host-motd-preview").innerHTML = motdPreviewHtml(input.value);
+    };
+    preview();
+    input.addEventListener("input", preview);
+    document.getElementById("btn-host-motd-apply").addEventListener("click", () => {
+      const plain = motdStrip(input.value);
+      input.value = motdBuild(
+        plain,
+        document.getElementById("host-motd-from").value,
+        document.getElementById("host-motd-to").value,
+        document.getElementById("host-motd-grad").checked
+      );
+      preview();
+    });
+    document.getElementById("btn-host-motd-plain").addEventListener("click", () => {
+      input.value = motdStrip(input.value);
+      preview();
+    });
+  }
+
+  $("btn-host-wl-add")?.addEventListener("click", async () => {
+    const s = selected();
+    const input = $("host-wl-input");
+    if (!s || !input) return;
+    const nick = input.value.trim();
+    if (!nick) return;
+    setWlHint(hT("host_wl_working", "계정을 확인하는 중..."));
+    const res = await window.nova.hostedWhitelistAdd?.(s.id, nick);
+    if (!res?.ok) {
+      setWlHint(res?.error || "추가하지 못했어요.", "is-error");
+      return;
+    }
+    input.value = "";
+    setWlHint(hT("host_wl_added", `${nick} 을(를) 넣었어요`, { name: nick }), "is-done");
+    renderWhitelist();
+  });
+  $("host-wl-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("btn-host-wl-add")?.click();
+  });
+
+  // 24-209차: 켜져 있는 동안 보여줄 요약. 설정 칸에서 읽어온 값(lastProps)을 그대로 쓴다.
+  let lastProps = {};
+  function renderLiveInfo(s) {
+    const el = $("host-live-info");
+    if (!el) return;
+    const p = lastProps || {};
+    const yn = (v) => (String(v) === "true" ? "켬" : "끔");
+    const rows = [
+      [hT("host_addr_title", "접속 주소"), s.addressFqdn || `:${s.port}`],
+      [hT("host_f_version", "버전"), `${s.mcVersion} · ${s.loader === "fabric" ? "Fabric" : "바닐라"}`],
+      [hT("host_f_memory", "메모리 (GB)"), `${s.memoryGB}GB`],
+      [hT("host_prop_max-players", "최대 인원"), p["max-players"] || "-"],
+      [hT("host_prop_difficulty", "난이도"), p["difficulty"] || "-"],
+      [hT("host_prop_gamemode", "기본 게임모드"), p["gamemode"] || "-"],
+      [hT("host_prop_pvp", "PvP 허용"), yn(p["pvp"])],
+      [hT("host_prop_white-list", "화이트리스트"), yn(p["white-list"])],
+    ];
+    if (p["resource-pack"]) rows.push([hT("host_prop_resource-pack", "리소스팩"), p["resource-pack"]]);
+    el.innerHTML =
+      `<div class="host-section-head">${escapeHtml(hT("host_live_info", "지금 돌고 있는 설정"))}</div>` +
+      `<div class="host-live-grid">` +
+      rows
+        .map(
+          ([k, v]) =>
+            `<div class="host-live-cell"><span>${escapeHtml(k)}</span><b>${escapeHtml(String(v))}</b></div>`
+        )
+        .join("") +
+      `</div>` +
+      `<p class="host-portfwd-hint">${escapeHtml(
+        hT("host_live_hint", "설정을 바꾸려면 서버를 끄고 다시 켜 주세요.")
+      )}</p>`;
+  }
+
+  // server.properties 쪽 설정. 고를 수 있는 항목과 지금 값은 main 이 알려준다
+  // (hosted:get-properties → { fields, values }).
+  // 24-209차: 칸마다 모양이 제각각이라 줄이 안 맞았다. 묶음(기본/월드/켬끔/리소스팩)별로
+  // 제목을 달고, 켜고 끄는 건 체크박스 대신 스위치로 그린다.
+  const PROP_GROUP_TITLE = {
+    world: ["host_group_world", "월드 설정"],
+    toggle: ["host_group_toggle", "게임 규칙"],
+    pack: ["host_group_pack", "리소스팩 설정"],
+    advanced: ["host_group_advanced", "고급 설정"],
+  };
+  function propFieldHtml(f, raw) {
+    // 24-227차: 이름은 main 의 한글 label 을 그대로(옛 사전 값이 남아 섞이지 않게)
+    const label = escapeHtml(f.label || hT("host_prop_" + f.key, f.key));
+    if (f.type === "bool") {
+      const on = String(raw) === "true";
+      return `<label class="host-switch-row">
+        <span>${label}</span>
+        <input type="checkbox" class="host-switch" data-prop="${escapeHtml(f.key)}"${on ? " checked" : ""} />
+        <i class="host-switch-track" aria-hidden="true"></i>
+      </label>`;
+    }
+    if (f.type === "select") {
+      // 24-224차: 서버에 적히는 값은 그대로 두고 보이는 글자만 한글로(main 의 names)
+      const opts = (f.options || [])
+        .map(
+          (o, i) =>
+            `<option value="${escapeHtml(o)}"${String(raw) === o ? " selected" : ""}>${escapeHtml(
+              (f.names && f.names[i]) || o
+            )}</option>`
+        )
+        .join("");
+      return `<label class="host-prop${f.wide ? " is-wide" : ""}">
+        <span>${label}</span>
+        <select class="setting-input" data-prop="${escapeHtml(f.key)}">${opts}</select>
+      </label>`;
+    }
+    const attrs =
+      f.type === "number"
+        ? ` type="number"${f.min !== undefined ? ` min="${f.min}"` : ""}${f.max !== undefined ? ` max="${f.max}"` : ""}`
+        : ` type="text"${f.max ? ` maxlength="${f.max}"` : ""}`;
+    return `<label class="host-prop${f.wide ? " is-wide" : ""}">
+      <span>${label}</span>
+      <input class="setting-input"${attrs} data-prop="${escapeHtml(f.key)}" value="${escapeHtml(
+        raw == null ? "" : String(raw)
+      )}" />
+    </label>`;
+  }
+
+  async function renderSettings() {
+    const s = selected();
+    const grid = $("host-settings-grid");
+    if (!s || !grid) return;
+    $("host-settings-note").textContent = "";
+    const res = await window.nova.hostedGetProperties?.(s.id).catch(() => null);
+    if (!res?.ok) {
+      grid.innerHTML = "";
+      return;
+    }
+    const values = res.values || {};
+    lastProps = values;
+    const fields = res.fields || [];
+    // group 이 없는 옛 버전 main 과도 맞물리게 - 없으면 world 로 본다
+    const order = ["world", "toggle", "pack", "advanced"];
+    const byGroup = {};
+    fields.forEach((f) => {
+      const g = order.includes(f.group) ? f.group : "world";
+      (byGroup[g] = byGroup[g] || []).push(f);
+    });
+    grid.innerHTML = order
+      .filter((g) => byGroup[g]?.length)
+      .map((g) => {
+        const [key, fb] = PROP_GROUP_TITLE[g];
+        const body = byGroup[g].map((f) => propFieldHtml(f, values[f.key])).join("");
+        const cls = g === "toggle" ? "host-switch-list" : "host-settings-grid";
+        return `<div class="host-settings-group">
+          <div class="host-group-title">${escapeHtml(hT(key, fb))}</div>
+          <div class="${cls}">${body}</div>
+        </div>`;
+      })
+      .join("");
+    mountMotdTools(); // 24-211차
+    if (!detailEl.hidden) renderLiveInfo(s); // 요약도 같은 값으로 맞춰둔다
+  }
+
+  function render() {
+    if ($("host-loading") && !$("host-loading").hidden) return; // 24-218차: 불러오는 중
+    renderList();
+    renderDetail();
+  }
+
+  function appendLog(row) {
+    if (!consoleEl) return;
+    const line = document.createElement("div");
+    line.className = "host-log-line is-" + (row.kind || "out");
+    line.textContent = row.text;
+    consoleEl.appendChild(line);
+    while (consoleEl.childElementCount > 400) consoleEl.removeChild(consoleEl.firstChild);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  async function reload() {
+    servers = (await window.nova.hostedList?.().catch(() => [])) || [];
+    status = (await window.nova.hostedStatus?.().catch(() => null)) || status;
+    // 24-225차: "처음 들어가면 안골라져있게" - 예전엔 첫 서버를 자동으로 골랐는데, 목록에서는
+    // 골라진 것처럼 보이면서 오른쪽은 비어 있어서 헷갈렸다. 켜져 있는 서버만 자동으로 고른다.
+    if (!selectedId && status?.serverId && servers.some((x) => x.id === status.serverId)) {
+      selectedId = status.serverId;
+    }
+    if (selectedId && !servers.some((x) => x.id === selectedId)) selectedId = null;
+    render();
+    renderHostLimit();
+  }
+
+  // 24-229차: 서버 개수 n/최대 (티어 + 상점 슬롯)
+  let hostLimit = null;
+  async function renderHostLimit() {
+    const btn = $("btn-host-new");
+    if (!btn) return;
+    hostLimit = await window.nova.hostedLimit?.().catch(() => null);
+    if (!hostLimit?.ok) return;
+    btn.removeAttribute("data-i18n");
+    const full = hostLimit.used >= hostLimit.max;
+    btn.classList.toggle("is-full", full);
+    btn.innerHTML = `<span>+ 새 서버</span><em class="host-new-count">${hostLimit.used}/${hostLimit.max}</em>`;
+  }
+
+  // 24-204차: "버전도 입력이 아니라 고르는 걸로"
+  let versionsFilled = false;
+  async function fillVersions() {
+    const sel = $("host-new-version");
+    if (!sel || versionsFilled) return;
+    const list = (await window.nova.listAvailableVersions?.().catch(() => [])) || [];
+    if (!list.length) return;
+    sel.innerHTML = list.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    versionsFilled = true;
+  }
+
+  function renderNewAddrSuffix() {
+    const el = $("host-new-addr-suffix");
+    if (el) el.textContent = addrDomain ? "." + addrDomain : hT("host_addrname_pending", ".(도메인 준비 중)");
+  }
+
+  // 24-218차: 처음 들어가면 목록/주소를 받아오는 동안 빈 화면이라 오해하기 쉬웠다
+  function setHostLoading(on) {
+    const el = $("host-loading");
+    if (el) el.hidden = !on;
+    if (on) {
+      createEl.hidden = true;
+      detailEl.hidden = true;
+      emptyEl.hidden = true;
+    }
+  }
+
+  async function openHost() {
+    setError("");
+    showAppPanel("view-host");
+    setHostLoading(true);
+    fillVersions();
+    consoleEl.innerHTML = "";
+    const log = (await window.nova.hostedGetLog?.().catch(() => [])) || [];
+    log.forEach(appendLog);
+    // 24-198차: 주소 뒤에 붙는 도메인은 사이트가 정한다(설정이 바뀌어도 런처는 안 고쳐도 됨)
+    const addrRes = await window.nova.hostedAddressList?.().catch(() => null);
+    if (addrRes?.ok && addrRes.domain) addrDomain = addrRes.domain;
+    renderNewAddrSuffix();
+    await reload();
+    // 24-224차: "불러오기 다 돼도 서버들이 안보이는 버그"
+    // reload() 안의 render() 는 로딩 중이라 걸러졌는데, 로딩을 끈 뒤에 다시 그리지 않아서
+    // "새 서버 만들기"를 눌러야(=render 가 다시 불려야) 목록이 나타났다.
+    setHostLoading(false);
+    if (!servers.length) createEl.hidden = false;
+    render();
+    if (servers.length) renderSettings();
+    window.NovaI18n?.applyI18n?.();
+  }
+  function closeHost() {
+    showAppPanel("view-home");
+  }
+
+  // 24-202차: 진입점은 사이드바 더보기 하나뿐이다(홈 서버 칸에 있던 버튼은 제거했다)
+  document.getElementById("sidebar-more-server-btn")?.addEventListener("click", () => {
+    if (!overlay.hidden) return; // 이미 보고 있는 화면이면 다시 불러올 필요 없다
+    openHost();
+  });
+
+  $("btn-host-new")?.addEventListener("click", () => {
+    setError("");
+    if (hostLimit?.ok && hostLimit.used >= hostLimit.max) {
+      setError(`서버 최대 ${hostLimit.max}개`);
+      return;
+    }
+    createEl.hidden = false;
+    render();
+  });
+
+  $("btn-host-create")?.addEventListener("click", async () => {
+    setError("");
+    // 24-197차: EULA 동의는 만들 때 한 번만 받는다(동의하면 eula.txt 까지 바로 써진다)
+    if (!$("host-new-eula").checked) {
+      setError(hT("host_eula_need", "마인크래프트 EULA에 동의해야 서버를 만들 수 있어요."));
+      return;
+    }
+    // 24-213차: 주소도 만들 때 받는다(필수)
+    const newSlug = $("host-new-addr")?.value.trim().toLowerCase() || "";
+    if (!newSlug) {
+      setError(hT("host_addr_need", "접속 주소를 입력해주세요."));
+      return;
+    }
+    const res = await window.nova.hostedCreate?.({
+      addressSlug: newSlug,
+      name: $("host-new-name").value,
+      mcVersion: $("host-new-version").value,
+      loader: $("host-new-loader").value,
+      memoryGB: Number($("host-new-memory").value),
+      port: Number($("host-new-port").value),
+      maxPlayers: Number($("host-new-players").value),
+      // 24-224차: 시드/월드 종류는 만들 때만 받는다
+      levelSeed: $("host-new-seed")?.value || "",
+      levelType: $("host-new-leveltype")?.value || "minecraft:normal",
+      acceptEula: true,
+    });
+    if (!res?.ok) {
+      setError(res?.error || "서버를 만들지 못했어요.");
+      return;
+    }
+    $("host-new-name").value = "";
+    if ($("host-new-addr")) $("host-new-addr").value = "";
+    $("host-new-eula").checked = false;
+    selectedId = res.server.id;
+    createEl.hidden = true;
+    await reload();
+    renderSettings();
+    if (res.addressError) setError(res.addressError);
+  });
+
+  $("host-eula-check")?.addEventListener("change", async (e) => {
+    const s = selected();
+    if (!s || !e.target.checked) return;
+    const res = await window.nova.hostedAcceptEula?.(s.id);
+    if (res?.ok) {
+      s.eulaAccepted = true;
+      render();
+    }
+  });
+  $("host-eula-link")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.nova.openExternal?.("https://aka.ms/MinecraftEULA");
+  });
+
+  $("btn-host-start")?.addEventListener("click", async () => {
+    const s = selected();
+    if (!s) return;
+    setError("");
+    consoleEl.innerHTML = "";
+    const res = await window.nova.hostedStart?.(s.id);
+    if (!res?.ok) setError(res?.error || "서버를 켜지 못했어요.");
+  });
+  $("btn-host-stop")?.addEventListener("click", async () => {
+    const res = await window.nova.hostedStop?.();
+    if (!res?.ok) setError(res?.error || "서버를 끄지 못했어요.");
+  });
+  $("btn-host-folder")?.addEventListener("click", () => {
+    const s = selected();
+    if (s) window.nova.hostedOpenFolder?.(s.id);
+  });
+  $("btn-host-remove")?.addEventListener("click", async () => {
+    const s = selected();
+    if (!s) return;
+    const ok = await showConfirm(
+      `"${s.name}" 삭제`,
+      "지우기",
+      "취소"
+    );
+    if (!ok) return;
+    const res = await window.nova.hostedRemove?.(s.id);
+    if (!res?.ok) {
+      setError(res?.error || "지우지 못했어요.");
+      return;
+    }
+    selectedId = null;
+    await reload();
+  });
+
+  // 프로필의 모드를 서버로 복사 - 클라이언트 전용 모드는 main 쪽에서 걸러낸다
+  $("btn-host-copy-mods")?.addEventListener("click", async () => {
+    const s = selected();
+    if (!s) return;
+    const profiles = (await window.nova.listProfiles?.()) || [];
+    const fit = profiles.filter((p) => String(p.mcVersion) === String(s.mcVersion));
+    if (!fit.length) {
+      setError(`${s.mcVersion} 프로필이 없어요.`);
+      return;
+    }
+    // 지금 고른 프로필이 버전이 맞으면 그걸, 아니면 맞는 것 중 가장 최근에 플레이한 것
+    const current = fit.find((p) => p.selected);
+    const pick =
+      current ||
+      fit.slice().sort((a, b) => {
+        const at = a.lastPlayedAt ? new Date(a.lastPlayedAt).getTime() : 0;
+        const bt = b.lastPlayedAt ? new Date(b.lastPlayedAt).getTime() : 0;
+        return bt - at;
+      })[0];
+    const ok = await showConfirm(
+      `"${pick.name}" 모드 복사`,
+      "넣기",
+      "취소"
+    );
+    if (!ok) return;
+    const res = await window.nova.hostedCopyMods?.(s.id, pick.id);
+    if (!res?.ok) {
+      setError(res?.error || "모드를 넣지 못했어요.");
+      return;
+    }
+    showToast(`모드 ${res.copied}개 복사${res.skipped.length ? ` / 제외 ${res.skipped.length}` : ""}`);
+  });
+
+  async function sendCmd() {
+    const text = cmdInput.value.trim();
+    if (!text) return;
+    cmdInput.value = "";
+    const res = await window.nova.hostedCommand?.(text);
+    if (!res?.ok && res?.error) setError(res.error);
+  }
+  cmdBtn?.addEventListener("click", sendCmd);
+  cmdInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendCmd();
+  });
+
+  $("host-new-eula-link")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.nova.openExternal?.("https://aka.ms/MinecraftEULA");
+  });
+
+  // 24-213차: "서버 설정은 저장 안해도 바로바로 적용되게" - 칸을 건드리면 그 자리에서 저장한다.
+  // 글자 칸은 조금 기다렸다 저장하고(한 글자마다 쓰면 디스크를 너무 자주 건드린다),
+  // 체크/고르기는 바꾸는 즉시 저장한다.
+  let saveTimer = null;
+  async function saveHostSettings() {
+    const s = selected();
+    if (!s) return;
+    const basic = $("host-edit-name")
+      ? {
+          name: $("host-edit-name").value,
+          memoryGB: Number($("host-edit-memory").value),
+          port: Number($("host-edit-port").value),
+        }
+      : null;
+    if (basic) {
+      const up = await window.nova.hostedUpdate?.(s.id, basic);
+      if (!up?.ok) {
+        $("host-settings-note").textContent = up?.error || "";
+        return;
+      }
+    }
+    const values = {};
+    $("host-settings-grid")
+      .querySelectorAll("[data-prop]")
+      .forEach((el) => {
+        values[el.dataset.prop] = el.type === "checkbox" ? el.checked : el.value;
+      });
+    const res = await window.nova.hostedSetProperties?.(s.id, values);
+    $("host-settings-note").textContent = res?.ok ? hT("host_settings_saved", "저장됨") : res?.error || "";
+    if (res?.ok) {
+      // 목록의 이름/포트도 바로 맞춘다. 지금 고친 칸이 다시 그려지면 커서가 튀므로 목록만.
+      servers = (await window.nova.hostedList?.().catch(() => servers)) || servers;
+      renderList();
+      const row = selected();
+      if (row) {
+        $("host-detail-name").textContent = row.name;
+        $("host-detail-meta").textContent = `${row.mcVersion} · ${row.loader === "fabric" ? "Fabric" : "바닐라"}`;
+      }
+    }
+  }
+  function queueSaveHostSettings(now) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveHostSettings, now ? 0 : 600);
+  }
+  // 설정 칸 전체에 한 번만 걸어둔다(칸은 다시 그려져도 이 부모는 그대로라 위임이 안전하다)
+  $("host-settings")?.addEventListener("input", (e) => {
+    if (!e.target.matches("[data-prop], #host-edit-name, #host-edit-memory, #host-edit-port")) return;
+    queueSaveHostSettings(e.target.type === "checkbox");
+  });
+  $("host-settings")?.addEventListener("change", (e) => {
+    if (!e.target.matches("[data-prop], #host-edit-memory, #host-edit-port")) return;
+    queueSaveHostSettings(true);
+  });
+
+  // ------------------------------------------------------------------
+  // 24-210차: 모드팩으로 서버 만들기
+  // ------------------------------------------------------------------
+  let pickedModpack = null;
+  const LOADER_LABEL = { fabric: "Fabric", vanilla: "바닐라", forge: "Forge", neoforge: "NeoForge", quilt: "Quilt" };
+  $("btn-host-modpack-pick")?.addEventListener("click", async () => {
+    $("host-modpack-progress").textContent = "";
+    const res = await window.nova.hostedPickModpack?.();
+    if (!res?.ok) {
+      if (res?.error) {
+        $("host-modpack-progress").className = "host-portfwd-hint is-error";
+        $("host-modpack-progress").textContent = res.error;
+      }
+      return;
+    }
+    pickedModpack = res;
+    $("host-modpack-name").textContent =
+      `${res.name} · ${res.mcVersion || hT("host_modpack_noversion", "버전은 위에서 고른 값")} · ${
+        LOADER_LABEL[res.loader] || res.loader
+      }`;
+    $("btn-host-modpack-create").hidden = false;
+    // 모드팩이 버전을 알려주면 위 칸도 같이 맞춰둔다
+    if (res.mcVersion) {
+      const sel = $("host-new-version");
+      if (sel && [...sel.options].some((o) => o.value === res.mcVersion)) sel.value = res.mcVersion;
+      const ld = $("host-new-loader");
+      if (ld && (res.loader === "fabric" || res.loader === "vanilla")) ld.value = res.loader;
+    }
+  });
+
+  $("btn-host-modpack-create")?.addEventListener("click", async () => {
+    if (!pickedModpack) return;
+    setError("");
+    if (!$("host-new-eula").checked) {
+      setError(hT("host_eula_need", "마인크래프트 EULA에 동의해야 서버를 만들 수 있어요."));
+      return;
+    }
+    const btn = $("btn-host-modpack-create");
+    btn.disabled = true;
+    $("host-modpack-progress").className = "host-portfwd-hint";
+    $("host-modpack-progress").textContent = hT("host_modpack_working", "모드팩을 푸는 중...");
+    const res = await window.nova.hostedCreateFromModpack?.({
+      filePath: pickedModpack.filePath,
+      name: $("host-new-name").value.trim() || pickedModpack.name,
+      mcVersion: $("host-new-version").value,
+      loader: $("host-new-loader").value,
+      memoryGB: Number($("host-new-memory").value) || 4,
+      port: Number($("host-new-port").value),
+      maxPlayers: Number($("host-new-players").value),
+      acceptEula: true,
+    });
+    btn.disabled = false;
+    if (!res?.ok) {
+      $("host-modpack-progress").className = "host-portfwd-hint is-error";
+      $("host-modpack-progress").textContent = res?.error || "모드팩 서버를 만들지 못했어요.";
+      return;
+    }
+    pickedModpack = null;
+    $("host-modpack-name").textContent = "";
+    $("btn-host-modpack-create").hidden = true;
+    $("host-modpack-progress").textContent = "";
+    $("host-new-name").value = "";
+    $("host-new-eula").checked = false;
+    selectedId = res.server.id;
+    createEl.hidden = true;
+    await reload();
+    renderSettings();
+    showToast(res.server.name);
+  });
+
+  window.nova.onHostedModpackProgress?.((p) => {
+    const el = $("host-modpack-progress");
+    if (!el) return;
+    el.className = "host-portfwd-hint" + (p.stage === "error" ? " is-error" : p.stage === "done" ? " is-done" : "");
+    el.textContent = p.total > 1 && p.stage === "download" ? `(${p.done}/${p.total}) ${p.text}` : p.text;
+  });
+
+  $("host-addrname-input")?.addEventListener("input", () => renderAddrName());
+
+  $("btn-host-addr-claim")?.addEventListener("click", async () => {
+    const s = selected();
+    if (!s) return;
+    const slug = $("host-addrname-input").value.trim().toLowerCase();
+    const hint = $("host-addrname-hint");
+    hint.className = "host-portfwd-hint";
+    hint.textContent = hT("host_addrname_working", "주소를 만드는 중...");
+    const res = await window.nova.hostedAddressClaim?.(s.id, slug);
+    if (!res?.ok) {
+      hint.textContent = res?.error || "주소를 만들지 못했어요.";
+      hint.className = "host-portfwd-hint is-error";
+      return;
+    }
+    // 24-213차: 레코드 만들기까지 실패했으면 주소만 보여주고 끝내면 안 된다
+    hint.textContent = res.warn ? `${res.fqdn} (${res.warn})` : res.fqdn;
+    hint.className = "host-portfwd-hint " + (res.warn ? "is-error" : "is-done");
+    $("host-addrname-input").value = "";
+    addrEditing = false;
+    await reload();
+  });
+
+  $("btn-host-addr-edit")?.addEventListener("click", () => {
+    const s = selected();
+    if (!s?.addressSlug) return;
+    addrEditing = true;
+    $("host-addrname-input").value = s.addressSlug;
+    renderAddrName();
+    $("host-addrname-input").focus();
+    $("host-addrname-input").select();
+  });
+
+  // 24-218차: "주소확인 버튼은 없애줘 이제" - 버튼과 그 핸들러를 뺐다.
+  // (main 의 hosted:address-check 는 그대로 둔다 - 로그에서 쓸 일이 남아 있다)
+
+  $("btn-host-addr-copy")?.addEventListener("click", () => {
+    const s = selected();
+    if (!s?.addressFqdn) return;
+    navigator.clipboard?.writeText(s.addressFqdn);
+    showToast(hT("host_addr_copied", "복사했어요"));
+  });
+
+  // 24-212차: "주소는 떼기 말고 수정으로" - 떼기 버튼은 없앴다(위 연필 버튼이 대신한다).
+  $("btn-host-open-port")?.addEventListener("click", async () => {
+    const s2 = selected();
+    if (!s2) return;
+    portFailed = false;
+    autoPortTriedFor = null;
+    renderPortFwd();
+    await autoOpenPort();
+  });
+
+  $("btn-host-close-port")?.addEventListener("click", async () => {
+    await window.nova.hostedClosePort?.();
+    // 24-205차: #host-portfwd-hint 는 없어졌다(주소 칸 한 줄로 합침) - 상태 줄만 다시 그린다
+    autoPortTriedFor = null;
+    portFailed = false;
+    await reload();
+  });
+
+  // 24-213차: 서버가 켜져 있으면 런처를 못 끈다
+  window.nova.onHostedCloseBlocked?.(() => {
+    showAppPanel("view-host");
+    showToast(hT("host_close_blocked", "서버를 먼저 종료해주세요"), "error");
+    setError(hT("host_close_blocked", "서버를 먼저 종료해주세요"));
+  });
+
+  window.nova.onHostedLog?.(appendLog);
+  window.nova.onHostedState?.((st) => {
+    const wasRunning = status.state !== "stopped";
+    status = st || status;
+    if (status.state === "stopped") {
+      autoPortTriedFor = null; // 다음에 켜면 다시 시도
+      portFailed = false;
+    }
+    if (!overlay.hidden) render();
+    // 24-204차: 서버가 막 켜졌으면 포트를 알아서 연다
+    if (!wasRunning && status.state === "running") autoOpenPort();
+  });
+})();
+
+// ============================================================================
+// 24-201차: 알림 / 선물함 (프로필 위 아이콘 → 가운데 창)
+// "알림/선물함은 그냥 모양만, 알림도 선물함이랑 같이 따로 열려야 하고, 가운데 업데이트
+//  로그처럼 떠야 하고, 위치는 프로필 바로 위, 이름 뜨는 곳이 아니라 아이콘으로"
+//
+// 24-200차에는 가로로 긴 버튼 + 아래로 펼쳐지는 패널이었는데, 창을 가운데에 띄우고 탭으로
+// 알림/선물함을 나누는 쪽으로 바꿨다.
+//
+// 각 항목의 '있음/없음'은 화면이 이미 유지하고 있는 상태를 그대로 읽는다. 같은 값을 두
+// 군데서 따로 계산하면 반드시 어긋나기 때문이다.
+// ============================================================================
+(() => {
+  const btn = document.getElementById("btn-notify");
+  // 24-208차: #notify-overlay(가운데 창) → #view-notify(보통 화면)
+  const overlay = document.getElementById("view-notify");
+  const countEl = document.getElementById("notify-count");
+  const panels = {
+    alerts: document.getElementById("notify-panel-alerts"),
+    gifts: document.getElementById("notify-panel-gifts"),
+  };
+  const tabDots = {
+    alerts: document.getElementById("notify-tab-dot-alerts"),
+    gifts: document.getElementById("notify-tab-dot-gifts"),
+  };
+  if (!btn || !overlay || !panels.alerts) return;
+
+  const nT = (k, fb) => {
+    const r = window.NovaI18n?.t ? window.NovaI18n.t(k) : "";
+    return r && r !== k ? r : fb;
+  };
+  const visible = (el) => !!el && !el.hidden;
+
+  // 24-217차: 구독한 사람들의 새 글(여러 곳에서 보니 여기 한 곳에만 담아둔다)
+  let subNewPosts = [];
+  // 24-218차: 나를 새로 구독한 사람
+  let newFollowers = [];
+  function lastSeenFollower() {
+    try {
+      return localStorage.getItem("nova_last_seen_follower") || "";
+    } catch (_) {
+      return "";
+    }
+  }
+  async function refreshSubPosts() {
+    try {
+      const res = await window.nova.subsNewPosts?.();
+      if (res?.ok) {
+        const before = new Set(subNewPosts.map((p) => p.id));
+        subNewPosts = res.posts || [];
+        // 24-243차: 새로 올라온 구독 글이 있으면 한 번 알려준다
+        const fresh = subNewPosts.filter((p) => !before.has(p.id));
+        if (fresh.length && before.size + fresh.length > 0 && refreshSubPosts.ran) {
+          showToast(`${fresh[0].author_name || "구독한 멤버"} 새 글${fresh.length > 1 ? ` 외 ${fresh.length - 1}개` : ""}`);
+        }
+        refreshSubPosts.ran = true;
+        window.NovaSubNewPostCount = subNewPosts.length;
+        renderNoticeDot();
+      }
+      const f = await window.nova.subsFollowers?.();
+      if (f?.ok) {
+        const since = lastSeenFollower();
+        newFollowers = (f.followers || []).filter((r) => r.created_at > since);
+      }
+      // 구독 버튼 점: 나를 새로 구독한 사람 또는 구독한 사람의 새 글
+      const subsDot = document.getElementById("forum-subs-dot");
+      if (subsDot) subsDot.hidden = newFollowers.length === 0 && subNewPosts.length === 0;
+      refresh();
+    } catch (_) {}
+  }
+  setTimeout(refreshSubPosts, 6000);
+  setInterval(refreshSubPosts, 90 * 1000); // 24-243차: 3분 → 90초
+  window.NovaSubsRefresh = refreshSubPosts;
+
+  const ICONS = {
+    gift: '<path d="M4 11h16v9H4z"/><path d="M3 7.5h18V11H3z"/><path d="M12 7.5V20"/><path d="M12 7.5S10.5 4 8.5 4a2 2 0 0 0 0 4Zm0 0s1.5-3.5 3.5-3.5a2 2 0 0 1 0 4Z"/>',
+    person: '<circle cx="12" cy="8.5" r="3.2"/><path d="M5.5 19.5c1.4-3.4 4-5.2 6.5-5.2s5.1 1.8 6.5 5.2"/>',
+    chat: '<path d="M4 5.5h16v10.5H9l-4.5 4V5.5Z"/>',
+    bell: '<path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5Z"/><path d="M10.3 18a1.9 1.9 0 0 0 3.4 0"/>',
+  };
+
+  // 선물함 - 받을 게 남아 있는 것들
+  function collectGifts() {
+    const out = [];
+    if (visible(document.getElementById("home-gift-dot"))) {
+      out.push({
+        icon: "gift",
+        title: nT("notify_reward", "받을 보상이 있어요"),
+        desc: nT("notify_reward_desc", "출석체크 · 퀘스트"),
+        action: nT("notify_go_claim", "받으러 가기"),
+        go: () => document.getElementById("btn-home-gift")?.click(),
+      });
+    }
+    if (typeof welcomeGiftPending !== "undefined" && welcomeGiftPending) {
+      out.push({
+        icon: "gift",
+        title: nT("notify_welcome", "가입 축하 선물이 남아 있어요"),
+        desc: nT("notify_welcome_desc", "테마 1개 + 색상 1개"),
+        action: nT("notify_go_claim", "받으러 가기"),
+        go: async () => {
+          const res = await window.nova.welcomeGiftSync?.().catch(() => null);
+          if (res?.ok && res.eligible && res.needsPick) openWelcomeGift(res);
+        },
+      });
+    }
+    return out;
+  }
+
+  // 알림 - 확인할 거리
+  function collectAlerts() {
+    const out = [];
+    if (visible(document.getElementById("home-friends-add-tab-dot"))) {
+      out.push({
+        icon: "person",
+        title: nT("notify_request", "받은 친구 요청이 있어요"),
+        desc: nT("notify_request_desc", "친구추가 탭에서 수락할 수 있어요"),
+        action: nT("notify_go_open", "열기"),
+        go: () => document.querySelector('[data-friends-tab="add"]')?.click(),
+      });
+    }
+    if (visible(document.getElementById("home-friends-tab-dot"))) {
+      out.push({
+        icon: "chat",
+        title: nT("notify_whisper", "안 읽은 귓속말이 있어요"),
+        desc: nT("notify_whisper_desc", "친구 목록에서 빨간 점이 붙은 친구를 눌러보세요"),
+        action: nT("notify_go_open", "열기"),
+        go: () => document.querySelector('[data-friends-tab="friends"]')?.click(),
+      });
+    }
+    // 24-218차: 나를 구독한 사람
+    newFollowers.forEach((f) => {
+      out.push({
+        icon: "person",
+        title: nT("notify_new_follower", `${f.name} 님이 구독했어요`).replace("{name}", f.name),
+        desc: "",
+        action: nT("notify_go_open", "열기"),
+        go: () => {
+          document.getElementById("btn-forum-subs")?.click();
+          showAppPanel("view-forum");
+          document.getElementById("btn-forum-subs")?.click();
+          newFollowers = [];
+          refresh();
+        },
+      });
+    });
+    // 24-217차: 구독한 사람의 새 글. 목록 자체는 subNewPosts 가 주기적으로 받아둔다.
+    subNewPosts.forEach((p) => {
+      out.push({
+        icon: "bell",
+        title: nT("notify_sub_post", `${p.author_name} 님의 새 글`).replace("{name}", p.author_name),
+        desc: p.title || "",
+        action: nT("notify_go_open", "열기"),
+        go: async () => {
+          await window.nova.subsMarkSeen?.(p.author_uuid);
+          subNewPosts = subNewPosts.filter((x) => x.author_uuid !== p.author_uuid);
+          window.NovaOpenForumPost?.(p.id);
+          refresh();
+        },
+      });
+    });
+    const ann = document.querySelector(".home-announcement-card.has-unread-dot");
+    if (ann && !ann.hidden) {
+      out.push({
+        icon: "bell",
+        title: nT("notify_notice", "새 공지가 있어요"),
+        desc: ann.querySelector(".home-announcement-text")?.textContent?.trim() || "",
+        action: nT("notify_go_open", "열기"),
+        go: () => ann.click(),
+      });
+    }
+    return out;
+  }
+
+  function renderPanel(key, items, emptyText) {
+    const el = panels[key];
+    if (!el) return;
+    if (!items.length) {
+      el.innerHTML = `<div class="notify-empty">${escapeHtml(emptyText)}</div>`;
+      return;
+    }
+    el.innerHTML = items
+      .map(
+        (it, i) => `
+        <div class="notify-item" data-i="${i}">
+          <span class="notify-item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${
+            ICONS[it.icon] || ICONS.bell
+          }</svg></span>
+          <span class="notify-item-text">
+            <b>${escapeHtml(it.title)}</b>
+            ${it.desc ? `<span>${escapeHtml(it.desc)}</span>` : ""}
+          </span>
+          <button type="button" class="btn btn-ghost btn-small notify-item-go">${escapeHtml(it.action)}</button>
+        </div>`
+      )
+      .join("");
+    el.querySelectorAll(".notify-item").forEach((row) => {
+      const run = () => {
+        overlay.hidden = true;
+        items[Number(row.dataset.i)]?.go?.();
+      };
+      row.querySelector(".notify-item-go")?.addEventListener("click", run);
+      row.addEventListener("click", (e) => {
+        if (!e.target.closest(".notify-item-go")) run();
+      });
+    });
+  }
+
+  function refresh() {
+    const alerts = collectAlerts();
+    const gifts = collectGifts();
+    const total = alerts.length + gifts.length;
+
+    if (countEl) {
+      countEl.textContent = String(total);
+      countEl.hidden = total === 0;
+    }
+    btn.classList.toggle("has-items", total > 0);
+    if (tabDots.alerts) tabDots.alerts.hidden = alerts.length === 0;
+    if (tabDots.gifts) tabDots.gifts.hidden = gifts.length === 0;
+
+    if (!overlay.hidden) {
+      renderPanel("alerts", alerts, nT("notify_empty_alerts", "새 알림이 없어요"));
+      renderPanel("gifts", gifts, nT("notify_empty_gifts", "받을 선물이 없어요"));
+    }
+  }
+
+  function showTab(key) {
+    document.querySelectorAll(".notify-tab").forEach((t) => {
+      t.classList.toggle("is-active", t.dataset.notifyTab === key);
+    });
+    Object.entries(panels).forEach(([k, el]) => {
+      if (el) el.hidden = k !== key;
+    });
+  }
+
+  function openNotify() {
+    showAppPanel("view-notify");
+    // 받을 게 있으면 선물함부터 보여준다 - 대개 그게 보고 싶은 쪽이라
+    showTab(collectGifts().length ? "gifts" : "alerts");
+    refresh();
+    window.NovaI18n?.applyI18n?.();
+  }
+
+  btn.addEventListener("click", () => {
+    if (!overlay.hidden) return;
+    openNotify();
+  });
+  document.querySelectorAll(".notify-tab").forEach((t) => {
+    t.addEventListener("click", () => showTab(t.dataset.notifyTab));
+  });
+
+  // 뱃지 숫자는 창을 안 열어도 맞아야 하므로 주기적으로 다시 센다. 읽는 값이 전부 이미
+  // 화면에 있는 것(DOM/플래그)이라 비용이 거의 없다.
+  setInterval(refresh, 4000);
+  window.addEventListener("focus", refresh);
+  setTimeout(refresh, 1200);
+  window.NovaNotifyRefresh = refresh; // 친구 목록 등이 갱신된 직후 바로 부를 수 있게
+})();
+
+
+// ============================================================================
+// 24-229차: 친구 프로필 카드 (롤 프로필처럼)
+// "친구 이름에 가져다 대면 프로필 사진 이름 마크 이름 티어 경험치 아래쪽에 메모한 글,
+//  플레이중인 프로필/서버 ... 해당 플레이어의 테마색의 배경으로"
+// 테마색은 그 친구가 티어 표에 올린 theme_bg / theme_accent 를 쓴다(없으면 기본 색).
+// ============================================================================
+const FHC_TIER_MIN = { iron: 0, bronze: 150, silver: 600, gold: 2000, platinum: 6000, diamond: 15000 }; // 24-234차: main TIER_STEPS 와 같게
+const FHC_ORDER = ["iron", "bronze", "silver", "gold", "platinum", "diamond"];
+let fhcEl = null;
+let fhcTimer = null;
+let fhcRow = null;
+
+function fhcEnsure() {
+  if (fhcEl) return fhcEl;
+  fhcEl = document.createElement("div");
+  fhcEl.className = "friend-hover-card";
+  fhcEl.hidden = true;
+  document.body.appendChild(fhcEl);
+  return fhcEl;
+}
+function fhcHide() {
+  clearTimeout(fhcTimer);
+  fhcRow = null;
+  if (fhcEl) {
+    fhcEl.classList.remove("is-shown");
+    fhcEl.hidden = true;
+  }
+}
+function fhcHex(v, fb) {
+  return /^#[0-9a-f]{6}$/i.test(String(v || "")) ? v : fb;
+}
+function fhcHtml(row, info) {
+  const id = row.dataset.whisperUuid || "";
+  const name = row.dataset.whisperName || "";
+  const presence = row.dataset.presence || "offline";
+  const playing = buildFriendPlayingInfo(
+    row.dataset.friendStatusKind,
+    row.dataset.friendStatusRef,
+    row.dataset.friendStatusVersion,
+    row.dataset.friendStatus
+  );
+  const statusText = row.dataset.friendStatus || "";
+  const tier = info?.tier && TIER_META[info.tier] ? info.tier : "iron";
+  const score = Number(info?.score) || 0;
+  const idx = FHC_ORDER.indexOf(tier);
+  const next = FHC_ORDER[idx + 1] || null;
+  const curMin = FHC_TIER_MIN[tier];
+  const pct = next ? Math.round((Math.min(score - curMin, FHC_TIER_MIN[next] - curMin) / (FHC_TIER_MIN[next] - curMin)) * 100) : 100;
+  const memo = friendMemos[id] || "";
+  // 24-236차: 사진이 없으면 회색 사람 모양
+  const avatar = info?.avatar ? `<img src="${escapeHtml(info.avatar)}" alt="" />` : `<i class="is-default"></i>`;
+  // 24-236차: 플레이 중인 서버/프로필에 아이콘이 있으면 위쪽 배너에 크게
+  // 24-245차: "친구 프로필에 하고 있는 거 아이콘 안뜨게 하자" - 위쪽은 늘 테마색 배너
+  const bannerIcon = null;
+  const playLabel =
+    presence === "offline"
+      ? "오프라인"
+      : playing?.label
+        ? playing.label
+        : statusText || (presence === "away" ? "자리비움" : "온라인");
+  const playKind = presence === "offline" ? "is-offline" : playing ? "is-playing" : presence === "away" ? "is-away" : "is-online";
+  const playIcon = playing?.type === "server" ? tierPerkIcon("server") : playing ? tierPerkIcon("post") : "";
+  return `
+    <div class="fhc-banner${bannerIcon ? " has-icon" : ""}">
+      ${
+        bannerIcon
+          ? `<img class="fhc-banner-cover" src="${escapeHtml(bannerIcon)}" alt="" onerror="this.closest('.fhc-banner').classList.remove('has-icon');this.remove();" />`
+          : ""
+      }
+      <span class="fhc-banner-emblem">${tierBadgeHtml(tier)}</span>
+    </div>
+    <div class="fhc-body">
+      <span class="fhc-avatar">${avatar}</span>
+      <div class="fhc-names">
+        <b class="fhc-name">${escapeHtml(name)}</b>
+        ${info?.mcName ? `<span class="fhc-mc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21 4 16.5v-9Z" stroke-linejoin="round"/><path d="M4 7.5 12 12l8-4.5M12 12v9" stroke-linejoin="round"/></svg>${escapeHtml(info.mcName)}</span>` : ""}
+      </div>
+      <div class="fhc-tier">
+        <span class="fhc-tier-badge">${tierBadgeHtml(tier)}</span>
+        <span class="fhc-tier-name">${escapeHtml(TIER_META[tier].label)}</span>
+        <span class="fhc-tier-xp"><b>${score.toLocaleString()}</b> XP</span>
+      </div>
+      <div class="fhc-bar"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>
+      ${memo ? `<div class="fhc-memo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16Z" stroke-linejoin="round"/></svg><span>${escapeHtml(memo)}</span></div>` : ""}
+      <div class="fhc-play ${playKind}"><span class="fhc-play-dot"></span>${playIcon}<span>${escapeHtml(playLabel)}</span></div>
+    </div>`;
+}
+function fhcPaint(row, info) {
+  const el = fhcEnsure();
+  const bg = fhcHex(info?.themeBg, "#191b21");
+  const accent = fhcHex(info?.themeAccent, "#5fe066");
+  el.style.setProperty("--fc-bg", bg);
+  el.style.setProperty("--fc-accent", accent);
+  el.style.setProperty("--fc-text", readableTextColorFor(bg));
+  el.classList.toggle("is-light", readableTextColorFor(bg) !== "#ffffff");
+  el.innerHTML = fhcHtml(row, info);
+  setFrameClass(el.querySelector(".fhc-avatar"), info?.frame || null);
+  const avatarImg = el.querySelector(".fhc-avatar img");
+  if (avatarImg) avatarImg.onerror = () => (avatarImg.outerHTML = `<i class="is-default"></i>`);
+  el.hidden = false;
+  // 친구창이 오른쪽에 있으니 줄 왼쪽에 띄운다(자리가 없으면 오른쪽)
+  const r = row.getBoundingClientRect();
+  const w = el.offsetWidth || 270;
+  const h = el.offsetHeight || 260;
+  let left = r.left - w - 10;
+  if (left < 8) left = Math.min(window.innerWidth - w - 8, r.right + 10);
+  const top = Math.max(8, Math.min(window.innerHeight - h - 8, r.top - 14));
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  requestAnimationFrame(() => el.classList.add("is-shown"));
+}
+async function fhcShow(row) {
+  const id = row.dataset.whisperUuid;
+  if (!id) return;
+  let info = tierInfoCache.get(id);
+  fhcPaint(row, info); // 아는 만큼 먼저
+  if (!info || Date.now() - (faceCheckedAt.get("fhc:" + id) || 0) > 60000) {
+    const res = await window.nova.tierLookup?.({ mcUuids: [], accountIds: [id] }).catch(() => null);
+    faceCheckedAt.set("fhc:" + id, Date.now());
+    if (res?.ok && res.tiers?.[id]) {
+      info = res.tiers[id];
+      tierInfoCache.set(id, info);
+      tierCache.set(id, info.tier || "iron");
+      if (fhcRow === row) fhcPaint(row, info);
+    }
+  }
+}
+document.addEventListener("mouseover", (e) => {
+  const row = e.target.closest?.(".friend-row.is-clickable[data-whisper-uuid]");
+  if (!row) return;
+  if (row === fhcRow) return;
+  clearTimeout(fhcTimer);
+  if (fhcEl && !fhcEl.hidden) fhcEl.classList.remove("is-shown");
+  fhcRow = row;
+  fhcTimer = setTimeout(() => {
+    if (fhcRow === row && row.isConnected) fhcShow(row);
+  }, 320);
+});
+document.addEventListener("mouseout", (e) => {
+  if (!fhcRow) return;
+  const to = e.relatedTarget;
+  if (to && fhcRow.contains(to)) return;
+  if (e.target.closest?.(".friend-row") === fhcRow) fhcHide();
+});
+["mousedown", "contextmenu", "wheel"].forEach((ev) => document.addEventListener(ev, fhcHide, { passive: true }));
+
+
+// ============================================================================
+// 24-240차: 이미 가입·로그인한 사람도 이메일 인증
+// "지금 이미 로그인한 사람들은 업뎃 후 창으로 이메일 인증을 시킬 수 있어? 대신 이미 로그인돼있는
+//  이메일 그대로 써야 해" - 계정의 이메일로만 코드를 보내고(바꿀 수 없음), 인증 전에는 닫을 수 없다.
+// 사이트가 email_verified 값을 안 주는 옛 버전이면(undefined) 띄우지 않는다.
+// ============================================================================
+let emailVerifyOpen = false;
+function maybeRequireEmailVerify() {
+  const acc = currentSiteAccount;
+  if (!acc || emailVerifyOpen) return;
+  if (acc.email_verified !== false) return;
+  if (!acc.email) return;
+  openEmailVerifyGate(acc.email);
+}
+function openEmailVerifyGate(email) {
+  emailVerifyOpen = true;
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay email-verify-gate";
+  overlay.innerHTML = `
+    <div class="confirm-box email-verify-box">
+      <div class="email-verify-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3.5 6.5h17v11h-17Z" stroke-linejoin="round"/><path d="M4 7l8 6 8-6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="email-verify-title">이메일 인증</div>
+      <div class="email-verify-mail">${escapeHtml(email)}</div>
+      <div class="email-verify-row">
+        <input type="text" class="setting-input email-verify-code" inputmode="numeric" maxlength="6" placeholder="인증 코드" autocomplete="one-time-code" />
+        <button type="button" class="btn btn-ghost btn-small email-verify-send">코드 받기</button>
+      </div>
+      <p class="email-verify-error"></p>
+      <button type="button" class="btn btn-primary btn-wide email-verify-ok" disabled>인증</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  const codeEl = overlay.querySelector(".email-verify-code");
+  const sendBtn = overlay.querySelector(".email-verify-send");
+  const okBtn = overlay.querySelector(".email-verify-ok");
+  const errEl = overlay.querySelector(".email-verify-error");
+  let waitTimer = null;
+  codeEl.addEventListener("input", () => {
+    codeEl.value = codeEl.value.replace(/\D/g, "").slice(0, 6);
+    okBtn.disabled = codeEl.value.length !== 6;
+  });
+  sendBtn.addEventListener("click", async () => {
+    errEl.textContent = "";
+    sendBtn.disabled = true;
+    sendBtn.textContent = "보내는 중";
+    const res = await window.nova.emailVerifySend?.().catch(() => null);
+    if (res?.ok && res.alreadyVerified) return done();
+    if (!res?.ok) {
+      errEl.textContent = res?.error || "보내지 못했어요";
+      sendBtn.disabled = false;
+      sendBtn.textContent = "코드 받기";
+      return;
+    }
+    codeEl.focus();
+    let left = 60;
+    sendBtn.textContent = `다시 받기 ${left}`;
+    clearInterval(waitTimer);
+    waitTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(waitTimer);
+        sendBtn.disabled = false;
+        sendBtn.textContent = "다시 받기";
+      } else sendBtn.textContent = `다시 받기 ${left}`;
+    }, 1000);
+  });
+  const submit = async () => {
+    if (okBtn.disabled) return;
+    errEl.textContent = "";
+    await withBusyButton(okBtn, "확인 중", async () => {
+      const res = await window.nova.emailVerifyConfirm?.(codeEl.value).catch(() => null);
+      if (!res?.ok) {
+        errEl.textContent = res?.error || "인증하지 못했어요";
+        return;
+      }
+      done();
+    });
+  };
+  okBtn.addEventListener("click", submit);
+  codeEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+  function done() {
+    clearInterval(waitTimer);
+    if (currentSiteAccount) currentSiteAccount.email_verified = true;
+    overlay.remove();
+    emailVerifyOpen = false;
+    showToast("이메일 인증 완료");
+  }
+}
+
+
+// ============================================================================
+// 24-241차: "서버 아이콘 드래그 안되게 해주고 서버 클릭해서 순서 바꿀 수 있게 해주고 프로필도 마찬가지"
+// 줄을 꾹 눌러 끌면 위/아래로 옮길 수 있다(놓은 자리에 선이 보임). 그냥 누르면 예전처럼 선택.
+// 아이콘 그림은 따로 끌리지 않게 막는다.
+// ============================================================================
+let reorderDrag = null; // { item, list, kind }
+function makeReorderable(item, list, kind) {
+  item.draggable = true;
+  item.querySelectorAll("img").forEach((img) => {
+    img.draggable = false;
+  });
+  item.addEventListener("dragstart", (e) => {
+    reorderDrag = { item, list, kind };
+    item.classList.add("is-reorder-dragging");
+    try {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", item.dataset.reorderId || "");
+    } catch (_) {}
+  });
+  item.addEventListener("dragend", () => {
+    item.classList.remove("is-reorder-dragging");
+    list.querySelectorAll(".reorder-before, .reorder-after").forEach((el) => el.classList.remove("reorder-before", "reorder-after"));
+    reorderDrag = null;
+  });
+  item.addEventListener("dragover", (e) => {
+    if (!reorderDrag || reorderDrag.list !== list || reorderDrag.item === item) return;
+    e.preventDefault();
+    const r = item.getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    list.querySelectorAll(".reorder-before, .reorder-after").forEach((el) => el.classList.remove("reorder-before", "reorder-after"));
+    item.classList.add(after ? "reorder-after" : "reorder-before");
+  });
+  item.addEventListener("drop", async (e) => {
+    if (!reorderDrag || reorderDrag.list !== list || reorderDrag.item === item) return;
+    e.preventDefault();
+    const after = item.classList.contains("reorder-after");
+    const dragged = reorderDrag.item;
+    if (after) item.after(dragged);
+    else item.before(dragged);
+    const ids = [...list.querySelectorAll("[data-reorder-id]")].map((el) => el.dataset.reorderId);
+    if (kind === "server") await window.nova.serversReorder?.(ids);
+    else await window.nova.profilesReorder?.(ids);
+    await refreshLaunchTargetLists();
+  });
+}

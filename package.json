@@ -1,19 +1,19 @@
 {
   "name": "nova-client",
   "productName": "Nova Client",
-  "version": "1.0.10",
+  "version": "1.0.1",
   "description": "여러 마인크래프트 서버를 골라 접속할 수 있는 커스텀 런처",
   "main": "main.js",
-  "author": "Luna World",
+  "author": "Nova Client",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --publish never",
-    "dist:win": "electron-builder --win nsis-web --publish never",
-    "dist:win:publish": "electron-builder --win nsis-web --publish always"
+    "dist:win": "electron-builder --win nsis --publish never",
+    "dist:win:publish": "electron-builder --win nsis --publish always"
   },
   "build": {
-    "appId": "kr.lunarworld.launcher",
+    "appId": "kr.novaclient.launcher",
     "productName": "Nova Client",
     "asar": true,
     "files": [
@@ -25,29 +25,28 @@
     ],
     "extraResources": [
       {
-        "from": "mods",
-        "to": "mods",
-        "filter": ["**/*.jar"]
-      },
-      {
         "from": "novamod",
         "to": "novamod",
-        "filter": ["**/*.jar"]
-      },
-      {
-        "from": "resourcepacks",
-        "to": "resourcepacks",
-        "filter": ["**/*.zip"]
+        "filter": [
+          "novaclient-mod-1.21.11-*.jar",
+          "novaclient-mod-26.1.2-*.jar"
+        ]
       },
       {
         "from": "screenshots",
         "to": "screenshots",
-        "filter": ["**/*.png", "**/*.jpg", "**/*.jpeg"]
+        "filter": [
+          "**/*.png",
+          "**/*.jpg",
+          "**/*.jpeg"
+        ]
       },
       {
         "from": "sfx",
         "to": "sfx",
-        "filter": ["**/*.mp3"]
+        "filter": [
+          "**/*.mp3"
+        ]
       }
     ],
     "publish": [
@@ -61,27 +60,18 @@
     "afterAllArtifactBuild": "build/afterAllArtifactBuild.js",
     "win": {
       "target": [
-        { "target": "nsis-web", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "artifactName": "NovaClient-Setup.exe",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Nova Client",
-      "runAfterFinish": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
-      "installerSidebar": "build/installerSidebar.bmp",
-      "uninstallerSidebar": "build/installerSidebar.bmp"
-    },
-    "nsisWeb": {
-      "oneClick": false,
+      "deleteAppDataOnUninstall": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,
       "artifactName": "NovaClient-Setup.exe",
@@ -98,10 +88,10 @@
   },
   "dependencies": {
     "adm-zip": "^0.6.0",
-    "discord-rpc": "^4.0.1",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.8.9",
     "extract-zip": "^2.0.1",
+    "graceful-fs": "^4.2.11",
     "minecraft-launcher-core": "^3.18.2",
     "msmc": "^5.0.5",
     "node-fetch": "^2.7.0",

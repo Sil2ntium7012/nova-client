@@ -181,13 +181,20 @@
   }
   .splash-wordmark b { font-weight: 700; }
   .splash-wordmark .light { font-weight: 500; opacity: 0.85; }
+  /* 24-80차: 본 화면(.brand-o-star)과 크기·정렬·색을 똑같이 맞춘다. 예전엔 0.6em에 다른 연두라
+     로딩창 별만 작고 색이 달랐다(사용자 지적). 값의 근거는 style.css의 .brand-o-star 주석 참고. */
   .splash-o-star {
-    display: inline-block;
-    width: 0.6em;
-    height: 0.6em;
-    vertical-align: -0.04em;
-    color: #7bff82;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.90em;
+    height: 0.90em;
+    vertical-align: -0.105em;
+    margin-left: -0.05em;
+    margin-right: -0.065em;
+    color: #a9d973;
   }
+  .splash-o-star svg { display: block; width: 100%; height: 100%; }
 
   /* 24-43차 신규: 카드 하단의 아주 얇은 진행 게이지. "이 작대기는 엄청 얇은 게이지고
      게이지 이 외에는 뭐 있으면 안돼" - 퍼센트 숫자/라벨/아이콘 없이 막대 하나만 둠.

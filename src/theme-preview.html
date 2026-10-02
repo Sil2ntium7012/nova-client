@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; script-src 'self';" />
+  <title>Nova Client theme preview</title>
+  <!--
+    24-86차 신규: 색/테마 미리보기용 "진짜 메인화면" 축소판.
+    "그 색이랑 테마 미리보기 할 수 있게 해줘 실제 클라이언트 메인화면만"
+
+    왜 iframe인가:
+      테마 CSS가 전부 `body[data-color-theme="..."]` 로 걸려 있어서, 같은 문서 안의 아무
+      div에나 그 속성을 붙이면 아무 일도 안 일어납니다(24-78차에 테스트 하네스에서 같은
+      실수를 해서 모든 테마가 다크로 보였던 적이 있습니다). 문서를 따로 두면 이 페이지의
+      body가 "그 테마의 body"가 되므로, 테마 규칙이 원본 그대로 100% 적용됩니다.
+      style.css를 그대로 불러다 쓰기 때문에 앞으로 테마를 고쳐도 미리보기가 같이 따라옵니다.
+
+    이 페이지는 부모(index.html)에서 postMessage로 받은 값만 반영합니다. file:// 문서끼리는
+    서로의 DOM에 직접 접근할 수 없어서(Electron 기본 설정) postMessage를 씁니다.
+  -->
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* 미리보기 전용 - 실제 앱에는 없는 규칙들 */
+    html, body { border: none; border-radius: 0; }
+    body { cursor: default; }
+
+    /* 실제 창 크기 그대로 그린 다음 통째로 축소해서 액자에 맞춤.
+       폭을 직접 줄이면 레이아웃이 반응형으로 달라져서 "진짜 화면"이 아니게 되므로,
+       크기는 그대로 두고 transform: scale로만 줄입니다.
+       24-88차: "미리보기가 화면이 너무 압축된 거 같이 보여" - 1000x620으로 그리고 있었는데,
+       사이드바(68px)와 친구창(220px)은 창이 좁아져도 그대로라서 가운데 내용만 눌린 것처럼
+       보였습니다(1000px에선 둘이 폭의 28.8%, 실제 1280px에선 22.5%). 그래서 main.js가
+       BrowserWindow를 만드는 실제 크기인 1280x800으로 맞춰서, 비율이 진짜 화면과 같아지게 함. */
+    .tp-fit {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+    }
+    .tp-stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1280px;
+      height: 800px;
+      display: flex;
+      flex-direction: column;
+      transform-origin: 0 0;
+      /* 안에서 뭘 눌러도 반응하지 않게(미리보기일 뿐) */
+      pointer-events: none;
+      user-select: none;
+    }
+    /* 미리보기에서는 애니메이션이 계속 도는 게 산만해서 전부 멈춤 */
+    .tp-stage *, .tp-stage *::before, .tp-stage *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="tp-fit">
+    <div class="tp-stage" id="tp-stage">
+
+      <!-- 타이틀바 -->
+      <div class="titlebar">
+        <div class="titlebar-drag">
+          <div class="brand">
+            <!-- 실제 타이틀바와 동일하게 앱 아이콘 이미지를 씀(이 파일도 src/ 안이라 경로가 같음) -->
+            <img class="brand-mark" src="../build/icon.png" alt="" />
+            <span class="brand-wordmark"><span class="brand-word-nova">NOVA</span><span class="brand-word-client"> CLIENT</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-shell">
+        <!-- 왼쪽 사이드바
+             24-90차: "여기 아이콘들은 없애줄래? 미리보기에서만" - 축소해서 보면 아이콘
+             8개가 알아볼 수 없는 작은 얼룩으로만 보여서 오히려 지저분했습니다. 미리보기의
+             목적은 "이 테마가 어떤 색인가"를 보여주는 것이라 아이콘 버튼을 전부 뺐습니다.
+             사이드바 기둥 자체는 남겨둡니다(폭 68px 고정 - 빼면 전체 비율이 달라짐). -->
+        <nav class="sidebar">
+          <div class="sidebar-top"></div>
+          <div class="sidebar-bottom"></div>
+        </nav>
+
+        <!-- 본문 패널(테마마다 반투명/질감이 달라지는 바로 그 요소) -->
+        <div class="content-dock-frame" aria-hidden="true"></div>
+
+        <!-- 메인 화면 -->
+        <section class="view view-home">
+          <div class="home-main">
+            <div class="home-custom-banner"><span>노바 클라이언트에 오신 것을 환영합니다</span></div>
+            <div class="home-greeting">환영합니다, <span class="home-greeting-wave">Player</span>님!</div>
+
+            <div class="home-hero-row">
+              <div class="home-hero">
+                <div class="home-hero-overlay"></div>
+                <div class="home-hero-center">
+                  <div class="home-logo">
+                    <span class="brand-mark-lg" aria-hidden="true">
+                      <span></span><span></span><span></span>
+                      <span></span><span></span><span></span>
+                      <span></span><span></span><span></span>
+                    </span>
+                    <div class="home-logo-text brand-wordmark"><span class="brand-word-nova">N<span class="brand-o-star" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M 22 12 Q 13.5 13.5 12 22 Q 10.5 13.5 2 12 Q 10.5 10.5 12 2 Q 13.5 10.5 22 12 Z"/></svg></span>VA</span><span class="brand-word-client"> CLIENT</span></div>
+                  </div>
+                  <div class="play-area">
+                    <button class="btn btn-primary btn-play" type="button">
+                      <span class="btn-play-label">PLAY</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 24-94차: 실제 홈처럼 PLAY 칸은 가로 전체, 서버/프로필은 아래에 반반 -->
+            <div class="home-launch-lists">
+              <div class="home-hero-side home-launch-col">
+                <div class="home-launch-col-head"><span class="home-launch-col-title">서버</span></div>
+                <div class="home-launch-col-body">
+                  <div class="hero-list-scroll">
+                    <!-- 24-95/96차: 실제 홈과 같은 서버 카드(한 단) -->
+                    <div class="server-box-item server-card is-selected" data-state="online">
+                      <span class="server-card-icon">
+                        <span class="server-card-icon-letter">너</span>
+                        <span class="server-card-dot"></span>
+                      </span>
+                      <span class="server-card-main">
+                        <span class="server-card-title">
+                          <b class="server-box-name">너굴마을</b>
+                          <span class="server-card-version">26.1.2</span>
+                          <span class="server-card-motd">너굴마을에 오신 것을 환영합니다</span>
+                        </span>
+                        <span class="server-card-stats">
+                          <span class="server-card-stat"><b>12</b><span class="server-card-dim">/2,000</span></span>
+                          <span class="server-card-stat server-card-ping lv-3"><span class="server-card-ping-bars"><i class="on" style="height:4px"></i><i class="on" style="height:7px"></i><i class="on" style="height:10px"></i></span>34ms</span>
+                        </span>
+                      </span>
+                      <span class="server-card-profile"><span class="server-card-profile-icon">내</span><span class="server-card-profile-name">내 서바이벌</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="home-hero-side home-launch-col">
+                <div class="home-launch-col-head"><span class="home-launch-col-title">프로필</span></div>
+                <div class="home-launch-col-body">
+                  <div class="hero-list-scroll">
+                    <div class="server-box-item">
+                      <span class="server-box-icon">내</span>
+                      <span class="server-box-info">
+                        <b class="server-box-name">내 서바이벌</b>
+                        <span class="server-box-version">26.1.2 · Nova</span>
+                      </span>
+                    </div>
+                    <div class="server-box-item">
+                      <span class="server-box-icon">D</span>
+                      <span class="server-box-info">
+                        <b class="server-box-name">Default</b>
+                        <span class="server-box-version">26.2 · Nova</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 오른쪽 고정 도크(프로필 + 친구) -->
+        <div class="home-friends">
+          <div>
+            <div class="profile-cluster">
+              <div class="profile">
+                <div class="avatar">P</div>
+                <div class="profile-info">
+                  <div class="profile-name">Player</div>
+                  <div class="profile-meta">Nova</div>
+                </div>
+              </div>
+            </div>
+            <div class="home-friends-title-row">
+              <div class="home-friends-tabs">
+                <button class="home-friends-tab is-active" type="button">친구</button>
+                <span class="home-friends-tab-sep">|</span>
+                <button class="home-friends-tab" type="button">친구추가</button>
+                <span class="home-friends-tab-sep">|</span>
+                <button class="home-friends-tab" type="button">차단</button>
+              </div>
+            </div>
+            <div class="home-friends-tab-panel">
+              <div class="home-friends-online-line"><span>2</span><span>명 접속중</span></div>
+              <div class="home-friends-list">
+                <div class="friend-row">
+                  <span class="friend-row-main">
+                    <span class="friend-row-name">Mina</span>
+                    <span class="friend-row-status">하이의 놀이터 플레이 중</span>
+                  </span>
+                </div>
+                <div class="friend-row">
+                  <span class="friend-row-main">
+                    <span class="friend-row-name">Jun</span>
+                    <span class="friend-row-status">런처에서 대기 중</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="theme-preview.js"></script>
+</body>
+</html>

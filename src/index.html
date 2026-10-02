@@ -101,14 +101,21 @@
       <div class="modal-body">
         <div data-i18n="terms_guide_title" class="setting-section-title">Nova Client 이용 안내</div>
         <p class="terms-text" data-i18n="terms_intro_text">
-          Nova Client는 마인크래프트용 비공식 서드파티 런처입니다.
-          Mojang, Microsoft 와 직접적인 제휴 관계가 없으며, 마인크래프트 정식 실행을 돕기 위한 도구입니다.
+          Nova Client는 마인크래프트용 비공식 서드파티 런처입니다. Mojang, Microsoft와 아무런 제휴 관계가 없고,
+          정식으로 구매한 마인크래프트를 더 편하게 즐기시라고 만든 도구예요.
+          게임 파일은 런처가 따로 갖고 있지 않고, 실행할 때 Mojang 공식 서버에서 바로 내려받습니다.
         </p>
         <ul class="terms-list">
-          <li data-i18n="terms_li_1">로그인 시 사용하는 Microsoft 계정 인증 정보는 이 기기에만 저장되며, 외부 서버로 전송되지 않습니다.</li>
+          <!-- 24-174차: 예전 문구는 "마이크로소프트 인증 정보가 외부로 전송되지 않는다"였는데,
+               마인크래프트 계정 연동/아이디 찾기를 하려면 그 계정이 정말 본인 것인지 Nova 서버가
+               모장에 확인해야 해서 접속 토큰이 실제로 한 번 전송됨 - 사실대로 고침 -->
+          <li data-i18n="terms_li_1">Microsoft 계정의 비밀번호는 런처가 볼 수 없고, 로그인 정보는 이 기기에만 저장됩니다. 다만 마인크래프트 계정을 Nova 계정에 연동하거나 아이디를 찾을 때는, 정말 본인 계정이 맞는지 확인하려고 접속 토큰을 Nova 서버로 한 번 보내 Mojang에 확인합니다. 이 토큰은 확인에만 쓰고 저장하지 않아요.</li>
           <li data-i18n="terms_li_2">런처는 마인크래프트 실행에 필요한 자바, 게임 파일, 모드, 리소스팩을 사용자의 PC에 다운로드합니다.</li>
-          <li data-i18n="terms_li_3">제공되는 모드/리소스팩은 각 원저작자의 라이선스를 따르며, 이 클라이언트는 배포 편의를 위한 묶음일 뿐입니다.</li>
-          <li data-i18n="terms_li_4">클라이언트 이용 중 발생하는 문제에 대해 제작자는 책임을 지지 않으며, 문제 발생 시 디스코드로 문의해주세요.</li>
+          <li data-i18n="terms_li_3">Nova Client는 모드나 리소스팩을 직접 배포하지 않습니다. 콘텐츠 설치 화면에서 고르신 것을 Modrinth에서 그때그때 내려받아 프로필에 넣어드릴 뿐이고, 모든 모드는 각 원저작자의 것이며 각자의 라이선스를 따릅니다.</li>
+          <!-- 24-174차 신규 -->
+          <li data-i18n="terms_li_commerce">코인과 상점은 지금 실제 결제 없이 무료로만 운영하고 있어요. 나중에 유료 결제를 열게 되면, 그 전에 사업자 정보와 환불 정책을 이 화면에 먼저 표시하고 다시 안내드릴게요.</li>
+          <li data-i18n="terms_li_logs">문제가 생겼을 때 원인을 찾으려고 실행 기록(로그)이 이 PC의 Nova Client 폴더에 남습니다. 이 기록은 자동으로 어디에도 전송되지 않고, 문의하실 때 직접 보내주실 때만 저희가 봅니다.</li>
+          <li data-i18n="terms_li_4">개인이 만들어 무료로 배포하는 런처라, 이용 중 생긴 문제에 대해 제작자가 법적인 책임을 지기는 어렵습니다. 대신 문제가 생기면 디스코드로 알려주세요 - 고칠 수 있는 건 최대한 고칩니다.</li>
           <!-- 24-43차 신규: "이용약관 수정할 거 있으면 좀 해주고 계정 생성 생겼으니까" -
                Nova 사이트 계정(이메일/아이디+비밀번호로 만드는 자체 계정)이 새로 생겼는데
                기존 약관엔 Microsoft 계정(위 terms_li_1) 안내만 있고 이 계정에 대한 안내가
@@ -186,7 +193,7 @@
             <path d="M17 7.5v6M14 10.5h6" stroke-linecap="round"/>
           </svg>
         </button>
-        <button class="sidebar-icon" data-panel="explore" data-tooltip="컨텐츠 설치" data-i18n-tooltip="sidebar_explore">
+        <button class="sidebar-icon" data-panel="explore" data-tooltip="콘텐츠 설치" data-i18n-tooltip="sidebar_explore">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/>
             <path d="M15.5 8.5l-2 5-5 2 2-5 5-2Z" stroke-linejoin="round"/>
@@ -197,6 +204,8 @@
             <path d="M4 5h16v11H8l-4 4V5Z" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M8 9h8M8 12.5h5" stroke-linecap="round"/>
           </svg>
+          <!-- 24-214차: 새 공지사항이 올라오면 빨간 점 -->
+          <span id="forum-notif-dot" class="notif-dot" hidden></span>
         </button>
         <button class="sidebar-icon" data-panel="shop" data-tooltip="상점" data-i18n-tooltip="sidebar_shop">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -229,13 +238,15 @@
               <path d="M4.5 21v-4a5 5 0 0 1 5-5h5a5 5 0 0 1 5 5v4" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <button class="sidebar-icon sidebar-icon-soon" id="sidebar-more-server-btn" data-tooltip="서버 (준비 중)" data-i18n-tooltip="sidebar_more_server" style="--i:1" type="button">
+          <!-- 24-202차: "서버 만들기가 왜 서버에 있는 거야 우리 더보기에 만들어놨는데" -
+               홈 서버 칸 머리에 붙여놨던 버튼을 떼고, 원래 자리로 잡아뒀던 이 더보기 아이콘에
+               연결했다. "준비 중" 표시도 뗐다. -->
+          <button class="sidebar-icon" id="sidebar-more-server-btn" data-panel="host" data-tooltip="서버 열기" data-i18n-tooltip="sidebar_more_server" style="--i:1" type="button">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <rect x="3.5" y="4" width="17" height="7" rx="1.8"/>
               <rect x="3.5" y="13" width="17" height="7" rx="1.8"/>
               <path d="M7 7.5h.01M7 16.5h.01" stroke-linecap="round"/>
             </svg>
-            <span class="sidebar-icon-soon-badge" data-i18n="sidebar_soon_badge">곧</span>
           </button>
           <button class="sidebar-icon" id="sidebar-more-news-btn" data-panel="news" data-tooltip="소식" data-i18n-tooltip="sidebar_more_news" style="--i:2" type="button">
             <!-- 24-11차: "소식 아이콘이 확성기 느낌이라 뉴스(신문) 느낌으로 바꿔줘" -
@@ -246,16 +257,22 @@
               <path d="M7 9h6M7 12h6M7 15h3" stroke-linecap="round"/>
             </svg>
           </button>
-          <button class="sidebar-icon" id="sidebar-more-changelog-btn" data-tooltip="업데이트 로그" data-i18n-tooltip="sidebar_more_changelog" style="--i:3" type="button">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <circle cx="12" cy="13" r="8"/>
-              <path d="M12 9v4l2.5 2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M9 2h6" stroke-linecap="round"/>
-            </svg>
-          </button>
+          <!-- 24-200차: "업데이트 로그 설정에 클라이언트 위치로 옮기고" - 사이드바 더보기에
+               있던 업데이트 로그 아이콘을 빼고 설정 > 클라이언트 안으로 옮겼다.
+               (여는 팝업(#updates-popup-overlay)과 openUpdates()는 그대로 재사용) -->
         </div>
       </div>
       <div class="sidebar-bottom">
+        <!-- 24-203차: "알림/선물함은 여기라고" - 사이드바 아래쪽, 프로필 아이콘 바로 위.
+             누르면 화면 가운데에 창이 뜬다(#notify-overlay). 안 읽은 게 있으면 오른쪽 위에
+             개수 뱃지가 붙는다. -->
+        <button class="sidebar-icon sidebar-icon-notify" id="btn-notify" data-panel="notify" type="button" data-tooltip="알림함" data-i18n-tooltip="notify_title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5Z" stroke-linejoin="round"/>
+            <path d="M10.3 18a1.9 1.9 0 0 0 3.4 0" stroke-linecap="round"/>
+          </svg>
+          <span id="notify-count" class="notify-count" hidden>0</span>
+        </button>
         <button class="sidebar-icon" id="sidebar-profile-btn" data-panel="profile" data-tooltip="프로필" data-i18n-tooltip="sidebar_profile">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <circle cx="12" cy="8" r="3.6"/>
@@ -351,6 +368,12 @@
           <svg class="site-login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3.5 6.5h17v11h-17Z" stroke-linejoin="round"/><path d="M4 7l8 6 8-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <input id="site-login-email" class="setting-input" type="email" data-i18n-placeholder="ph_site_email" placeholder="이메일" autocomplete="email" hidden />
         </div>
+        <!-- 24-239차: 회원가입 이메일 인증 코드 -->
+        <div class="site-login-field site-login-code-field">
+          <svg class="site-login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3.5 19.5 6v5.5c0 4.4-3.1 7.9-7.5 9-4.4-1.1-7.5-4.6-7.5-9V6Z" stroke-linejoin="round"/><path d="m9 12 2.2 2.2L15.5 10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="site-login-code" class="setting-input" type="text" inputmode="numeric" maxlength="6" placeholder="인증 코드" autocomplete="one-time-code" hidden />
+          <button type="button" id="btn-site-send-code" class="site-login-code-btn">코드 받기</button>
+        </div>
         <div class="site-login-field">
           <svg class="site-login-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.6 4.6-5.5 7.5-5.5s6.1 1.9 7.5 5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <input id="site-login-id" class="setting-input" type="text" data-i18n-placeholder="ph_site_id" placeholder="이메일 또는 아이디(닉네임)" autocomplete="username" />
@@ -363,8 +386,115 @@
       </form>
       <p id="site-login-error" class="error-text"></p>
 
+      <!-- 24-169차: 아이디/비밀번호 찾기 - 둘 다 "연동된 마인크래프트 계정으로 로그인해
+           보이기"로 본인 확인을 한다(메일 발송 설비가 없어서) -->
+      <div class="site-login-help" id="site-login-help">
+        <button type="button" class="link-btn" id="btn-find-id" data-i18n="find_id_link">아이디 찾기</button>
+        <span class="site-login-help-sep">·</span>
+        <button type="button" class="link-btn" id="btn-find-pw" data-i18n="find_pw_link">비밀번호 찾기</button>
+      </div>
+
       <div class="footer-meta" id="login-version"></div>
     </section>
+
+    <!-- 24-195차 신규: 클라이언트로 서버 열기 - 이 컴퓨터에서 마인크래프트 서버를 직접 띄움 -->
+    
+    <!-- 24-177차 신규: 서버 추가 - 주소만 넣으면 포트(SRV)·버전·이름을 런처가 알아냄 -->
+    <div id="server-add-overlay" class="confirm-overlay" hidden>
+      <div class="confirm-box server-add-box">
+        <div class="updates-popup-header">
+          <span class="modal-title-label" data-i18n="server_add_title">서버 추가</span>
+          <button id="btn-server-add-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
+            <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
+        </div>
+
+        <p class="account-recover-desc" data-i18n="server_add_desc">서버 주소만 입력하면 포트와 버전은 런처가 알아서 찾아요.</p>
+        <div class="site-login-field">
+          <input id="server-add-address" class="setting-input" type="text" data-i18n-placeholder="ph_server_address" placeholder="예: mc.example.com" autocomplete="off" spellcheck="false" />
+        </div>
+        <button type="button" class="btn btn-primary btn-wide" id="btn-server-probe" data-i18n="server_add_probe">서버 확인</button>
+
+        <!-- 확인에 성공하면 보이는 2단계 -->
+        <div class="server-add-found" id="server-add-found" hidden>
+          <div class="server-add-found-head">
+            <img id="server-add-icon" class="server-add-icon" alt="" hidden />
+            <div class="server-add-found-text">
+              <div class="server-add-found-motd" id="server-add-motd"></div>
+              <div class="server-add-found-meta" id="server-add-meta"></div>
+            </div>
+          </div>
+          <div class="site-login-field">
+            <input id="server-add-name" class="setting-input" type="text" data-i18n-placeholder="ph_server_name" placeholder="목록에 보일 이름" autocomplete="off" maxlength="40" />
+          </div>
+          <div class="site-login-field">
+            <input id="server-add-version" class="setting-input" type="text" data-i18n-placeholder="ph_server_version" placeholder="마인크래프트 버전 (예: 1.21.11)" autocomplete="off" spellcheck="false" />
+          </div>
+          <p class="server-add-version-hint" data-i18n="server_add_version_hint">이 버전과 같은 프로필로만 접속할 수 있어요. 자동으로 찾은 값이 틀리면 직접 고쳐주세요.</p>
+          <button type="button" class="btn btn-primary btn-wide" id="btn-server-add-save" data-i18n="server_add_save">목록에 추가</button>
+        </div>
+
+        <p id="server-add-error" class="error-text"></p>
+      </div>
+    </div>
+
+    <!-- 24-169차 신규: 계정 찾기 (아이디 / 비밀번호) -->
+    <div id="account-recover-overlay" class="confirm-overlay" hidden>
+      <div class="confirm-box account-recover-box">
+        <div class="updates-popup-header">
+          <span class="modal-title-label" data-i18n="recover_title">계정 찾기</span>
+          <button id="btn-account-recover-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
+            <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
+        </div>
+
+        <div class="account-recover-tabs" role="tablist">
+          <button type="button" class="site-login-tab is-active" data-recover-tab="id" data-i18n="find_id_link">아이디 찾기</button>
+          <button type="button" class="site-login-tab" data-recover-tab="pw" data-i18n="find_pw_link">비밀번호 찾기</button>
+        </div>
+
+        <!-- 아이디 찾기 -->
+        <div class="account-recover-panel" id="recover-panel-id">
+          <p class="account-recover-desc" data-i18n="recover_id_desc">이 계정에 연동해둔 마인크래프트 계정으로 로그인하면 아이디를 알려드려요.</p>
+          <button type="button" class="btn btn-primary btn-wide" id="btn-recover-id-start" data-i18n="recover_mc_verify">마인크래프트 계정으로 확인</button>
+          <div class="account-recover-result" id="recover-id-result" hidden></div>
+        </div>
+
+        <!-- 비밀번호 찾기 -->
+        <!-- 24-171차: "비밀번호 찾기는 이메일로 해야 하는 거 아니야?" - 맞다.
+             사이트에 이미 있는 메일 인증 코드 흐름(/api/account/forgot-password +
+             reset-password)을 런처가 그대로 쓴다. 1단계에서 코드를 받고, 2단계에서
+             코드 + 새 비밀번호를 넣는다. -->
+        <div class="account-recover-panel" id="recover-panel-pw" hidden>
+          <p class="account-recover-desc" data-i18n="recover_pw_desc">가입할 때 쓴 이메일로 6자리 인증 코드를 보내드려요.</p>
+
+          <div class="site-login-field">
+            <input id="recover-pw-email" class="setting-input" type="email" data-i18n-placeholder="ph_site_email" placeholder="이메일" autocomplete="email" />
+          </div>
+          <button type="button" class="btn btn-primary btn-wide" id="btn-recover-pw-code" data-i18n="recover_send_code">인증 코드 받기</button>
+
+          <!-- 코드를 보낸 뒤에만 보이는 2단계 -->
+          <div class="account-recover-step2" id="recover-pw-step2" hidden>
+            <p class="account-recover-desc" data-i18n="recover_pw_code_desc">메일로 받은 6자리 코드와 새 비밀번호를 입력해주세요. 코드는 10분간 유효해요.</p>
+            <div class="site-login-field">
+              <input id="recover-pw-code" class="setting-input recover-code-input" type="text" inputmode="numeric" maxlength="6" data-i18n-placeholder="ph_reset_code" placeholder="인증 코드 6자리" autocomplete="one-time-code" />
+            </div>
+            <div class="site-login-field">
+              <input id="recover-pw-new" class="setting-input" type="password" data-i18n-placeholder="ph_site_password" placeholder="비밀번호 (8자 이상)" autocomplete="new-password" />
+            </div>
+            <div class="site-login-field">
+              <input id="recover-pw-new2" class="setting-input" type="password" data-i18n-placeholder="ph_password_again" placeholder="새 비밀번호 확인" autocomplete="new-password" />
+            </div>
+            <button type="button" class="btn btn-primary btn-wide" id="btn-recover-pw-start" data-i18n="recover_pw_submit">비밀번호 바꾸기</button>
+            <button type="button" class="link-btn account-recover-resend" id="btn-recover-pw-resend" data-i18n="recover_resend_code">코드를 못 받았어요 · 다시 보내기</button>
+          </div>
+
+          <div class="account-recover-result" id="recover-pw-result" hidden></div>
+        </div>
+
+        <p id="account-recover-error" class="error-text"></p>
+      </div>
+    </div>
 
     <!-- 24-15차 신규: "게스트 없애라고", "마크 로그인이 마크 계정 추가에만 있어야 한다" -
          사이트 계정 로그인 직후, 이 사이트 계정에 아직 연동된 마인크래프트 계정이 없으면
@@ -395,16 +525,17 @@
              화면이라, 여기 맨 위에 항상 떠 있는 것만으로 "로그인 성공하면" 조건이 자연스럽게
              만족됨(별도 JS 로직 불필요). GitHub에서 매번 새로 불러오는 공지사항
              (announcement.json/포럼 공지)과 달리 순수 클라이언트 내장 문구라 네트워크 연결과
-             무관하게 항상 뜸 - 사용자가 그만 띄우라고 할 때까지 계속 유지 -->
-        <div class="home-custom-banner" id="home-custom-banner">
-          <span>선릿밸리 서버 진행중!</span>
-        </div>
+             무관하게 항상 뜸 - 사용자가 그만 띄우라고 할 때까지 계속 유지
+             24-103차: "선릿밸리 서버 진행중 배너 노바 클라이언트에 오신 것을 환영합니다 로 바꿔줘" -->
+        <!-- 24-216차: "메인 화면 노바클라이언트에 오신 것을 환영합니다 지우고" -
+             위쪽 띠(.home-custom-banner)를 뺐다. 그만큼 아래 목록 칸이 길어진다. -->
 
         <!-- 13차: "환영합니다 글이 영어로 안 바뀐다" - 이름을 끼워넣어야 해서 고정 텍스트로는
              번역이 안 됐음. 이제 JS(showHome)에서 t("home_welcome", {name})로 매번 채움 -->
         <div class="home-greeting" id="home-greeting"></div>
 
-        <!-- 히어로 박스: 스크린샷 배경 위에 PLAY 버튼만, 서버/프로필 선택은 옆에 따로 분리 -->
+        <!-- 히어로 박스: 스크린샷 배경 위에 PLAY 버튼만.
+             24-94차: 옆에 있던 서버/프로필 칸이 아래로 내려가면서 이 칸이 가로 전체를 씀 -->
         <div class="home-hero-row">
           <div class="home-hero">
             <div id="screenshot-slideshow" class="screenshot-slideshow" hidden>
@@ -412,6 +543,18 @@
               <img id="ss-img-b" class="ss-img" alt="" />
             </div>
             <div class="home-hero-overlay"></div>
+
+            <!-- 24-155차: "선물 버튼도 안보이고 메인 화면에서" - 받을 수 있는 출석/퀘스트
+                 보상이 있는지 메인에서 바로 알 수 있게 히어로 오른쪽 위에 선물 버튼을 둠.
+                 누르면 보관함 > 출석체크로 바로 감. 받을 게 있으면 오른쪽에 빨간 점이 붙음 -->
+            <button id="btn-home-gift" class="home-gift-btn" type="button" title="출석체크 / 퀘스트 보상" data-i18n-title="home_gift_title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="3" y="9" width="18" height="12" rx="2"/>
+                <path d="M3 13h18M12 9v12" stroke-linecap="round"/>
+                <path d="M12 9C10.5 6 9 5 7.5 5A2.5 2.5 0 0 0 7.5 10H12ZM12 9c1.5-3 3-4 4.5-4a2.5 2.5 0 0 1 0 5H12Z" stroke-linejoin="round"/>
+              </svg>
+              <span id="home-gift-dot" class="notif-dot home-gift-dot" hidden></span>
+            </button>
 
             <div class="home-hero-center">
               <div class="home-logo">
@@ -426,49 +569,27 @@
               </div>
 
               <div id="play-area" class="play-area">
-                <button id="btn-play" class="btn btn-primary btn-play">
-                  <span id="btn-play-fill" class="btn-play-fill" style="width:0%"></span>
-                  <span id="btn-play-label" class="btn-play-label">PLAY</span>
-                </button>
+                <!-- 24-154차: "추가 실행 옆에 종료 버튼 만들기 (아이콘) - 가장 먼저 킨 순서대로 종료"
+                     PLAY 버튼과 한 줄로 묶고, 실행 중인 게 있을 때만 보임 -->
+                <div class="play-row">
+                  <button id="btn-play" class="btn btn-primary btn-play">
+                    <span id="btn-play-fill" class="btn-play-fill" style="width:0%"></span>
+                    <span id="btn-play-label" class="btn-play-label">PLAY</span>
+                  </button>
+                  <button id="btn-stop-oldest" class="btn-play-stop" type="button" title="가장 먼저 켠 게임 종료" data-i18n-title="play_stop_oldest" hidden>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <rect x="6" y="6" width="12" height="12" rx="2.5"/>
+                    </svg>
+                    <span id="btn-stop-oldest-count" class="btn-play-stop-count"></span>
+                  </button>
+                </div>
                 <div id="progress-caption" class="progress-caption"></div>
               </div>
             </div>
+            <!-- 24-108차: "메인화면 PLAY 버튼 있는 배너 오른쪽 아래 작게 버전 쓰기" (renderer.js가 채움) -->
+            <span id="app-version" class="home-hero-version"></span>
           </div>
 
-          <!-- 19(4차): 서버/프로필을 팝업으로 안 띄우고, 이 카드 영역 안에서만 인라인으로
-               토글+탐색이 끝나게 재구성. "서버" / "프로필" 모드 스위치 하나로 위쪽 트리거를
-               바꾸고, 목록은 화면 밖으로 안 나가는 인라인 페이지네이션 그리드로 보여줌
-               (Explore 모드 그리드와 같은 패턴 재사용) -->
-          <div class="home-hero-side">
-            <div class="hero-side-mode-switch">
-              <button type="button" class="hero-side-mode-btn is-active" id="hero-mode-server-btn" data-mode="server" data-i18n="hero_mode_server">서버</button>
-              <button type="button" class="hero-side-mode-btn" id="hero-mode-profile-btn" data-mode="profile" data-i18n="hero_mode_profile">프로필</button>
-            </div>
-
-            <!-- 14차: "박스 안에 박스" 지적이 계속 이어져서, 이번엔 새로고침 버튼과 바깥
-                 박스(배경/테두리) 자체를 완전히 없앰. 위 서버/프로필 탭 스위치 밑에 바로
-                 얇은 구분선 하나만 두고, 목록 항목도 카드 박스가 아니라 항목 사이 구분선만
-                 있는 납작한 줄로 정리. 선택 표시는 이미 있는 잔상 pill(mountSlidingPill)
-                 효과 하나로만 충분해서 항목 자체엔 별도 테두리/배경을 안 줌.
-                 새로고침은 수동 버튼 없이도 상태 폴링이 주기적으로(main.js 타이머) 갱신해줌 -->
-            <div class="hero-side-block" id="hero-side-block-server">
-              <!-- 내부 로직(디스코드 상태 표시 등)에서 여전히 쓰는 값이라 지우진 않고, 화면에는
-                   목록과 중복이라 안 보이게만 함 -->
-              <b data-i18n="home_server_select_default" id="server-chip-name" hidden>서버 선택</b>
-              <!-- 24-11차: "목록에 위/아래로 더 있으면 화살표로 알려줘" - 스크롤 위치에 따라
-                   JS(updateHeroListScrollFade)가 켜고 끄는 위/아래 화살표 힌트 -->
-              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-up" id="server-list-arrow-up" hidden>▲</span>
-              <div id="server-list-items" class="hero-list-scroll"></div>
-              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-down" id="server-list-arrow-down" hidden>▼</span>
-            </div>
-
-            <div class="hero-side-block" id="hero-side-block-profile" hidden>
-              <b data-i18n="home_profile_select_default" id="profile-chip-name" hidden>프로필 선택</b>
-              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-up" id="profile-list-arrow-up" hidden>▲</span>
-              <div id="profile-list-items" class="hero-list-scroll"></div>
-              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-down" id="profile-list-arrow-down" hidden>▼</span>
-            </div>
-          </div>
         </div>
 
         <p id="game-error" class="error-text"></p>
@@ -485,16 +606,51 @@
           <div id="home-announcement-text" class="home-announcement-text"></div>
         </div>
 
-        <!-- 최근 업데이트: 뉴스카드 형식 (최신 6개)
-             23차: "전체화면일 때 플레이에 업데이트 목록을 6개 꽉 차게 나열하되 ... 빈공간
-             없이" - 예전엔 이 그리드가 내용 높이만큼만 차지해서, 창을 최대화하면 .home-main에
-             남는 세로 여유 공간이 그냥 빈 채로 아래에 남았음. 제목+그리드를 한 덩어리
-             (.home-news-section)로 묶어서 .home-main 안에서 flex:1로 남은 세로 공간을
-             전부 차지하게 하고, 그 안의 그리드는 3열 고정(6개 = 2줄)으로 정해서 카드들이
-             그 공간을 나눠 채우게 함 -->
-        <div class="home-news-section">
-          <div data-i18n="home_recent_updates_title" class="home-news-title">최근 업데이트</div>
-          <div id="home-news-grid" class="home-news-grid"></div>
+        <!-- 24-94차: "기존 업데이트 6개 목록 위치에 서버랑 프로필 옮기고 ... 서버랑 프로필은 이제
+             스왑이 아니라 반반 나눠서 떠있고" - 예전엔 PLAY 옆 좁은 칸(.home-hero-side)에서 서버/프로필을
+             스위치로 번갈아 보여줬음. 이제 둘 다 항상 보이고, PLAY 칸은 그 자리까지 넓어짐.
+             "최근 업데이트" 카드 6개는 이 자리를 내주면서 홈에서 빠짐(업데이트 내역은 사이드바 ⋯ >
+             "업데이트 로그"에서 그대로 볼 수 있음).
+             목록/화살표 id(server-list-items 등)와 실행 중 빛나는 박스 id(hero-side-block-*)는
+             예전 그대로 둬서 renderer.js의 기존 로직이 그대로 동작함 -->
+        <div class="home-launch-lists">
+          <div class="home-hero-side home-launch-col" id="hero-side-block-server">
+            <svg class="home-launch-col-watermark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="4" width="17" height="6.5" rx="1.6"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="1.6"/><path d="M7.5 7.25h.01M7.5 16.75h.01" stroke-linecap="round" stroke-width="2.2"/></svg>
+            <div class="home-launch-col-head">
+              <svg class="home-launch-col-glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.5" y="4" width="17" height="6.5" rx="1.6"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="1.6"/><path d="M7.5 7.25h.01M7.5 16.75h.01" stroke-linecap="round" stroke-width="2.6"/></svg>
+              <span class="home-launch-col-title" data-i18n="hero_mode_server">서버</span>
+              <span class="home-launch-col-count" id="server-list-count" hidden></span>
+              <span class="home-launch-col-hint" data-i18n="home_server_col_hint">멀티플레이 · 서버</span>
+              <!-- 24-177차: 유저가 직접 서버를 추가 -->
+              <button type="button" class="home-launch-col-add" id="btn-server-add" data-i18n-title="server_add_title" title="서버 추가">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+              </button>
+              <!-- 24-202차: 서버 열기 버튼은 사이드바 더보기(#sidebar-more-server-btn)로 옮김 -->
+            </div>
+            <!-- 내부 로직(디스코드 상태 표시 등)에서 쓰는 값이라 남겨두고 화면에는 안 보이게만 함 -->
+            <b data-i18n="home_server_select_default" id="server-chip-name" hidden>서버 선택</b>
+            <div class="home-launch-col-body">
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-up" id="server-list-arrow-up" hidden>▲</span>
+              <div id="server-list-items" class="hero-list-scroll"></div>
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-down" id="server-list-arrow-down" hidden>▼</span>
+            </div>
+          </div>
+
+          <div class="home-hero-side home-launch-col" id="hero-side-block-profile">
+            <svg class="home-launch-col-watermark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" stroke-linejoin="round"/><path d="M4 7.5 12 12l8-4.5M12 12v9" stroke-linejoin="round"/></svg>
+            <div class="home-launch-col-head">
+              <svg class="home-launch-col-glyph" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" stroke-linejoin="round"/><path d="M4 7.5 12 12l8-4.5M12 12v9" stroke-linejoin="round"/></svg>
+              <span class="home-launch-col-title" data-i18n="hero_mode_profile">프로필</span>
+              <span class="home-launch-col-count" id="profile-list-count" hidden></span>
+              <span class="home-launch-col-hint" data-i18n="home_profile_col_hint">싱글 · 자유 플레이</span>
+            </div>
+            <b data-i18n="home_profile_select_default" id="profile-chip-name" hidden>프로필 선택</b>
+            <div class="home-launch-col-body">
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-up" id="profile-list-arrow-up" hidden>▲</span>
+              <div id="profile-list-items" class="hero-list-scroll"></div>
+              <span class="hero-list-scroll-arrow hero-list-scroll-arrow-down" id="profile-list-arrow-down" hidden>▼</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -504,23 +660,14 @@
     <section id="view-versions" class="view view-panel" hidden>
       <div class="modal-header">
         <div class="modal-tabs">
-          <span class="modal-title-label">Install</span>
+          <span class="modal-title-label">설치</span>
         </div>
       </div>
 
       <div class="modal-body" id="versions-list-panel">
-        <!-- 13차: "프리셋은 따로 창(탭) 만들지 말고 버전 목록 밑, 공유 코드 입력 위에 카테고리
-             5개가 인라인으로 뜨게 해줘" - 기존 "버전으로 만들기/프리셋으로 만들기" 탭 전환 방식을
-             없애고, 하나의 화면 안에 버전 목록 -> 프리셋 카테고리(인라인) -> 공유 코드 순서로 배치함 -->
         <div id="versions-mode-version">
           <!-- 12차: "AI 설명체 같은 문구 없애고 위로 당겨줘" - 안내 문구 자체를 지움 -->
           <div id="versions-list" class="versions-list"></div>
-
-          <!-- 14차: "프리셋으로 만들기 그런 글 넣지마" - 섹션 제목 자체를 없애고 카테고리
-               카드만 바로 보이게 함 -->
-          <div id="versions-preset-inline-section" class="versions-preset-inline-section">
-            <div id="preset-browse-category-list" class="versions-list versions-list-major"></div>
-          </div>
 
           <!-- 17차: "코드 치자마자 불러오기 누르지 말고, 먼저 미리보기가 아래에 뜨고 그 다음에
                불러오기 버튼이 나오게 해줘" - 예전엔 코드 입력창 옆에 항상 "불러오기" 버튼이 떠
@@ -534,21 +681,6 @@
             </div>
             <div id="import-profile-preview" class="shared-profile-inline-preview" hidden></div>
           </div>
-        </div>
-
-        <!-- 16-3(4차)/13차: 프리셋 카테고리 카드를 누르면 그 안의 내 프리셋 목록으로 이동 -->
-        <div id="versions-mode-preset-list" hidden>
-          <button type="button" class="btn btn-ghost btn-small" id="btn-preset-browse-back-category" style="align-self:flex-start; margin-bottom:10px;" data-i18n="btn_back_to_list">← 목록으로</button>
-          <div class="setting-section-title" id="preset-browse-list-title" data-i18n="preset_browse_default_title">프리셋</div>
-          <div id="preset-browse-list" class="versions-list"></div>
-        </div>
-
-        <!-- 16-3(4차): 3단계 - 고른 프리셋의 마인크래프트 버전별 카드(자동 생성됨) -->
-        <div id="versions-mode-preset-version" hidden>
-          <button type="button" class="btn btn-ghost btn-small" id="btn-preset-browse-back-list" style="align-self:flex-start; margin-bottom:10px;" data-i18n="btn_back_to_list">← 목록으로</button>
-          <div class="setting-section-title" id="preset-browse-version-title" data-i18n="preset_browse_version_default_title">버전을 골라주세요</div>
-          <div class="preset-version-note" id="preset-browse-version-note"></div>
-          <div id="preset-browse-version-list" class="versions-list versions-list-major"></div>
         </div>
       </div>
 
@@ -602,23 +734,11 @@
             <!-- 24-43차 신규: "바닐라로 프로필 만들 때 초록색 경고문으로 Nova Client 기본
                  기능을 이용하실 수 없습니다 이런 거 작게띄워줘" - Vanilla가 선택된 동안만
                  보이고 Fabric/Forge/NeoForge로 바꾸면 다시 숨겨짐(updateVanillaLoaderWarning(),
-                 renderer.js). 이 로더 행 자체가 프리셋 사용 시 숨겨지므로 그 안에 같이 둬서
-                 프리셋으로 만들 때도 자동으로 숨겨짐 -->
+                 renderer.js) -->
             <div id="create-profile-vanilla-warning" class="create-profile-vanilla-warning" hidden>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 8.5v4.2M12 15.8h.01" stroke-linecap="round"/><path d="M10.6 3.9 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.4 3.9a2 2 0 0 0-3.4 0Z" stroke-linejoin="round"/></svg>
               <span data-i18n="create_profile_vanilla_warning">Nova Client 기본 기능을 이용하실 수 없습니다</span>
             </div>
-          </div>
-
-          <div class="setting-row">
-            <label data-i18n="create_profile_use_preset_label">프리셋 이용하기</label>
-            <div class="setting-control">
-              <input type="checkbox" id="create-profile-use-preset" />
-            </div>
-          </div>
-          <div id="create-profile-preset-picker" class="setting-row" hidden>
-            <label data-i18n="create_profile_preset_picker_label">프리셋 선택</label>
-            <select id="create-profile-preset-select" class="setting-input"></select>
           </div>
 
           <!-- 17차: "프로필마다 만들 때 설명 적을 수 있게 해줘" -->
@@ -636,7 +756,7 @@
     <section id="view-explore" class="view view-panel" hidden>
       <div class="modal-header">
         <div class="modal-tabs">
-          <span class="modal-title-label">Contents</span>
+          <span class="modal-title-label">콘텐츠</span>
         </div>
       </div>
 
@@ -655,13 +775,23 @@
 
         <!-- 7-5: 드롭다운이었던 모드/리소스팩/쉐이더 선택을 검색창 아래, 항상 보이는 탭 형태로 이동
              (예전에 쓰이던 .explore-type-tab(s) 스타일을 그대로 재사용) -->
-        <div class="explore-type-tabs" id="explore-kind-tabs">
-          <button type="button" class="explore-type-tab is-active" data-type="mod" data-i18n="explore_type_mod">모드</button>
-          <button type="button" class="explore-type-tab" data-type="resourcepack" data-i18n="explore_type_resourcepack">리소스팩</button>
-          <button type="button" class="explore-type-tab" data-type="shader" data-i18n="explore_type_shader">쉐이더</button>
-          <!-- 10차 신규: 모드팩 - 다른 종류(모드/리소스팩/쉐이더)와 달리 "지금 프로필에 추가"가
-               아니라 설치하면 이 모드팩용 새 프로필이 통째로 만들어짐 -->
-          <button type="button" class="explore-type-tab" data-type="modpack" data-i18n="explore_type_modpack">모드팩</button>
+        <!-- 24-83차: "모드팩 쪽 라인 맨 오른쪽 그 다운로드 순 바로 아래에다가 리소스팩/폰트
+             만들기" - 종류 탭(#explore-kind-tabs)은 슬라이딩 알약이라 그 안에 버튼을 하나 더
+             넣으면 알약 폭/위치가 어긋남. 그래서 탭 캡슐은 그대로 두고 이 줄(.explore-kind-row)
+             로 감싼 뒤, 버튼은 캡슐 바깥 오른쪽 끝(정렬 드롭다운 바로 아래)에 둠 -->
+        <div class="explore-kind-row">
+          <div class="explore-type-tabs" id="explore-kind-tabs">
+            <button type="button" class="explore-type-tab is-active" data-type="mod" data-i18n="explore_type_mod">모드</button>
+            <button type="button" class="explore-type-tab" data-type="resourcepack" data-i18n="explore_type_resourcepack">리소스팩</button>
+            <button type="button" class="explore-type-tab" data-type="shader" data-i18n="explore_type_shader">쉐이더</button>
+            <!-- 10차 신규: 모드팩 - 다른 종류(모드/리소스팩/쉐이더)와 달리 "지금 프로필에 추가"가
+                 아니라 설치하면 이 모드팩용 새 프로필이 통째로 만들어짐 -->
+            <button type="button" class="explore-type-tab" data-type="modpack" data-i18n="explore_type_modpack">모드팩</button>
+          </div>
+          <button type="button" class="btn btn-ghost btn-small explore-packmaker-btn" id="btn-open-pack-maker" data-i18n-title="packmaker_open_title" title="폰트/리소스팩을 이 프로필 버전에 맞게 만들어서 넣어요">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7.5 12 3.5l8 4v9L12 20.5 4 16.5v-9Z" stroke-linejoin="round"/><path d="M4 7.5 12 11.5l8-4M12 11.5v9" stroke-linejoin="round"/></svg>
+            <span data-i18n="packmaker_open">리소스팩/폰트 만들기</span>
+          </button>
         </div>
 
         <!-- 7-7: 종류별 카테고리 필터 칩 (모드/쉐이더/리소스팩마다 다른 목록을 보여줌) -->
@@ -811,7 +941,7 @@
     <section id="view-forum" class="view view-panel" hidden>
       <div class="modal-header">
         <div class="modal-tabs">
-          <span class="modal-title-label">Forum</span>
+          <span class="modal-title-label" data-i18n="sidebar_forum">커뮤니티</span>
         </div>
       </div>
 
@@ -866,10 +996,48 @@
           <!-- 14차: "글쓰기 버튼이 혼자 너무 작은 느낌" - 좁은 폭에서 검색창/드롭다운이 줄바꿈되면
                이 버튼만 다음 줄에 혼자 뚝 떨어져서 유독 작아 보였음. 아이콘을 붙이고 btn-small
                대신 일반 크기로 키워서 혼자 있어도 존재감이 나게 함(#btn-forum-write CSS 참고) -->
+          <!-- 24-218차: "구독은 커뮤니티에서 목록 볼 수 있고 수정도 할 수 있게" -->
+          <button id="btn-forum-subs" class="btn btn-ghost btn-small" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-2px; margin-right:4px;"><path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5Z" stroke-linejoin="round"/><path d="M10.3 18a1.9 1.9 0 0 0 3.4 0" stroke-linecap="round"/></svg><span data-i18n="forum_subs_btn">구독</span><span id="forum-subs-dot" class="notif-dot" hidden></span>
+          </button>
           <button id="btn-forum-write" class="btn btn-primary" type="button">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" style="vertical-align:-2px; margin-right:5px;"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg><span data-i18n="forum_write_btn">글쓰기</span></button>
         </div>
         <div id="forum-post-list" class="forum-post-list"></div>
+      </div>
+
+      <!-- 24-218차: 구독 칸 - 내가 구독한 사람 / 나를 구독한 사람 / 구독한 사람들의 글 -->
+      <div class="modal-body" id="forum-subs-panel" hidden>
+        <div class="forum-write-toolbar">
+          <button id="btn-forum-subs-back" class="btn btn-ghost btn-small" type="button" data-i18n="btn_back_to_list">← 목록으로</button>
+        </div>
+        <!-- 24-220차: "구독 창 분리를 좀 해줘 이상해 아무것도 없으니까"
+             세 덩어리(내가 구독한 사람 / 나를 구독한 사람 / 구독한 사람들의 글)를 각각
+             테두리 있는 칸으로 떼어놓고, 비어 있을 때도 뭘 하면 되는지 보이게 했다. -->
+        <div class="forum-subs-cols">
+          <div class="forum-subs-card">
+            <div class="forum-subs-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5c0 4-1.5 5.5-1.5 5.5h14s-1.5-1.5-1.5-5.5A5.5 5.5 0 0 0 12 3.5Z" stroke-linejoin="round"/><path d="M10.3 18a1.9 1.9 0 0 0 3.4 0" stroke-linecap="round"/></svg>
+              <span data-i18n="forum_subs_mine">내가 구독한 사람</span><span class="forum-subs-count" id="forum-subs-mine-count"></span>
+            </div>
+            <div class="forum-subs-list" id="forum-subs-mine"></div>
+          </div>
+          <div class="forum-subs-card">
+            <div class="forum-subs-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c1.4-3.4 4-5.2 6.5-5.2s5.1 1.8 6.5 5.2" stroke-linecap="round"/></svg>
+              <span data-i18n="forum_subs_followers">나를 구독한 사람</span><span class="forum-subs-count" id="forum-subs-followers-count"></span>
+            </div>
+            <div class="forum-subs-list" id="forum-subs-followers"></div>
+          </div>
+        </div>
+
+        <div class="forum-subs-card forum-subs-feed-card">
+          <div class="forum-subs-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M4 5.5h12a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 0 1.5 1.5H6a2 2 0 0 1-2-2Z" stroke-linejoin="round"/><path d="M7 9h6M7 12h6M7 15h3" stroke-linecap="round"/></svg>
+            <span data-i18n="forum_subs_feed">구독한 사람들의 글</span><span class="forum-subs-count" id="forum-subs-feed-count"></span>
+          </div>
+          <div id="forum-subs-feed" class="forum-post-list"></div>
+        </div>
       </div>
 
       <!-- 글쓰기 화면 -->
@@ -954,7 +1122,7 @@
             <!-- 12차: 글자색 표시를 네모 스와치 대신 "가나다" 글자 + 지그재그 밑줄로 바꿔서
                  지금 고른 색이 뭔지 워드/한글 프로그램처럼 한눈에 보이게 함 -->
             <button type="button" class="rt-btn rt-color-btn-a" id="rt-color-btn" data-i18n-tooltip="rt_text_color" data-tooltip="글자색">
-              <span class="rt-color-a">가</span>
+              <span class="rt-color-a" data-i18n="editor_color_letter">가</span>
               <svg class="rt-color-zigzag" width="16" height="5" viewBox="0 0 16 5" preserveAspectRatio="none">
                 <path id="rt-color-swatch" d="M0 4 4 1 8 4 12 1 16 4" fill="none" stroke="#e5484d" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -1022,19 +1190,17 @@
     <!-- Updates: 업데이트 내역 전용 화면 -->
     <!-- 프로필 관리 (모드/리소스팩/쉐이더 목록, 이름/메모리/해상도 수정) -->
     <section id="view-profile-manage" class="view view-panel" hidden>
-      <!-- 14차: "6번 사진 저거 프로필에 있는 거 저거 없애줘" - "Profile" 영문 타이틀이 목록/프리셋
-           관리 화면에서는 바로 옆 탭("내 프로필"/"프리셋 관리")과 같은 뜻을 중복해서 보여주고
-           있었음. 다만 이 라벨은 특정 프로필을 편집할 때는 그 프로필 이름(breadcrumb)으로 바뀌는
-           용도로도 쓰이고 있어서(renderer.js openProfileEdit) 완전히 지우지 않고, 중복되는
-           두 목록 화면에서만 JS로 숨기도록 함(openProfileList/openPresetManage 참고) -->
+      <!-- 14차: "6번 사진 저거 프로필에 있는 거 저거 없애줘" - "Profile" 영문 타이틀이 목록
+           화면에서는 바로 옆 탭("내 프로필")과 같은 뜻을 중복해서 보여주고 있었음. 다만 이
+           라벨은 특정 프로필을 편집할 때는 그 프로필 이름(breadcrumb)으로 바뀌는 용도로도
+           쓰이고 있어서(renderer.js openProfileEdit) 완전히 지우지 않고, 목록 화면에서만
+           JS로 숨기도록 함(openProfileList 참고) -->
       <div class="modal-header">
         <div class="modal-tabs">
           <span class="modal-title-label" id="profile-manage-title" hidden></span>
         </div>
-        <!-- 16-2(4차): 프리셋 관리를 프로필 편집과 분리된 독립 탭으로 -->
         <div class="profile-manage-toplevel-tabs">
           <button data-i18n="profile_manage_tab_profiles" type="button" class="profile-manage-toplevel-tab is-active" data-toplevel="profiles">내 프로필</button>
-          <button data-i18n="profile_manage_tab_presets" type="button" class="profile-manage-toplevel-tab" data-toplevel="presets">프리셋 관리</button>
         </div>
       </div>
 
@@ -1061,40 +1227,6 @@
         <div id="profile-manage-grid" class="profile-card-grid"></div>
       </div>
 
-      <!-- 16-2(4차): 독립된 "프리셋 관리" 화면 - 만들기(소스 프로필 + 카테고리 5개 + 리소스팩/쉐이더
-           포함 여부) + 목록(카테고리별) + 삭제 -->
-      <div class="modal-body" id="preset-manage-body" hidden>
-        <div data-i18n="preset_create_title" class="setting-section-title">새 프리셋 만들기</div>
-        <div class="setting-row">
-          <label data-i18n="preset_create_source_label">어느 프로필의 구성을 쓸까요?</label>
-          <select id="preset-create-source" class="setting-input"></select>
-        </div>
-        <div class="setting-row">
-          <label data-i18n="label_category">카테고리</label>
-          <div id="preset-create-category-picker" class="preset-category-picker"></div>
-        </div>
-        <div class="setting-row">
-          <label data-i18n="preset_create_name_label">프리셋 이름</label>
-          <input type="text" id="preset-create-name" class="setting-input" placeholder="예: 오늘의 PVP 세팅" data-i18n-placeholder="ph_preset_name" />
-        </div>
-        <div class="setting-row">
-          <label data-i18n="preset_create_rp_label">리소스팩 기본 포함</label>
-          <div class="setting-control">
-            <input type="checkbox" id="preset-create-include-resourcepack" />
-          </div>
-        </div>
-        <div class="setting-row">
-          <label data-i18n="preset_create_shader_label">쉐이더 기본 포함</label>
-          <div class="setting-control">
-            <input type="checkbox" id="preset-create-include-shader" />
-          </div>
-        </div>
-        <button data-i18n="preset_create_submit_btn" id="btn-preset-create-submit" class="btn btn-primary btn-small" type="button">프리셋 만들기</button>
-
-        <div data-i18n="preset_my_list_title" class="setting-section-title" style="margin-top:20px;">내 프리셋</div>
-        <div id="preset-manage-list" class="preset-manage-list"></div>
-      </div>
-
       <!-- 프로필 하나 골랐을 때 편집 화면 -->
       <div class="modal-body" id="profile-edit-body" hidden>
         <div class="profile-edit-header-row">
@@ -1117,6 +1249,13 @@
           <div class="profile-edit-hero-info">
             <div class="profile-edit-hero-name-row">
               <input type="text" id="manage-profile-name-input" class="profile-edit-hero-name-input" />
+              <!-- 24-188차: "프로필 수정에 이름 옆에 팬 하나 둬서 이름변경 된다고 표시해주고"
+                   - 이름칸이 그냥 제목처럼 보여서 눌러서 바꿀 수 있다는 걸 몰랐음. 연필을 붙여
+                     바꿀 수 있다는 표시를 하고, 눌렀을 때도 바로 입력칸이 잡히게 함
+                     (기본 프로필은 이름을 못 바꾸니 renderer.js에서 이 버튼을 숨김) -->
+              <button id="btn-manage-profile-name-edit" class="profile-edit-hero-name-pen" type="button" data-i18n-title="manage_profile_name_edit_title" title="이름 바꾸기">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
             </div>
             <!-- 14차: "기본 프로필 삭제 불가 색 입히지 말고 위치 조정" - 편집 가능한 이름 입력칸
                  바로 옆이라 자리가 좁고 어색했던 배지를, 버전/마지막 플레이 정보가 있는
@@ -1147,10 +1286,6 @@
                      만들어줘" - 지금 프로필의 모드/리소스팩/쉐이더 구성을 표준 Modrinth 모드팩
                      파일(.mrpack)로 내보냄 -->
                 <button data-i18n="hero_export_modpack_btn" type="button" class="dropdown-select-item" id="btn-hero-export-modpack">모드팩으로 내보내기 (.mrpack)</button>
-                <!-- 17차: "프리셋 문구가 관리자 아닌데도 보인다" - 화면 맨 아래에 늘 붙어있던 항목을
-                     관리자만 쓰는 다른 관리 기능들처럼 더보기(⋮) 메뉴 안으로 옮기고, 여기서
-                     JS가 관리자일 때만 hidden을 풀어줌(btn-manage-profile-goto-preset, renderer.js) -->
-                <button data-i18n="hero_goto_preset_btn" type="button" class="dropdown-select-item" id="btn-manage-profile-goto-preset" hidden>프리셋 관리에서 이 구성으로 만들기</button>
               </div>
             </div>
           </div>
@@ -1164,6 +1299,19 @@
              없어서, 종류마다 한 벌씩 두고 지금 활성 탭인 것만 보이게 함(JS: setProfileFileTab) -->
         <div class="manage-content-toolbar">
           <input type="text" id="manage-shared-search" class="setting-input manage-content-search" placeholder="모드 검색" data-i18n-placeholder="ph_manage_mods_search" />
+          <!-- 24-75차: "파일 업로드 모드 추가 이거 전체에서는 왜 사라지는 거야" - 이 툴바엔
+               mods/resourcepacks/shaderpacks 3종 묶음만 있고 "전체" 탭용 묶음이 아예 없었음.
+               setProfileFileTab이 data-kind가 지금 탭과 다른 묶음을 전부 숨기므로, 전체 탭을
+               고르면 이 줄의 버튼이 통째로 사라져 탭마다 툴바 모양이 달라 보였음.
+               전체 탭에서도 같은 자리에 같은 버튼이 그대로 있도록 묶음을 추가하고, 동작은 새로
+               만들지 않고 기존 모드 버튼을 그대로 클릭시켜 재사용함(24-69차 빈 화면 버튼과 동일한 방식) -->
+          <div class="manage-toolbar-kind-group" data-kind="all" hidden>
+            <button id="btn-manage-all-add" class="btn btn-ghost btn-small" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"/></svg>
+              <span data-i18n="manage_file_upload_label">파일 업로드</span>
+            </button>
+            <button data-i18n="manage_mods_browse_btn" id="btn-manage-all-browse" class="btn btn-fixed-green btn-small manage-browse-btn" type="button">모드 추가</button>
+          </div>
           <div class="manage-toolbar-kind-group" data-kind="mods">
             <button id="btn-manage-mods-add" class="btn btn-ghost btn-small" type="button">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round"/></svg>
@@ -1233,7 +1381,7 @@
             <!-- 10차: 업데이트 가능한 모드가 있을 때만 보이게(JS에서 hidden 토글) + 고정 초록 아이콘 버튼 -->
             <button type="button" id="btn-manage-mods-update" class="btn btn-fixed-green btn-small" data-i18n-title="manage_update_all_hint_title" title="업데이트 가능한 모드를 한 번에 반영" hidden>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5" stroke-linecap="round"/><path d="M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span data-i18n="manage_update_all">전체 업데이트</span>
+              <span data-i18n="manage_update_all">업데이트</span>
             </button>
             <button type="button" id="btn-manage-mods-refresh" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="refresh_tooltip" title="새로고침">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1245,10 +1393,10 @@
                  그대로 hidden 처리됨(openProfileSettingsModal, renderer.js) -->
             <button id="btn-manage-profile-refresh-share" type="button" class="btn btn-ghost btn-small manage-refresh-btn" data-i18n-title="manage_refresh_share_title" title="공유 코드에 지금 구성 다시 올리기" hidden>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 3v6h-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 21v-6h6" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 9a9 9 0 0 0-15.5-5.3L3 6M3 15a9 9 0 0 0 15.5 5.3L21 18" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span data-i18n="manage_refresh_share_btn">프로필 갱신</span>
+              <span data-i18n="manage_refresh_share_btn">변경 사항 올리기</span>
             </button>
-            <label id="manage-profile-updatesync-row" class="manage-updatesync-toggle" data-i18n-title="manage_updatesync_title" title="원작자가 프로필을 갱신하면 자동으로 받아올지" hidden>
-              <span data-i18n="manage_updatesync_label">업데이트 연동</span>
+            <label id="manage-profile-updatesync-row" class="manage-updatesync-toggle" data-i18n-title="manage_updatesync_title" title="공유자가 프로필을 업데이트하면 알림을 받을지" hidden>
+              <span data-i18n="manage_updatesync_label">알림</span>
               <span class="manage-toggle-switch">
                 <input type="checkbox" id="manage-profile-updatesync" />
                 <span class="manage-toggle-slider"></span>
@@ -1273,8 +1421,13 @@
              "전체 선택"을, 목록 헤더의 체크박스 칸(맨 위 왼쪽)으로 옮겨서 자연스럽게 목록
              전체를 통솔하는 자리가 되게 함 -->
         <div id="profile-file-panel-all" class="profile-file-panel" hidden>
+          <!-- 24-102차: 헤더(프로젝트/버전/작업)를 목록 박스 안 첫 칸으로 옮김 -->
+          <div class="manage-file-box">
           <div class="manage-list-header">
-            <span class="manage-list-header-check"></span>
+            <!-- 24-77차: "전체는 그 모두 선택도 없고 박스 크기가 달라져" - 이 칸만 비어 있어서
+                 다른 탭과 헤더 구성이 달랐고(체크박스 유무), 행에도 체크박스 대신 빈 칸만 있어서
+                 표 왼쪽 열 너비가 탭마다 달라 보였음. 다른 탭과 똑같이 전체 선택 체크박스를 둠 -->
+            <span class="manage-list-header-check"><input type="checkbox" id="manage-all-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
             <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
             <span data-i18n="manage_col_version" class="manage-list-header-version">버전</span>
             <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
@@ -1290,11 +1443,21 @@
                행 하나하나가 뻥튀기돼 보였던 것. .manage-file-table 스타일만으로 이미 충분해서
                resourcepack-list는 그냥 없앰 -->
           <div id="manage-all-list" class="manage-file-table"></div>
+          </div>
+          <!-- 24-77차: 다른 탭과 동일한 일괄 작업 바. 전체 탭은 모드/리소스팩/쉐이더가 섞여
+               있으므로, 각 버튼은 종류별로 나눠서 기존 동작을 그대로 실행함(renderer.js) -->
+          <div id="manage-all-bulk-bar" class="manage-bulk-bar" hidden>
+            <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-all-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
+            <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-all-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
+            <button data-i18n="manage_bulk_delete" type="button" id="btn-manage-all-bulk-delete" class="btn btn-ghost btn-small danger-text">선택 삭제</button>
+          </div>
         </div>
 
         <div id="profile-file-panel-mods" class="profile-file-panel">
           <!-- 5-9(5차): 참고 스크린샷(모드린스 스타일 표)처럼 체크박스/Project/Version/Actions
                헤더 열을 진짜로 추가함 -->
+          <!-- 24-102차: 헤더(프로젝트/버전/작업)를 목록 박스 안 첫 칸으로 옮김 -->
+          <div class="manage-file-box">
           <div class="manage-list-header">
             <span class="manage-list-header-check"><input type="checkbox" id="manage-mods-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
             <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
@@ -1302,6 +1465,7 @@
             <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
           </div>
           <div id="manage-mods-list" class="manage-file-table"></div>
+          </div>
           <div id="manage-mods-bulk-bar" class="manage-bulk-bar" hidden>
             <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-mods-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
             <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-mods-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
@@ -1310,6 +1474,8 @@
         </div>
 
         <div id="profile-file-panel-resourcepacks" class="profile-file-panel" hidden>
+          <!-- 24-102차: 헤더(프로젝트/버전/작업)를 목록 박스 안 첫 칸으로 옮김 -->
+          <div class="manage-file-box">
           <div class="manage-list-header">
             <span class="manage-list-header-check"><input type="checkbox" id="manage-rp-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
             <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
@@ -1317,6 +1483,7 @@
             <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
           </div>
           <div id="manage-rp-list" class="manage-file-table"></div>
+          </div>
           <div id="manage-rp-bulk-bar" class="manage-bulk-bar" hidden>
             <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-rp-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
             <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-rp-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
@@ -1325,6 +1492,8 @@
         </div>
 
         <div id="profile-file-panel-shaderpacks" class="profile-file-panel" hidden>
+          <!-- 24-102차: 헤더(프로젝트/버전/작업)를 목록 박스 안 첫 칸으로 옮김 -->
+          <div class="manage-file-box">
           <div class="manage-list-header">
             <span class="manage-list-header-check"><input type="checkbox" id="manage-shader-select-all" class="manage-file-checkbox" data-i18n-title="label_select_all" title="전체 선택" /></span>
             <span data-i18n="label_project" class="manage-list-header-project">프로젝트</span>
@@ -1332,6 +1501,7 @@
             <span data-i18n="manage_col_actions" class="manage-list-header-actions">작업</span>
           </div>
           <div id="manage-shader-list" class="manage-file-table"></div>
+          </div>
           <div id="manage-shader-bulk-bar" class="manage-bulk-bar" hidden>
             <button data-i18n="manage_bulk_enable" type="button" id="btn-manage-shader-bulk-enable" class="btn btn-ghost btn-small">선택 활성화</button>
             <button data-i18n="manage_bulk_disable" type="button" id="btn-manage-shader-bulk-disable" class="btn btn-ghost btn-small">선택 비활성화</button>
@@ -1347,7 +1517,7 @@
     <div id="settings-overlay" class="modal-overlay" hidden>
       <div class="settings-popup-box">
         <div class="settings-popup-header">
-          <span class="modal-title-label">Settings</span>
+          <span class="modal-title-label">설정</span>
           <button id="btn-settings-close" class="icon-btn" title="닫기" data-i18n-title="btn_close">
             <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
           </button>
@@ -1364,19 +1534,20 @@
             </button>
             <!-- 18차: "설정에서는 스킨을 없애고 저기(사이드바 더보기)로 옮겨야지" - 스킨 카테고리를
                  통째로 빼서 사이드바 "더보기 > 스킨"에서 여는 별도 팝업(#skin-overlay)으로 옮김 -->
-            <button class="settings-nav-item" data-cat="play" type="button">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6 9H3v6h3l5 4V5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 8.5a5 5 0 0 1 0 7" stroke-linecap="round"/><path d="M18 6a8.5 8.5 0 0 1 0 12" stroke-linecap="round"/></svg>
-              <span data-i18n="settings_nav_sound">소리</span>
-            </button>
-            <button class="settings-nav-item" data-cat="display" type="button">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/></svg>
-              <span data-i18n="settings_nav_display">화면</span>
+            <!-- 24-202차: "소리, 화면을 비디오/오디오로 묶고 폰트 언어를 언어로 묶고"
+                 카테고리가 8개까지 늘어나면서 뭐가 어디 있는지 찾기 어려웠다. 성격이 같은 것끼리
+                 합쳐서 줄였다. 각 패널은 그대로 두고 data-cat-panel 값만 맞춰서 한 카테고리
+                 안에 여러 패널이 이어 보이게 했다(renderer.js showSettingsCategory 참고). -->
+            <button class="settings-nav-item" data-cat="av" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/><path d="M10 8.5v4l3.5-2Z" stroke-linejoin="round"/></svg>
+              <span data-i18n="settings_nav_av">비디오 / 오디오</span>
             </button>
             <!-- 15차: "설정에 언어는 따로 빼고" - 화면(테마) 카테고리에 같이 있던 언어 설정을
                  별도의 독립된 카테고리로 분리함 -->
+            <!-- 24-202차: 폰트를 언어 안으로 합침(둘 다 "글자가 어떻게 보이나"라 같이 둔다) -->
             <button class="settings-nav-item" data-cat="language" type="button">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.3 2.3 3.5 5.3 3.5 8.5s-1.2 6.2-3.5 8.5c-2.3-2.3-3.5-5.3-3.5-8.5S9.7 5.8 12 3.5Z" stroke-linecap="round"/></svg>
-              <span data-i18n="settings_nav_language">언어</span>
+              <span data-i18n="settings_nav_language">언어 / 글꼴</span>
             </button>
             <button class="settings-nav-item" data-cat="client" type="button">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
@@ -1414,36 +1585,7 @@
 
             <!-- 화면 -->
             <div class="settings-panel-section" data-cat-panel="display">
-              <div class="setting-row setting-row-col">
-                <label data-i18n="settings_theme">테마</label>
-                <!-- 15차: "테마는 미리보기 느낌으로 박스 형태로 배열, 상점에서 살 수 있는 것도
-                     미리 다 배치해놔 대신 안사면 잠금 걸어" - 기본 제공되는 3개 밝기 모드(다크/
-                     화이트/시스템) 박스 뒤에, 상점의 fulltheme(완전 테마) 상품들을 renderer.js의
-                     renderThemeGallery()가 실시간으로 이어붙임(미보유 시 잠금 오버레이) -->
-                <!-- 16차: "테마에 시스템 없애주고 테마 예시를 좀 더 꾸며줄래 대충 클라이언트
-                     틀만 있는 느낌으로" - 시스템 옵션 버튼을 지우고, 미리보기 박스 안에 가짜
-                     사이드바 띠 + 글줄 몇 개를 넣어서 납작한 색상 사각형이 아니라 실제 클라이언트
-                     화면을 흉내낸 미니 목업처럼 보이게 함 (아래 fulltheme 상점 카드도 동일) -->
-                <div class="theme-gallery" id="theme-mode-gallery">
-                  <button type="button" class="theme-gallery-item theme-option theme-mode-option" data-theme="dark">
-                    <div class="theme-gallery-preview theme-gallery-preview-dark">
-                      <span class="theme-gallery-preview-side"></span>
-                      <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
-                      <span class="theme-gallery-preview-accent"></span>
-                    </div>
-                    <span class="theme-gallery-item-label" data-i18n="settings_theme_dark">다크</span>
-                  </button>
-                  <button type="button" class="theme-gallery-item theme-option theme-mode-option" data-theme="light">
-                    <div class="theme-gallery-preview theme-gallery-preview-light">
-                      <span class="theme-gallery-preview-side"></span>
-                      <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
-                      <span class="theme-gallery-preview-accent"></span>
-                    </div>
-                    <span class="theme-gallery-item-label" data-i18n="settings_theme_light">화이트</span>
-                  </button>
-                  <!-- 상점 fulltheme 상품 카드는 여기 아래에 JS로 이어붙음 -->
-                </div>
-              </div>
+              <!-- 24-225차: "비디오/오디오에서 테마 삭제해줘" - 테마는 상점/보관함에서 고른다 -->
 
               <!-- 24-24차: "설정 화면에서 전체화면 + 해상도 기능 넣어주고" - 서버로 플레이할 때
                    쓰던 하드코딩 1280x720을 직접 바꿀 수 있게 함(프로필 모드는 원래부터 프로필별
@@ -1469,109 +1611,8 @@
                 </div>
               </div>
               <div style="font-size:11px; color:var(--text-2);" data-i18n="settings_mc_resolution_hint">서버로 플레이할 때 적용돼요. 프로필로 플레이할 때는 각 프로필의 설정을 따로 써요.</div>
-            </div>
 
-            <!-- 15차: 언어 - 이전엔 화면 카테고리 안에 같이 있었는데 별도 카테고리로 분리 -->
-            <!-- 24-14차: "시스템 언어 옵션 빼고 언어 선택 UI 좀 더 낫게 바꿔줘" - 자동으로
-                 OS 언어를 따라가는 "시스템 언어 사용" 옵션을 없애고(main.js의 getSettings()가
-                 처음 실행될 때 딱 한 번 OS 언어로 확정해서 저장함) 항상 ko/en 둘 중 하나만
-                 고르게 함. 각 항목 라벨도 지금 켜진 UI 언어를 따라 번역되는 게 아니라 그
-                 언어 자신의 표기(한국어/English)로 고정 - "영어 (English)"처럼 두 언어가
-                 섞여 보이던 걸 없앰. 가로로 나열된 라디오 버튼 대신 세로 목록 형태로 재구성함 -->
-            <div class="settings-panel-section" data-cat-panel="language">
-              <div class="setting-row setting-row-col">
-                <label data-i18n="language_setting_label">언어</label>
-                <div class="lang-picker-list" id="language-picker">
-                  <button data-i18n="lang_option_ko" type="button" class="lang-option lang-picker-item" data-lang="ko">한국어</button>
-                  <button type="button" class="lang-option lang-picker-item" data-lang="en">English</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 24-14차: "내 프로필"(자기소개) - 18차 때 임시로 클라이언트 칸에 얹어뒀던 걸
-                 여기 독립된 카테고리로 옮김. 요소 id는 그대로라 renderer.js 쪽 코드(loadProfileBio
-                 등)는 손댈 필요 없음 -->
-            <div class="settings-panel-section is-active" data-cat-panel="profile">
-              <div class="settings-subgroup-title" data-i18n="settings_my_profile">내 프로필</div>
-              <!-- 24-54차: "프로필 사진이 사이트 계정에 왜 있어 내 프로필에 있어야지" - 원래
-                   아래 renderSiteAccountPanel()이 매번 통째로 다시 그리는 "마인크래프트 계정"
-                   패널(#site-account-panel) 안에 있던 프로필 사진 변경 UI를, 재생성되지 않는
-                   "내 프로필" 영역 최상단(자기소개 위)으로 옮김. #site-account-avatar-preview/
-                   #btn-change-avatar id는 그대로라 renderer.js의 loadAvatarPreview/
-                   openAvatarCropFlow는 손댈 필요 없음(이제 openSettings()에서 한 번 로드함) -->
-              <!-- 24-69차: "닉네임 변경 너무 아래에 있어 위로 올려주고 프로필 사진 변경 옆으로" -
-                   예전엔 닉네임 변경이 한참 아래 "사이트 계정" 패널(마인크래프트/디스코드 연동
-                   다음) 안에 있었음. 프로필 사진 변경과 나란히 보이도록 여기(내 프로필 최상단)로
-                   끌어올림 - 프로필 사진처럼 이제 매번 다시 그려지지 않는 고정 마크업이라
-                   리스너/데이터 로드도 openSettings()에서 한 번만 처리(renderer.js
-                   loadNicknameTicketCount 참고, 예전 renderSiteAccountPanel 안에 있던 로직) -->
-              <div class="profile-identity-row">
-                <div class="site-account-avatar-row">
-                  <div id="site-account-avatar-preview" class="site-account-avatar-preview"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.6-3.6 4.8-5.5 8-5.5s6.4 1.9 8 5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                  <button id="btn-change-avatar" class="btn btn-ghost btn-small" type="button">프로필 사진 변경</button>
-                </div>
-                <div class="site-account-nickname-row">
-                  <div class="site-account-nickname-label">닉네임 변경 <span id="nickname-ticket-count" style="color:var(--text-2); font-weight:400;">(보유 변경권 확인 중...)</span></div>
-                  <div class="site-account-link-form">
-                    <input id="site-account-new-nickname-input" type="text" class="setting-input" placeholder="새 닉네임" />
-                    <button id="btn-use-nickname-ticket" class="btn btn-ghost btn-small" type="button">변경</button>
-                  </div>
-                </div>
-              </div>
-              <div class="setting-row setting-row-col">
-                <label data-i18n="settings_bio_label">자기소개 (친구에게만 보여요)</label>
-                <textarea id="set-profile-bio" class="setting-input" rows="2" maxlength="200" placeholder="한 줄 소개를 남겨보세요" data-i18n-placeholder="settings_bio_placeholder"></textarea>
-              </div>
-              <button id="btn-profile-bio-save" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start;" data-i18n="btn_save">저장</button>
-
-              <!-- 24-4차: 사이트 전용 계정 - 이제 로그인 자체가 사이트 계정 기준이라(24-4차
-                   에서 view-login이 사이트 로그인 화면으로 바뀜) 여기선 "계정 만들기"가 아니라
-                   연동된 마인크래프트 계정/디스코드 관리 + 로그아웃만 함. 코인/상점(구매한
-                   스킨 등)/출석/퀘스트는 여기 연동된 마인크래프트 계정들이 전부 공유해서 씀.
-                   24-24차: "계정 추가하는 거 프로필로 옮겨주고" - 클라이언트 탭에 있던 이
-                   패널을 내 프로필 탭으로 옮김(계정 전환 메뉴의 "+ 다른 계정 추가"도 이제
-                   여기로 바로 감) -->
-              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_site_account_title" style="margin-top:6px; padding-top:14px; border-top:1px solid var(--border-soft);">사이트 계정</div>
-              <div id="site-account-panel" class="site-account-panel">
-                <div style="color:var(--text-2); font-size:12px;" data-i18n="settings_checking">확인 중...</div>
-              </div>
-            </div>
-
-            <!-- 클라이언트 -->
-            <div class="settings-panel-section" data-cat-panel="client">
-              <div class="setting-row">
-                <label data-i18n="settings_installed_size">설치 용량</label>
-                <span id="installed-size" class="setting-value" data-i18n="settings_checking">확인 중...</span>
-              </div>
-
-              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_folder">폴더</div>
-              <div class="setting-grid-2col">
-                <button id="btn-brand-open-game-folder" type="button" class="setting-action-row">
-                  <span data-i18n="settings_open_game_folder">게임 폴더 열기</span>
-                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-
-              <!-- 24-63차: "게임 파일 다운로드한 거 전부 제거하는 거... 설정 런처에 만들고
-                   옮겨줘" - 이 기능(app:reset-install IPC, renderer.js의 btn-reset-install
-                   클릭 핸들러)은 예전부터 만들어져 있었는데, 정작 index.html 어디에도 이
-                   버튼 자체가 없어서 실제로는 누를 방법이 없는 상태였음(2465줄 부근 참고).
-                   이번에 처음으로 버튼을 만들어 여기(설치 용량/폴더 바로 아래)에 둠. 되돌릴
-                   수 없는 동작이라 danger-text로 강조 + 클릭 시 확인창(showConfirm)이 뜸 -->
-              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_game_files">게임 파일</div>
-              <div class="setting-grid-2col">
-                <button id="btn-reset-install" type="button" class="setting-action-row danger-text">
-                  <span data-i18n="settings_reset_install">다운로드한 게임 파일 모두 삭제</span>
-                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-
-              <!-- 7-2: 마인크래프트/Fabric 버전별로 필요한 자바 버전과 실제 설치 위치를 보여줌 (읽기 전용) -->
-              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_java_location">자바 위치</div>
-              <div id="java-info-list" class="java-info-list">
-                <div style="color:var(--text-2); font-size:12px;" data-i18n="settings_checking">확인 중...</div>
-              </div>
-
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_group_play">플레이</div>
               <!-- 17차: 게임 실행 시 런처 동작 / 컴퓨터 시작 시 자동 실행 / 친구에게 상태 공유 여부
                    24-23차: "설명이 너무 구구절절 길어" - 중복이던 섹션 제목을 없애고 행 라벨/선택지
                    문구를 짧게 줄임. "자동 실행 아니요/예 말고 체크박스로" - select 대신 체크박스
@@ -1606,6 +1647,170 @@
                   <input type="checkbox" id="set-hide-presence" />
                 </div>
               </div>
+              <!-- 24-147차: "리소스팩이랑 쉐이더는 설정에서 시작시 자동으로 적용되게 할지 하는
+                   설정을 만들고" - 켜두면 프로필에서 활성화해둔 리소스팩/쉐이더팩이 게임을 켤 때
+                   options.txt / Iris 설정에 자동으로 기록돼서 게임 안에서 또 고를 필요가 없음 -->
+              <!-- 24-225차: "시작할 때 리소스팩 자동 적용이랑 그 밑에 글도 같이 삭제"
+                   설정 칸만 뺐고, 켜는 동작 자체(main 의 autoApplyPacks)는 늘 켜진 것으로 둔다 -->
+            </div>
+
+            <!-- 15차: 언어 - 이전엔 화면 카테고리 안에 같이 있었는데 별도 카테고리로 분리 -->
+            <!-- 24-14차: "시스템 언어 옵션 빼고 언어 선택 UI 좀 더 낫게 바꿔줘" - 자동으로
+                 OS 언어를 따라가는 "시스템 언어 사용" 옵션을 없애고(main.js의 getSettings()가
+                 처음 실행될 때 딱 한 번 OS 언어로 확정해서 저장함) 항상 ko/en 둘 중 하나만
+                 고르게 함. 각 항목 라벨도 지금 켜진 UI 언어를 따라 번역되는 게 아니라 그
+                 언어 자신의 표기(한국어/English)로 고정 - "영어 (English)"처럼 두 언어가
+                 섞여 보이던 걸 없앰. 가로로 나열된 라디오 버튼 대신 세로 목록 형태로 재구성함 -->
+
+            <!-- 24-83차 신규: 폰트 -->
+            <!-- 고른 글꼴은 main.js가 앱 데이터 폴더(fonts/)로 복사해두고, renderer가 @font-face
+                 로 올린 뒤 --font-soft 변수를 덮어써서 런처 전체에 적용함 -->
+            <div class="settings-panel-section" data-cat-panel="font">
+              <div class="setting-row setting-row-col">
+                <label data-i18n="settings_font_label">런처 글꼴</label>
+                <div class="lang-picker-list font-picker-list" id="ui-font-picker">
+                  <button type="button" class="lang-picker-item font-picker-item is-active" data-font="default">
+                    <span class="font-picker-name" data-i18n="settings_font_default">지금 쓰고 있는 글꼴</span>
+                    <span class="font-picker-sample font-picker-sample-default">Nova Client 가나다 AaBb 0123</span>
+                  </button>
+                  <button type="button" class="lang-picker-item font-picker-item" data-font="custom">
+                    <span class="font-picker-name" data-i18n="settings_font_custom">직접 추가하기</span>
+                    <span class="font-picker-sample" id="ui-font-custom-sample" data-i18n="settings_font_custom_hint">글꼴 파일 (.ttf · .otf · .woff)</span>
+                  </button>
+                </div>
+                <p class="setting-hint" data-i18n="settings_font_hint">고른 글꼴 파일은 런처 안에 복사해둬요. 원본을 옮기거나 지워도 계속 쓸 수 있어요.</p>
+              </div>
+
+              <!-- 24-136차: "클라이언트 폰트 0.5~2배까지 조절 가능하게 0.1씩 해줘 커스텀 폰트는"
+                   글꼴마다 같은 px에서도 크게/작게 보여서 배율을 직접 맞출 수 있게 함.
+                   @font-face 의 size-adjust 로 글자만 키우고 줄이므로 버튼/칸 크기는 안 흔들림.
+                   기본 글꼴일 때는 적용할 대상이 없어서 비활성화됨 -->
+              <div class="setting-row setting-row-col" id="ui-font-scale-row">
+                <label data-i18n="settings_font_scale_label">글꼴 크기</label>
+                <div class="font-scale-control">
+                  <input type="range" id="ui-font-scale" min="0.5" max="2" step="0.1" value="1" />
+                  <span class="font-scale-value" id="ui-font-scale-value">1.0배</span>
+                  <button type="button" class="btn btn-ghost btn-small" id="ui-font-scale-reset" data-i18n="settings_font_scale_reset">되돌리기</button>
+                </div>
+                <div class="font-scale-preview" id="ui-font-scale-preview">Nova Client 가나다 AaBb 0123</div>
+                <p class="setting-hint" id="ui-font-scale-hint" data-i18n="settings_font_scale_hint">직접 추가한 글꼴에만 적용돼요.</p>
+              </div>
+            </div>
+
+            <div class="settings-panel-section" data-cat-panel="language">
+              <div class="setting-row setting-row-col">
+                <label data-i18n="language_setting_label">언어</label>
+                <div class="lang-picker-list" id="language-picker">
+                  <button data-i18n="lang_option_ko" type="button" class="lang-option lang-picker-item" data-lang="ko">한국어</button>
+                  <button type="button" class="lang-option lang-picker-item" data-lang="en">English</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 24-14차: "내 프로필"(자기소개) - 18차 때 임시로 클라이언트 칸에 얹어뒀던 걸
+                 여기 독립된 카테고리로 옮김. 요소 id는 그대로라 renderer.js 쪽 코드(loadProfileBio
+                 등)는 손댈 필요 없음 -->
+            <div class="settings-panel-section is-active" data-cat-panel="profile">
+              <div class="settings-subgroup-title" data-i18n="settings_my_profile">내 프로필</div>
+              <!-- 24-54차: "프로필 사진이 사이트 계정에 왜 있어 내 프로필에 있어야지" - 원래
+                   아래 renderSiteAccountPanel()이 매번 통째로 다시 그리는 "마인크래프트 계정"
+                   패널(#site-account-panel) 안에 있던 프로필 사진 변경 UI를, 재생성되지 않는
+                   "내 프로필" 영역 최상단(자기소개 위)으로 옮김. #site-account-avatar-preview/
+                   #btn-change-avatar id는 그대로라 renderer.js의 loadAvatarPreview/
+                   openAvatarCropFlow는 손댈 필요 없음(이제 openSettings()에서 한 번 로드함) -->
+              <!-- 24-69차: "닉네임 변경 너무 아래에 있어 위로 올려주고 프로필 사진 변경 옆으로" -
+                   예전엔 닉네임 변경이 한참 아래 "사이트 계정" 패널(마인크래프트/디스코드 연동
+                   다음) 안에 있었음. 프로필 사진 변경과 나란히 보이도록 여기(내 프로필 최상단)로
+                   끌어올림 - 프로필 사진처럼 이제 매번 다시 그려지지 않는 고정 마크업이라
+                   리스너/데이터 로드도 openSettings()에서 한 번만 처리(renderer.js
+                   loadNicknameTicketCount 참고, 예전 renderSiteAccountPanel 안에 있던 로직) -->
+              <div class="profile-identity-row">
+                <!-- 24-202차: "사진 변경은 버튼 없애고 내 프로필 눌러야 바뀌게, 프로필 오른쪽
+                     위에 팬 모양 두기" - 옆의 긴 버튼을 없애고 사진 자체를 누르는 방식으로.
+                     누를 수 있다는 걸 알 수 있게 오른쪽 위에 연필을 올려둔다.
+                     (#btn-change-avatar id 는 그대로 둬서 기존 핸들러가 그대로 동작한다) -->
+                <div class="site-account-avatar-row">
+                  <button id="btn-change-avatar" class="site-account-avatar-btn" type="button" data-i18n-title="settings_change_avatar_btn" title="프로필 사진 변경">
+                    <div id="site-account-avatar-preview" class="site-account-avatar-preview"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.6-3.6 4.8-5.5 8-5.5s6.4 1.9 8 5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                    <span class="site-account-avatar-pen" aria-hidden="true">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                  </button>
+                </div>
+                <div class="site-account-nickname-row">
+                  <div class="site-account-nickname-label"><span data-i18n="settings_nickname_change_label">닉네임 변경</span> <span id="nickname-ticket-count" style="color:var(--text-2); font-weight:400;">(보유 변경권 확인 중...)</span></div>
+                  <div class="site-account-link-form">
+                    <input id="site-account-new-nickname-input" type="text" class="setting-input" placeholder="새 닉네임" data-i18n-placeholder="ph_new_nickname" />
+                    <button id="btn-use-nickname-ticket" class="btn btn-ghost btn-small" type="button" data-i18n="btn_change">변경</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-row setting-row-col">
+                <label data-i18n="settings_bio_label">자기소개 (친구에게만 보여요)</label>
+                <textarea id="set-profile-bio" class="setting-input" rows="2" maxlength="200" placeholder="한 줄 소개를 남겨보세요" data-i18n-placeholder="settings_bio_placeholder"></textarea>
+              </div>
+              <button id="btn-profile-bio-save" class="btn btn-ghost btn-small" type="button" style="align-self:flex-start;" data-i18n="btn_save">저장</button>
+
+              <!-- 24-4차: 사이트 전용 계정 - 이제 로그인 자체가 사이트 계정 기준이라(24-4차
+                   에서 view-login이 사이트 로그인 화면으로 바뀜) 여기선 "계정 만들기"가 아니라
+                   연동된 마인크래프트 계정/디스코드 관리 + 로그아웃만 함. 코인/상점(구매한
+                   스킨 등)/출석/퀘스트는 여기 연동된 마인크래프트 계정들이 전부 공유해서 씀.
+                   24-24차: "계정 추가하는 거 프로필로 옮겨주고" - 클라이언트 탭에 있던 이
+                   패널을 내 프로필 탭으로 옮김(계정 전환 메뉴의 "+ 다른 계정 추가"도 이제
+                   여기로 바로 감) -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_site_account_title" style="margin-top:6px; padding-top:14px; border-top:1px solid var(--border-soft);">사이트 계정</div>
+              <div id="site-account-panel" class="site-account-panel">
+                <div style="color:var(--text-2); font-size:12px;" data-i18n="settings_checking">확인 중...</div>
+              </div>
+            </div>
+
+            <!-- 클라이언트 -->
+            <div class="settings-panel-section" data-cat-panel="client">
+              <div class="setting-row">
+                <label data-i18n="settings_installed_size">설치 용량</label>
+                <span id="installed-size" class="setting-value" data-i18n="settings_checking">확인 중...</span>
+              </div>
+
+              <!-- 24-200차: 사이드바 더보기에서 옮겨온 업데이트 로그 -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_updates_group">업데이트</div>
+              <div class="setting-grid-2col">
+                <button id="btn-settings-changelog" type="button" class="setting-action-row">
+                  <span data-i18n="sidebar_more_changelog">업데이트 로그</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_folder">폴더</div>
+              <div class="setting-grid-2col">
+                <button id="btn-brand-open-game-folder" type="button" class="setting-action-row">
+                  <span data-i18n="settings_open_game_folder">게임 폴더 열기</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <!-- 24-63차: "게임 파일 다운로드한 거 전부 제거하는 거... 설정 런처에 만들고
+                   옮겨줘" - 이 기능(app:reset-install IPC, renderer.js의 btn-reset-install
+                   클릭 핸들러)은 예전부터 만들어져 있었는데, 정작 index.html 어디에도 이
+                   버튼 자체가 없어서 실제로는 누를 방법이 없는 상태였음(2465줄 부근 참고).
+                   이번에 처음으로 버튼을 만들어 여기(설치 용량/폴더 바로 아래)에 둠. 되돌릴
+                   수 없는 동작이라 danger-text로 강조 + 클릭 시 확인창(showConfirm)이 뜸 -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_game_files">게임 파일</div>
+              <div class="setting-grid-2col">
+                <button id="btn-reset-install" type="button" class="setting-action-row danger-text">
+                  <span data-i18n="settings_reset_install">다운로드한 게임 파일 모두 삭제</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <!-- 7-2: 마인크래프트/Fabric 버전별로 필요한 자바 버전과 실제 설치 위치를 보여줌 (읽기 전용) -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_java_location">자바 위치</div>
+              <div id="java-info-list" class="java-info-list">
+                <div style="color:var(--text-2); font-size:12px;" data-i18n="settings_checking">확인 중...</div>
+              </div>
+
+              <!-- 24-202차: "친구에게 상태 공유, 쉐이더 적용, 게임 실행시 이런 거 비디오로 이동"
+                   이 블록(게임 실행 시 / 자동 실행 / 상태 공유 / 팩 자동 적용)은 설정 >
+                   비디오·오디오(화면 패널) 아래쪽으로 옮겼다. -->
 
               <!-- 24-63차: "업데이트확인이랑 런처 재시작 모두 설정 런처에 만들고 옮겨줘" -
                    원래 "정보" 탭에 있던 이 두 버튼을 여기(클라이언트 탭)로 옮김. id는 그대로라
@@ -1618,6 +1823,17 @@
                 </button>
                 <button id="btn-restart-launcher" type="button" class="setting-action-row">
                   <span data-i18n="settings_restart_launcher">런처 재시작</span>
+                  <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <!-- 24-123차: "클라이언트 정보에서 클라이언트 삭제 기능 만들어줘 제어판 가기
+                   귀찮다" - 윈도우 설정 > 앱까지 가지 않고 여기서 바로 제거할 수 있게 함.
+                   되돌릴 수 없는 동작이라 danger-text + 확인창(showConfirm)을 거침 -->
+              <div class="setting-section-title settings-subgroup-title" data-i18n="settings_uninstall_title">클라이언트 삭제</div>
+              <div class="setting-grid-2col">
+                <button id="btn-uninstall-app" type="button" class="setting-action-row danger-text">
+                  <span data-i18n="settings_uninstall">Nova Client 삭제</span>
                   <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
               </div>
@@ -1644,7 +1860,7 @@
               <div class="setting-section-title settings-subgroup-title" data-i18n="settings_community">커뮤니티 · 정보</div>
               <div class="setting-grid-2col">
                 <button id="btn-brand-discord" type="button" class="setting-action-row">
-                  <span data-i18n="settings_luna_discord">디스코드</span>
+                  <span data-i18n="settings_nova_discord">디스코드</span>
                   <svg class="saa-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
                 <button id="btn-brand-website" type="button" class="setting-action-row">
@@ -1739,7 +1955,7 @@
     <section id="view-shop" class="view view-panel" hidden>
       <div class="modal-header">
         <div class="modal-tabs">
-          <span class="modal-title-label">Shop</span>
+          <span class="modal-title-label">상점</span>
         </div>
       </div>
 
@@ -1812,6 +2028,18 @@
           <div id="redeem-dev-panel" class="redeem-dev-panel" hidden>
             <div data-i18n="shop_redeem_admin_list_title" class="setting-section-title">전체 리딤 코드 목록 (개발자 전용)</div>
             <div id="redeem-dev-list" class="redeem-dev-list"></div>
+            <!-- 24-143차: 코드 원문은 해시로만 저장해서 목록에 띄울 수 없음 - 왜 안 보이는지 알려줌 -->
+            <p id="redeem-dev-note" class="setting-hint" data-i18n="shop_redeem_admin_note" hidden>코드 원문은 저장하지 않아요(해시만 보관). 알아보기 쉽게 하려면 main.js의 REDEEM_CODES 항목에 hint를 적어주세요.</p>
+          </div>
+
+          <!-- 24-146차: "상점 밑에 청약철회 만들어서 구매한지 하루도 안됐다면 환불할 수있게 하고
+               그 색을 내가 이미 끼고 있다면 기본색으로 되돌리고 코인 되돌려줘"
+               구매 후 24시간이 안 지난 항목만 여기에 뜸. 환불하면 코인을 그대로 돌려주고,
+               착용 중이던 색/테마였으면 기본 모습으로 되돌림 -->
+          <div id="refund-panel" class="refund-panel" hidden>
+            <div data-i18n="shop_refund_title" class="setting-section-title">청약철회</div>
+            <p class="setting-hint" data-i18n="shop_refund_hint">구매한 지 24시간이 지나지 않은 상품은 환불할 수 있어요. 환불하면 쓴 코인을 그대로 돌려드리고, 착용 중이던 색이나 테마는 기본으로 되돌아가요.</p>
+            <div id="refund-list" class="refund-list"></div>
           </div>
         </div>
       </div>
@@ -1828,7 +2056,12 @@
         <button type="button" class="shop-preview-close" id="btn-shop-preview-close" data-i18n-aria-label="btn_close" aria-label="닫기">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 5l14 14M19 5L5 19" stroke-linecap="round"/></svg>
         </button>
-        <div class="theme-gallery-preview theme-gallery-preview-shop shop-preview-mockup" id="shop-preview-mockup">
+        <!-- 24-86차: 색/테마 상품은 아래 진짜 메인화면 액자로 보여주고, 이 추상 목업은
+             hex가 없는 소모품(닉네임 변경권 등)일 때만 씀 -->
+        <div class="theme-preview-frame shop-preview-live" id="shop-preview-live">
+          <iframe id="shop-preview-iframe" class="theme-preview-iframe" src="theme-preview.html" title="미리보기" data-i18n-title="welcome_gift_preview" tabindex="-1" scrolling="no"></iframe>
+        </div>
+        <div class="theme-gallery-preview theme-gallery-preview-shop shop-preview-mockup" id="shop-preview-mockup" hidden>
           <span class="theme-gallery-preview-side"></span>
           <span class="theme-gallery-preview-lines"><span></span><span></span><span></span></span>
         </div>
@@ -1853,6 +2086,9 @@
                data-i18n은 텍스트를 textContent로 통째로 덮어써서 안에 span을 못 넣으므로,
                라벨 글자만 별도 span으로 감싸고 점은 그 형제로 둠 -->
           <button class="inventory-tab" data-tab="attendance" type="button"><span data-i18n="inventory_tab_attendance">출석체크</span><span id="inventory-attendance-tab-dot" class="notif-dot" hidden></span></button>
+          <span style="color:var(--border); margin:0 2px;">|</span>
+          <!-- 24-224차: "티어 조건이랑 볼 수 있는 거 출석체크 옆에 하나 따로 만들어줘" -->
+          <button class="inventory-tab" data-tab="tier" type="button" data-i18n="inventory_tab_tier">티어</button>
         </div>
       </div>
       <div class="modal-body" id="inventory-items-panel">
@@ -1895,6 +2131,28 @@
           </div>
         </div>
       </div>
+
+      <!-- 24-224차: 티어 - 지금 내 티어 / 다음 티어까지 / 칸마다 뭐가 달라지는지 -->
+      <div class="modal-body" id="inventory-tier-panel" hidden>
+        <!-- 24-229차: 티어 화면 개편 - 위: 지금 티어 / 가운데: 내 기록 / 아래: 티어별 카드 -->
+        <div class="tier-hero" id="tier-hero">
+          <span class="tier-hero-emblem" id="tier-now-badge"></span>
+          <div class="tier-hero-main">
+            <div class="tier-hero-label">현재 티어</div>
+            <div class="tier-hero-name" id="tier-now-name">-</div>
+            <div class="tier-hero-bar"><i id="tier-bar-fill"></i></div>
+            <div class="tier-hero-foot">
+              <span class="tier-hero-next" id="tier-next"></span>
+              <span class="tier-hero-score"><b id="tier-now-score">0</b> XP</span>
+            </div>
+          </div>
+        </div>
+        <div class="tier-stats" id="tier-stats"></div>
+
+        <div class="setting-section-title" data-i18n="tier_table">티어별 혜택</div>
+        <div class="tier-cards" id="tier-table"></div>
+        <div class="tier-extra" id="tier-extra"></div>
+      </div>
     </section>
 
     <!-- 20차: "소식은 창이 따로 열리는 게 아니라 화면이 바뀌어야지" - 예전엔 독립 팝업
@@ -1912,6 +2170,295 @@
       </div>
     </section>
 
+    <!-- 24-208차: "창 크기만 키우면 어떡해 ... 플레이나 콘텐츠 이런 것처럼 띄워달라니까"
+         가운데 뜨는 확인창(.confirm-overlay)이 아니라, 사이드바 옆 콘텐츠 영역을 통째로
+         쓰는 보통 화면으로 바꿨다(소식/보관함 화면과 같은 구조). -->
+    <!-- 24-211차: "서버에 내 컴퓨터로 서버 열기 그쪽 부분 싹 없애주고 높낮이좀 맞춰줘"
+         제목 줄을 통째로 뺐다. 왼쪽 목록과 오른쪽 조작판이 같은 높이에서 시작한다. -->
+    <section id="view-host" class="view view-panel" hidden>
+      <div class="modal-body host-view-body">
+<div class="host-body">
+          <!-- 왼쪽: 내가 만든 서버 목록 + 새로 만들기 -->
+          <div class="host-side">
+            <div class="host-side-title" data-i18n="host_my_servers">내 서버</div>
+            <div class="host-list" id="host-list"></div>
+            <button type="button" class="btn btn-ghost btn-small btn-wide" id="btn-host-new" data-i18n="host_new">+ 새 서버 만들기</button>
+            <!-- 24-233차: 경고는 화면 맨 아래가 아니라 이 버튼 바로 아래(아래쪽 버튼을 밀어내지 않게) -->
+            <p id="host-error" class="host-error" role="alert"></p>
+          </div>
+
+          <!-- 오른쪽: 새로 만들기 폼 / 고른 서버 조작판 -->
+          <div class="host-main">
+            <div class="host-create" id="host-create" hidden>
+              <div class="host-section-title" data-i18n="host_new">+ 새 서버 만들기</div>
+              <div class="host-field">
+                <label><span data-i18n="host_f_name">서버 이름</span><i class="req">*</i></label>
+                <input id="host-new-name" class="setting-input" type="text" maxlength="32" autocomplete="off" data-i18n-placeholder="host_f_name_ph" placeholder="예: 망고네 서버" />
+              </div>
+              <div class="host-field-row">
+                <div class="host-field">
+                  <label><span data-i18n="host_f_version">마인크래프트 버전</span><i class="req">*</i></label>
+                  <select id="host-new-version" class="setting-input"></select>
+                </div>
+                <div class="host-field">
+                  <label data-i18n="host_f_loader">종류</label>
+                  <select id="host-new-loader" class="setting-input">
+                    <option value="fabric">Fabric</option>
+                    <option value="vanilla">바닐라</option>
+                  </select>
+                </div>
+              </div>
+              <!-- 24-213차: "주소는 서버 만들기 할 때도 설정하게 하고 별은 그 때 떠야 해" -->
+              <div class="host-field">
+                <label><span data-i18n="host_addr_title">접속 주소</span><i class="req">*</i></label>
+                <div class="host-addrname-row">
+                  <input id="host-new-addr" class="setting-input host-addrname-input" type="text" maxlength="20" placeholder="mango" autocomplete="off" spellcheck="false" />
+                  <span class="host-addrname-suffix" id="host-new-addr-suffix"></span>
+                </div>
+              </div>
+              <!-- 24-224차: 시드와 월드 종류는 월드를 만들기 전에만 정할 수 있다 -->
+              <div class="host-field-row">
+                <div class="host-field">
+                  <label data-i18n="host_f_seed">시드</label>
+                  <input id="host-new-seed" class="setting-input" type="text" maxlength="64" autocomplete="off" spellcheck="false" data-i18n-placeholder="host_f_seed_ph" placeholder="비우면 무작위" />
+                </div>
+                <div class="host-field">
+                  <label data-i18n="host_f_leveltype">월드 종류</label>
+                  <select id="host-new-leveltype" class="setting-input">
+                    <option value="minecraft:normal">보통</option>
+                    <option value="minecraft:flat">평지</option>
+                    <option value="minecraft:large_biomes">큰 생물군계</option>
+                    <option value="minecraft:amplified">증폭</option>
+                  </select>
+                </div>
+              </div>
+              <div class="host-field-row">
+                <div class="host-field">
+                  <label data-i18n="host_f_memory">메모리 (GB)</label>
+                  <input id="host-new-memory" class="setting-input" type="number" min="1" max="16" value="2" />
+                </div>
+                <div class="host-field">
+                  <label data-i18n="host_f_port">포트</label>
+                  <input id="host-new-port" class="setting-input" type="number" min="1024" max="65535" value="25565" />
+                </div>
+                <div class="host-field">
+                  <label data-i18n="host_f_players">최대 인원</label>
+                  <input id="host-new-players" class="setting-input" type="number" min="1" max="100" value="10" />
+                </div>
+              </div>
+              <!-- 24-197차: EULA 동의를 만들 때 한 번에 받고 eula.txt 까지 바로 써버린다 -->
+              <label class="host-eula-row host-create-eula">
+                <input type="checkbox" id="host-new-eula" />
+                <span data-i18n="host_eula">마인크래프트 EULA에 동의합니다</span><i class="req">*</i>
+                <a href="#" id="host-new-eula-link" class="host-eula-link" data-i18n="host_eula_link">원문 보기</a>
+              </label>
+              <button type="button" class="btn btn-primary btn-wide" id="btn-host-create" data-i18n="host_create">만들기</button>
+
+              <!-- 24-210차: "모드팩 넣으면 알아서 모드팩 분해하고 넣어서 모드팩서버로" -->
+              <div class="host-modpack" id="host-modpack">
+                <div class="host-section-head"><span data-i18n="host_modpack_title">모드팩으로 만들기</span></div>
+                <div class="host-wl-add">
+                  <button type="button" class="btn btn-ghost btn-small" id="btn-host-modpack-pick" data-i18n="host_modpack_pick">모드팩 파일 고르기</button>
+                  <span class="host-modpack-name" id="host-modpack-name"></span>
+                </div>
+                <button type="button" class="btn btn-primary btn-wide" id="btn-host-modpack-create" data-i18n="host_modpack_create" hidden>이 모드팩으로 서버 만들기</button>
+                <p class="host-portfwd-hint" id="host-modpack-progress"></p>
+              </div>
+            </div>
+
+            <div class="host-detail" id="host-detail" hidden>
+              <!-- 24-205차: "이게 뭐야 제대로 다시 정리하고" - 주소가 두 칸(접속 주소 / 서버
+                   주소)으로 갈라져 같은 값을 두 번 보여주고, 그 사이에 버튼 줄이 끼어 있었다.
+                   주소에 관한 건 한 칸으로 합치고, 순서를 "무슨 서버인지 → 어디로 들어오는지
+                   → 무엇을 할 수 있는지 → 세부 설정 → 콘솔" 로 정리했다. -->
+              <!-- 24-207차: 창을 전체로 키운 만큼 가로를 쓴다 - 왼쪽은 주소/버튼/설정,
+                   오른쪽은 콘솔. 창이 좁으면 위아래로 다시 쌓인다(style.css 의 미디어쿼리). -->
+              <div class="host-detail-left">
+              <!-- 접속 주소 (주소 만들기 + 복사 + 집 안 주소 + 외부 접속 상태까지 한 칸에) -->
+              <div class="host-addr" id="host-addr">
+                <!-- 24-212차: 주소는 꼭 있어야 하는 값이라 * 를 달았다 -->
+                <!-- 24-218차: "서버 버전이랑 이름을 주소칸 안에 넣고 서버 주소 말고 서버 정보로" -->
+                <div class="host-info-head">
+                  <div>
+                    <div class="host-detail-name" id="host-detail-name"></div>
+                    <div class="host-detail-meta" id="host-detail-meta"></div>
+                  </div>
+                  <span class="host-state" id="host-state"></span>
+                </div>
+
+                <!-- 아직 주소가 없을 때 -->
+                <div class="host-addrname-row" id="host-addrname-row">
+                  <input id="host-addrname-input" class="setting-input host-addrname-input" type="text" maxlength="20" placeholder="mango" autocomplete="off" spellcheck="false" />
+                  <span class="host-addrname-suffix" id="host-addrname-suffix"></span>
+                  <button type="button" class="btn btn-primary btn-small" id="btn-host-addr-claim" data-i18n="host_addrname_claim">주소 만들기</button>
+                </div>
+
+                <!-- 주소가 있을 때 -->
+                <!-- 24-212차: "복사도 그 박스모양 복사버튼 ... 수정도 연필로 옆에 붙여서" -->
+                <div class="host-addrname-have" id="host-addrname-have" hidden>
+                  <code id="host-addrname-fqdn"></code>
+                  <button type="button" class="icon-btn host-addr-icon" id="btn-host-addr-copy" data-i18n-title="host_addr_copy" title="복사">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <rect x="9" y="9" width="11" height="11" rx="2"/>
+                      <path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                  <button type="button" class="icon-btn host-addr-icon" id="btn-host-addr-edit" data-i18n-title="host_addr_edit" title="수정">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke-linejoin="round"/>
+                      <path d="M14.5 6.5 17.5 9.5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <p class="host-portfwd-hint" id="host-addrname-hint"></p>
+
+                <!-- 24-213차: "서버 주소 바로 아래에 본인이 접속할 때 쓰는 주소도 납둬주거나"
+                     공유기가 집 안에서 자기 공인 주소로 되돌아오는 걸 막기 때문에(헤어핀 NAT),
+                     본인은 이 주소로 들어가야 한다. 주소 바로 아래에 늘 띄워 둔다. -->
+                <div class="host-myaddr" id="host-myaddr" hidden>
+                  <span data-i18n="host_my_addr">내 접속 주소</span>
+                  <code id="host-myaddr-value"></code>
+                  <button type="button" class="icon-btn host-addr-icon" id="btn-host-myaddr-copy" data-i18n-title="host_addr_copy" title="복사">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <rect x="9" y="9" width="11" height="11" rx="2"/>
+                      <path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5" stroke-linecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- 서버가 도는 동안엔 이 자리에 상태(메모리/TPS/인원/가동시간) -->
+                <div class="host-stats" id="host-stats" hidden></div>
+
+                <!-- 외부에서 들어올 수 있는 상태인지 한 줄로. 평소엔 런처가 알아서 하고,
+                     실패했을 때만 다시 시도 버튼이 쓸모 있다. -->
+                <div class="host-port-line" id="host-port-line">
+                  <span class="host-port-state" id="host-port-state"></span>
+                  <button type="button" class="btn btn-ghost btn-small" id="btn-host-open-port" data-i18n="host_port_retry" hidden>다시 시도</button>
+                  <button type="button" class="btn btn-ghost btn-small" id="btn-host-close-port" data-i18n="host_port_close" hidden>포트 닫기</button>
+                </div>
+              </div>
+
+              <!-- 예전 방식으로 만든 서버만 쓰는 EULA 동의 줄(평소엔 숨김) -->
+              <div class="host-eula" id="host-eula" hidden>
+                <label class="host-eula-row">
+                  <input type="checkbox" id="host-eula-check" />
+                  <span data-i18n="host_eula_legacy">이 서버는 아직 EULA 동의가 없어요. 동의하면 켤 수 있어요.</span>
+                </label>
+                <a href="#" id="host-eula-link" class="host-eula-link" data-i18n="host_eula_link">원문 보기</a>
+              </div>
+
+              <!-- 24-209차: "서버 시작 버튼이 없음" - 다른 버튼들과 같은 크기로 섞여 있어서
+                   눈에 안 들어왔다. 주 버튼은 크게 따로 띄우고 나머지는 아래 보조 줄로 뺐다. -->
+              <div class="host-actions">
+                <button type="button" class="btn btn-primary host-main-action" id="btn-host-start" data-i18n="host_start">▶ 서버 시작</button>
+              </div>
+              <div class="host-actions host-actions-sub">
+                <button type="button" class="btn btn-ghost btn-small" id="btn-host-folder" data-i18n="host_folder">폴더 열기</button>
+                <button type="button" class="btn btn-ghost btn-small" id="btn-host-copy-mods" data-i18n="host_copy_mods">프로필 모드 넣기</button>
+                <button type="button" class="btn btn-ghost btn-small btn-danger-ghost" id="btn-host-remove" data-i18n="host_remove">목록에서 지우기</button>
+              </div>
+
+              <!-- 24-209차: 켜져 있는 동안엔 설정 대신 "내가 뭘로 켰는지"만 간결하게 -->
+              <div class="host-live-info" id="host-live-info" hidden></div>
+
+              <!-- 24-210차: "화이트리스트 추가하고 목록 보는 곳도 따로 만들어줘"
+                   서버가 켜져 있으면 콘솔로(서버가 직접 고침), 꺼져 있으면 whitelist.json 을
+                   우리가 고친다. 꺼져 있을 땐 닉네임으로 정품 UUID 를 찾아서 넣는다. -->
+              <div class="host-whitelist" id="host-whitelist">
+                <div class="host-section-head">
+                  <span data-i18n="host_wl_title">화이트리스트</span>
+                  <span class="host-wl-state" id="host-wl-state"></span>
+                </div>
+                <div class="host-wl-add">
+                  <input id="host-wl-input" class="setting-input" type="text" maxlength="16" autocomplete="off" spellcheck="false" data-i18n-placeholder="host_wl_ph" placeholder="마인크래프트 닉네임" />
+                  <button type="button" class="btn btn-primary btn-small" id="btn-host-wl-add" data-i18n="host_wl_add">추가</button>
+                </div>
+                <div class="host-wl-list" id="host-wl-list"></div>
+                <p class="host-portfwd-hint" id="host-wl-hint"></p>
+              </div>
+
+              <!-- 24-211차: "서버 끄기는 맨 밑에 있으면 좋을 듯" -->
+              <button type="button" class="btn host-main-action is-stop" id="btn-host-stop" data-i18n="host_stop" hidden>■ 서버 끄기</button>
+
+              <!-- 24-207차: "서버 눌렀을 때 수정도 안돼 인원수나 뭐 기본적인 서버 설정도 안되고"
+                   접이식(details)이라 접혀 있어 안 보이던 것부터 펴 두고, 서버 자체 값(이름·메모리·
+                   포트)도 여기서 바로 고치게 했다. 아래 그리드는 server.properties 쪽. -->
+              <div class="host-settings" id="host-settings">
+                <div class="host-section-head"><span data-i18n="host_settings">서버 설정</span></div>
+                <div class="host-group-title" data-i18n="host_group_basic">기본</div>
+                <!-- 24-211차: 서버 아이콘. 어떤 그림을 골라도 64x64 PNG 로 바꿔서 넣는다 -->
+                <div class="host-icon-row">
+                  <div class="host-icon-box" id="host-icon-box"><span data-i18n="host_icon_none">없음</span></div>
+                  <div class="host-icon-text">
+                    <div class="host-icon-title" data-i18n="host_icon_title">서버 아이콘</div>
+                    <div class="host-icon-desc" data-i18n="host_icon_sub">64x64 PNG</div>
+                  </div>
+                  <button type="button" class="btn btn-ghost btn-small" id="btn-host-icon-pick" data-i18n="host_icon_pick">고르기</button>
+                  <button type="button" class="btn btn-ghost btn-small btn-danger-ghost" id="btn-host-icon-clear" data-i18n="host_icon_clear">지우기</button>
+                </div>
+                <div class="host-settings-grid" id="host-basic-grid">
+                  <label class="host-prop">
+                    <span data-i18n="host_f_name">서버 이름</span>
+                    <input id="host-edit-name" class="setting-input" type="text" maxlength="32" autocomplete="off" />
+                  </label>
+                  <label class="host-prop">
+                    <span data-i18n="host_f_memory">메모리 (GB)</span>
+                    <input id="host-edit-memory" class="setting-input" type="number" min="1" max="16" />
+                  </label>
+                  <label class="host-prop">
+                    <span data-i18n="host_f_port">포트</span>
+                    <input id="host-edit-port" class="setting-input" type="number" min="1024" max="65535" />
+                  </label>
+                </div>
+                <div class="host-settings-groups" id="host-settings-grid"></div>
+                <!-- 24-213차: "서버 설정은 저장 안해도 바로바로 적용되게" - 저장 버튼 없앰 -->
+                <div class="host-settings-foot">
+                  <span class="host-settings-note" id="host-settings-note"></span>
+                </div>
+              </div>
+
+              </div><!-- /.host-detail-left -->
+
+              <div class="host-detail-right">
+              <div class="host-console" id="host-console"></div>
+              <div class="host-cmd">
+                <input id="host-cmd-input" class="setting-input" type="text" data-i18n-placeholder="host_cmd_ph" placeholder="서버 명령 (예: op 닉네임)" autocomplete="off" spellcheck="false" disabled />
+                <button type="button" class="btn btn-ghost btn-small" id="btn-host-cmd" data-i18n="host_cmd_send" disabled>보내기</button>
+              </div>
+              </div><!-- /.host-detail-right -->
+            </div>
+
+            <div class="host-empty" id="host-empty" data-i18n="host_empty">서버를 고르세요</div>
+            <!-- 24-218차: "서버 처음에 들어갈 때 아무것도 안보이는데 로딩을 돌려줘" -->
+            <div class="host-loading" id="host-loading">
+              <span class="host-spinner" aria-hidden="true"></span>
+              <span data-i18n="host_loading">불러오는 중</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 24-208차: 알림/선물함도 같은 이유로 화면 하나로 바꿨다 -->
+    <section id="view-notify" class="view view-panel" hidden>
+      <div class="modal-header">
+        <div class="modal-tabs">
+          <button class="notify-tab is-active" data-notify-tab="alerts" type="button">
+            <span data-i18n="notify_tab_alerts">알림</span><span id="notify-tab-dot-alerts" class="notif-dot" hidden></span>
+          </button>
+          <button class="notify-tab" data-notify-tab="gifts" type="button">
+            <span data-i18n="notify_tab_gifts">선물함</span><span id="notify-tab-dot-gifts" class="notif-dot" hidden></span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="notify-panel" id="notify-panel-alerts"></div>
+        <div class="notify-panel" id="notify-panel-gifts" hidden></div>
+      </div>
+    </section>
+
+
     <!-- 17차: "친구 패널이랑 내 마인크래프트 프로필 패널은 어느 화면에서든 사라지면 안 돼,
          대신 흐려지는 건 괜찮아" - 예전엔 view-home 안에서만 보이는 일반 레이아웃 요소였는데,
          이제 어느 .view 화면(#view-home 포함)이 활성이든 상관없이 항상 떠 있는 고정
@@ -1920,15 +2467,19 @@
          홈 화면이 아닐 때는 showAppPanel()에서 .is-pinned-dim 클래스를 붙여서 흐리게 함
          (style.css의 .home-friends 규칙 참고) -->
     <div class="home-friends">
-      <!-- 19차: 컨텐츠 설치(Explore) 화면에서는 이 자리에 친구 목록 대신 프로필 목록이 뜨므로
+      <!-- 19차: 콘텐츠 설치(Explore) 화면에서는 이 자리에 친구 목록 대신 프로필 목록이 뜨므로
            (아래 #home-friends-explore-slot), 기존 친구/계정 내용은 이 안에 묶어서 통째로
            숨겼다 보였다 할 수 있게 함 -->
       <div id="home-friends-default-content">
+        <!-- 24-200차: "프로필 위쪽에 선물함/알림창 같이 통용되는 거 하나 만들고"
+             받을 보상·친구 요청·안 읽은 귓속말·새 공지·가입 선물을 한 곳에 모은 알림함.
+             여기저기 흩어져 있던 빨간 점들을 이 버튼 하나로 모아서 본다. -->
         <div class="profile-cluster">
           <div id="profile-trigger" class="profile" role="button" data-i18n-title="profile_account_menu_title" title="계정 메뉴">
             <div id="avatar" class="avatar">L</div>
             <div class="profile-info">
-              <div data-i18n="home_default_name" id="profile-name" class="profile-name">플레이어</div>
+              <!-- 24-214차: 이름 앞에 티어 배지 -->
+              <div class="profile-name-row"><span class="tier-slot" id="profile-tier-slot"></span><span data-i18n="home_default_name" id="profile-name" class="profile-name">플레이어</span></div>
               <div class="profile-meta" id="profile-mc-version">Nova</div>
             </div>
           </div>
@@ -1960,7 +2511,27 @@
         <!-- 1) 친구 -->
         <div id="home-friends-panel-friends" class="home-friends-tab-panel">
           <!-- 17차: "친구 부분을 한글로 해줘" - "Friends (N online)"으로 영문만 남아있던 걸 한글로 -->
-          <div class="home-friends-online-line"><span id="home-friends-online">0</span><span data-i18n="home_friends_online_suffix">명 접속중</span></div>
+          <!-- 24-226차: "폴더랑 친구 검색 모두 아이콘으로 해줘 너무 커 롤처럼 아이콘으로만"
+               접속 수 줄 오른쪽 끝에 작은 아이콘 두 개만. 검색칸은 돋보기를 눌렀을 때만 펼쳐진다. -->
+          <div class="home-friends-online-line">
+            <span id="home-friends-online">0</span><span data-i18n="home_friends_online_suffix">명 접속중</span>
+            <span class="home-friends-icons">
+              <button type="button" id="btn-friend-search-toggle" class="home-friends-icon-btn" data-i18n-title="friend_search_ph" title="친구 검색">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4" stroke-linecap="round"/></svg>
+              </button>
+              <button type="button" id="btn-friend-folder-new" class="home-friends-icon-btn" data-i18n-title="friend_folder_new" title="폴더 만들기">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                  <path d="M3.5 7.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.6 2h8.3a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V7.5Z" stroke-linejoin="round"/>
+                  <path d="M12 11v4M10 13h4" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </span>
+          </div>
+          <div class="home-friends-search" id="home-friends-search" hidden>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4" stroke-linecap="round"/></svg>
+            <input type="text" id="friend-search-input" data-i18n-placeholder="friend_search_ph" placeholder="친구 검색" autocomplete="off" spellcheck="false" />
+            <button type="button" id="btn-friend-search-clear" class="home-friends-search-clear" title="닫기">✕</button>
+          </div>
           <div id="home-friends-list" class="home-friends-list"></div>
           <div data-i18n="home_friends_empty" id="home-friends-empty" class="home-friends-empty">아직 친구가 없어요</div>
         </div>
@@ -1987,7 +2558,7 @@
         </div>
       </div>
 
-      <!-- 19차: "컨텐츠 설치는 친구창 위치에 친구창 대신 프로필 리스트로 교체" - Explore 화면이
+      <!-- 19차: "콘텐츠 설치는 친구창 위치에 친구창 대신 프로필 리스트로 교체" - Explore 화면이
            활성일 때 .explore-sidebar(프로필 목록)가 JS(showAppPanel)에 의해 이 안으로
            옮겨져 들어옴, 화면을 벗어나면 다시 원래 자리로 되돌아감 -->
       <div id="home-friends-explore-slot" class="home-friends-explore-slot" hidden>
@@ -2113,20 +2684,245 @@
   </div>
 
   <!-- 5-13(7차): 프로필 공유 - 작은 중앙 모달 (코드 크게 표시 + 복사 버튼) -->
+  <!-- 24-100차: 공유 창을 "옵션 고르기 → 코드 만들기"로 바꿈. 이미 공유한 프로필이면 코드 +
+       [변경 사항 올리기](예전 "프로필 갱신")가 같은 창에 있음.
+       "공유코드 뿌릴 때 모드 설정도 공유할건지 선택하게 해줘 ... 컨피그 파일도 같이 공유할 수
+        있게 할지 고를 수 있게 / 받은 사람들에게 업데이트 신호를 보내서 따라 업데이트할 수 있게" -->
   <div id="profile-share-overlay" class="confirm-overlay" hidden>
-    <div class="confirm-box" style="width:320px;">
+    <div class="confirm-box profile-share-box">
       <div data-i18n="profile_share_title" class="confirm-message" style="text-align:left; font-weight:700;">프로필 공유</div>
-      <div data-i18n="profile_share_blocked_note" id="profile-share-blocked-note" style="font-size:11.5px; color:var(--text-2); margin-top:6px;" hidden>프리셋으로 만든 프로필은 공유할 수 없어요</div>
-      <div data-i18n="profile_share_loading" id="profile-share-loading" style="font-size:12.5px; color:var(--text-2); margin-top:10px;" hidden>코드를 만드는 중...</div>
+      <div data-i18n="profile_share_blocked_note" id="profile-share-blocked-note" class="profile-share-note" hidden>프리셋으로 만든 프로필은 공유할 수 없어요</div>
+      <div data-i18n="profile_share_loading" id="profile-share-loading" class="profile-share-note" hidden>코드를 만드는 중...</div>
+
+      <!-- 이미 만든 코드 -->
       <div id="profile-share-body" hidden>
-        <div data-i18n="profile_share_hint" style="font-size:11.5px; color:var(--text-2); margin-top:8px;">이 코드를 알려주면 다른 사람이 이 프로필을 그대로 받아갈 수 있어요</div>
-        <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px;">
-          <div id="profile-share-code" style="font-family:var(--font-mono); font-size:26px; font-weight:800; color:var(--accent); letter-spacing:3px; user-select:text; cursor:text;"></div>
+        <div data-i18n="profile_share_hint" class="profile-share-note">이 코드를 알려주면 다른 사람이 이 프로필을 그대로 받아갈 수 있어요</div>
+        <div class="profile-share-code-row">
+          <div id="profile-share-code" class="profile-share-code"></div>
+          <button data-i18n="profile_share_copy_btn" id="btn-profile-share-copy" class="btn btn-ghost btn-small" type="button">코드 복사</button>
         </div>
-        <button data-i18n="profile_share_copy_btn" id="btn-profile-share-copy" class="btn btn-ghost btn-small" type="button" style="width:100%; margin-top:10px;">코드 복사</button>
+        <div id="profile-share-last" class="profile-share-last" hidden></div>
       </div>
+
+      <!-- 같이 올릴 것 -->
+      <div id="profile-share-options" class="profile-share-options" hidden>
+        <div class="profile-share-section-title" data-i18n="profile_share_include_title">같이 공유할 것</div>
+        <label class="profile-share-opt is-locked">
+          <input type="checkbox" checked disabled />
+          <span class="profile-share-opt-text">
+            <b data-i18n="profile_share_opt_files">모드 · 리소스팩 · 쉐이더</b>
+            <small data-i18n="profile_share_opt_files_desc">항상 포함돼요</small>
+          </span>
+        </label>
+        <!-- 24-225차: "모드 설정 공유가 노바 모드가 아니라 타 모드들 말하는 거야 저니맵이나"
+             다른 모드 설정을 "모드 설정"으로 맨 앞에, 노바 쪽은 이름에 노바를 붙여 따로 둔다 -->
+        <label class="profile-share-opt">
+          <input type="checkbox" id="profile-share-opt-configs" />
+          <span class="profile-share-opt-text">
+            <b><span data-i18n="profile_share_opt_configs">모드 설정</span> <em id="profile-share-count-configs" class="profile-share-count"></em></b>
+            <small data-i18n="profile_share_opt_configs_desc">저니맵 · 미니맵 · 소듐 등</small>
+          </span>
+        </label>
+        <!-- 24-227차: 노바 모드 설정 공유 항목 제거 -->
+        <!-- 24-105차: "프로필 업데이트 공유 체크박스" - 코드를 만들 때부터 고름(저장됨) -->
+        <div class="profile-share-section-title profile-share-section-gap" data-i18n="profile_share_updates_title">업데이트</div>
+        <label class="profile-share-opt">
+          <input type="checkbox" id="profile-share-opt-updates" checked />
+          <span class="profile-share-opt-text">
+            <b data-i18n="profile_share_opt_updates">업데이트 공유</b>
+            <small data-i18n="profile_share_opt_updates_desc">나중에 이 프로필을 수정(추가·삭제)해서 올리면, 이 코드로 받은 사람들에게 업데이트 알림이 가고 각자 따라 업데이트할 수 있어요. 끄면 받은 사람들은 처음 받은 그대로 유지돼요</small>
+          </span>
+        </label>
+        <!-- 이미 공유한 프로필을 다시 올릴 때만(업데이트 공유가 켜져 있을 때) -->
+        <label class="profile-share-opt profile-share-opt-notify" id="profile-share-notify-row" hidden>
+          <input type="checkbox" id="profile-share-opt-notify" checked />
+          <span class="profile-share-opt-text">
+            <b data-i18n="profile_share_opt_notify">받은 사람들에게 업데이트 알리기</b>
+            <small data-i18n="profile_share_opt_notify_desc">이 코드로 받아간 사람들에게 업데이트 알림이 가고, 각자 받을지 골라요. 끄면 새로 받는 사람만 바뀐 구성을 받아요</small>
+          </span>
+        </label>
+      </div>
+
       <div class="confirm-actions" style="margin-top:16px;">
+        <!-- 24-225차: "공유코드도 언제든 삭제 가능하게 기능 OFF 느낌" -->
+        <button type="button" class="btn btn-ghost btn-small btn-danger-ghost" id="btn-profile-share-off" data-i18n="profile_share_off" hidden style="margin-right:auto;">공유 끄기</button>
         <button type="button" class="btn btn-ghost btn-small" id="btn-profile-share-close" data-i18n="btn_close">닫기</button>
+        <button type="button" class="btn btn-primary btn-small" id="btn-profile-share-submit" hidden></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-100차: 공유받은 프로필에 업데이트가 왔을 때 - 받을지 고르기 -->
+  <div id="share-update-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box share-update-box">
+      <div class="confirm-message share-update-title" id="share-update-title">프로필 업데이트</div>
+      <div class="share-update-sub" id="share-update-sub"></div>
+      <div class="share-update-changes" id="share-update-changes"></div>
+      <div class="share-update-warn" id="share-update-warn" hidden></div>
+      <div class="confirm-actions share-update-actions">
+        <button type="button" class="btn btn-ghost btn-small" id="btn-share-update-later" data-i18n="share_update_later">나중에</button>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-share-update-skip" data-i18n="share_update_skip">이번 건 건너뛰기</button>
+        <button type="button" class="btn btn-primary btn-small" id="btn-share-update-apply" data-i18n="share_update_apply">업데이트</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-94차 신규: 서버 설정 - 이 서버에 어떤 프로필로 들어갈지 고르기
+       "서버는 설정 눌러서 무슨 프로필로 들어갈건지 설정하게 하고" - 서버 줄의 톱니(또는 연결된
+       프로필 이름)를 누르면 뜸. 서버 버전과 같은 버전의 프로필만 고를 수 있음(main.js
+       servers:profile-options / servers:set-profile). 고르는 즉시 저장되고 닫힘. -->
+  <div id="server-profile-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box server-profile-box">
+      <div class="updates-popup-header">
+        <span class="modal-title-label" id="server-profile-title">서버 설정</span>
+        <button id="btn-server-profile-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+      <p class="server-profile-desc" id="server-profile-desc"></p>
+      <div class="server-profile-section-title" data-i18n="server_profile_pick_title">들어갈 프로필</div>
+      <div class="server-profile-list" id="server-profile-list"></div>
+      <div class="server-profile-empty" id="server-profile-empty" hidden></div>
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button type="button" class="btn btn-ghost btn-small" id="btn-server-profile-create"></button>
+        <button type="button" class="btn btn-ghost btn-small" id="btn-server-profile-cancel" data-i18n="btn_close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-85차 신규: 가입 축하 선물 -->
+  <!-- "처음 회원가입하면 테마랑 색 하나씩 공짜로 고르게 해주고 닉네임 변경권도 1개 처음에
+       무료로 줘" - 변경권은 고를 게 없어서 자동으로 들어가고, 이 창은 테마/색 고르기만 함.
+       이미 가입한 사람도 아직 안 받았으면 앱을 켤 때 이 창이 뜸(main.js welcome:sync).
+       24-89차: "이름변경권 지급 메시지 아예 치우라고" - 변경권 안내 줄 삭제(지급은 그대로). -->
+  <div id="welcome-gift-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box welcome-gift-box">
+      <div class="updates-popup-header">
+        <span data-i18n="welcome_gift_title" class="modal-title-label">가입 축하 선물</span>
+        <button id="btn-welcome-gift-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+
+      <p class="welcome-gift-desc" data-i18n="welcome_gift_desc">가입을 축하드립니다. 테마 1개와 색상 1개를 무료로 선택하실 수 있습니다.</p>
+
+      <!-- 24-86차: "그 색이랑 테마 미리보기 할 수 있게 해줘 실제 클라이언트 메인화면만" -
+           고를 때마다 왼쪽 액자에 진짜 메인화면이 그 테마/색으로 다시 그려짐.
+           theme-preview.html은 별도 문서라 body[data-color-theme] 규칙이 원본 그대로 먹음 -->
+      <div class="welcome-gift-body">
+        <div class="welcome-gift-preview-col">
+          <div class="welcome-gift-section-title" data-i18n="welcome_gift_preview">미리보기</div>
+          <div class="theme-preview-frame">
+            <iframe id="welcome-gift-preview" class="theme-preview-iframe" src="theme-preview.html" title="미리보기" data-i18n-title="welcome_gift_preview" tabindex="-1" scrolling="no"></iframe>
+          </div>
+          <p class="setting-hint" data-i18n="welcome_gift_preview_hint">선택한 테마와 색상이 실제 메인 화면에 적용된 모습입니다.</p>
+
+          <!-- 24-90차: "테마는 미리보기 밑으로 내려서 휠 없이도 한 화면에 다 있게 해주라" -
+               테마 6칸이 오른쪽 단 위에 있어서 오른쪽만 길어지고 창이 세로로 넘쳤습니다.
+               테마를 미리보기 아래로 내려 두 단 길이를 비슷하게 맞췄습니다.
+               24-89차: 이미 보유한 항목도 목록에 그대로 보이고(선택 불가), 그 칸을 전부
+               보유했으면 아래 안내 줄에 "코인으로 대신 지급" 문구가 뜸(renderer.js에서 채움) -->
+          <div class="welcome-gift-section" id="welcome-gift-theme-section">
+            <div class="welcome-gift-section-title" data-i18n="welcome_gift_pick_theme">테마 선택</div>
+            <div class="welcome-gift-grid" id="welcome-gift-themes"></div>
+            <div class="welcome-gift-coin-note" id="welcome-gift-theme-coins" hidden></div>
+          </div>
+        </div>
+
+        <div class="welcome-gift-pick-col">
+          <div class="welcome-gift-section" id="welcome-gift-color-section">
+            <div class="welcome-gift-section-title" data-i18n="welcome_gift_pick_color">색상 선택</div>
+            <div class="welcome-gift-grid welcome-gift-grid-colors" id="welcome-gift-colors"></div>
+            <div class="welcome-gift-coin-note" id="welcome-gift-color-coins" hidden></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 24-192차: 추천인 - 넣으면 본인과 추천인 양쪽에 200코인. 한 계정당 한 번만이라
+           이미 넣은 계정에는 이 줄이 아예 안 뜸(renderer.js 가 welcome:sync 응답을 보고 결정) -->
+      <div class="welcome-gift-referral" id="welcome-gift-referral" hidden>
+        <div class="welcome-gift-referral-row">
+          <label class="welcome-gift-referral-label" for="welcome-gift-referral-input" data-i18n="welcome_gift_referral_label">추천인 (선택)</label>
+          <input type="text" id="welcome-gift-referral-input" class="setting-input welcome-gift-referral-input" maxlength="16" placeholder="추천인의 노바 닉네임" data-i18n-placeholder="welcome_gift_referral_placeholder" />
+        </div>
+        <p class="welcome-gift-referral-hint" id="welcome-gift-referral-hint" data-i18n="welcome_gift_referral_hint">추천인을 넣으면 나와 추천인 모두에게 200코인이 지급돼요. 한 번만 넣을 수 있어요.</p>
+      </div>
+
+      <div class="confirm-actions" style="margin-top:10px;">
+        <button type="button" class="btn btn-ghost btn-small" id="btn-welcome-gift-later" data-i18n="welcome_gift_later">나중에 선택</button>
+        <button type="button" class="btn btn-primary btn-small" id="btn-welcome-gift-claim" data-i18n="welcome_gift_claim">선택 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 24-83차 신규: 리소스팩/폰트 만들기 -->
+  <!-- "내가 만약 폰트를 넣으면 그 폰트를 리소스팩으로 만들어서 그 프로필에 넣어주고 리소스팩을
+       넣으면 그 프로필에 맞는 버전, 파일 형식으로 바꿔서 넣어주는 걸 만들어줘 폰트 리팩 제작은
+       이름도 내가 정할 수 있고 설명도 정할 수 있게 아이콘도 되면 해줘"
+       고른 파일의 확장자로 무엇을 만들지 자동으로 갈라짐(.ttf/.otf = 폰트 팩 제작,
+       .zip = 있는 리소스팩을 이 프로필 버전에 맞게 변환). -->
+  <div id="packmaker-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-box packmaker-box">
+      <div class="updates-popup-header">
+        <span data-i18n="packmaker_title" class="modal-title-label">리소스팩/폰트 만들기</span>
+        <button id="btn-packmaker-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
+          <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        </button>
+      </div>
+
+      <!-- 24-155차: "리소스팩/폰트 만들기에 쓸데없는 설명 싹 지우고" - 긴 설명 문단/힌트 제거 -->
+
+      <div class="setting-row setting-row-col">
+        <label data-i18n="packmaker_target">넣을 프로필</label>
+        <select id="packmaker-profile-select" class="setting-input"></select>
+      </div>
+
+      <div class="setting-row setting-row-col">
+        <label data-i18n="packmaker_source">폰트 / 리소스팩 파일</label>
+        <div class="packmaker-file-row">
+          <button type="button" class="btn btn-ghost btn-small" id="btn-packmaker-pick-source" data-i18n="packmaker_pick">파일 고르기</button>
+          <span class="packmaker-file-name" id="packmaker-source-name" data-i18n="packmaker_no_file">아직 고른 파일이 없어요</span>
+        </div>
+      </div>
+
+      <div class="setting-row setting-row-col">
+        <label data-i18n="packmaker_name">이름</label>
+        <input type="text" id="packmaker-name-input" class="setting-input" maxlength="60" placeholder="리소스팩 이름" data-i18n-placeholder="packmaker_name_ph" />
+      </div>
+
+      <div class="setting-row setting-row-col">
+        <label data-i18n="packmaker_description">설명</label>
+        <input type="text" id="packmaker-desc-input" class="setting-input" maxlength="120" placeholder="게임 리소스팩 목록에 보이는 설명" data-i18n-placeholder="packmaker_desc_ph" />
+      </div>
+
+      <div class="setting-row setting-row-col">
+        <label data-i18n="packmaker_icon">아이콘 (png, 선택)</label>
+        <div class="packmaker-file-row">
+          <div class="packmaker-icon-preview" id="packmaker-icon-preview" hidden></div>
+          <button type="button" class="btn btn-ghost btn-small" id="btn-packmaker-pick-icon" data-i18n="packmaker_pick_icon">이미지 고르기</button>
+          <button type="button" class="btn btn-ghost btn-small" id="btn-packmaker-clear-icon" data-i18n="packmaker_icon_clear" hidden>빼기</button>
+          <span class="packmaker-file-name" id="packmaker-icon-name"></span>
+        </div>
+      </div>
+
+      <!-- 폰트를 골랐을 때만 보이는 칸 -->
+      <div class="packmaker-font-only" id="packmaker-font-only" hidden>
+        <div class="setting-row">
+          <label data-i18n="packmaker_font_size">게임 안 글자 크기</label>
+          <!-- 효과음 볼륨 슬라이더와 같은 .setting-control 래퍼를 써서 트랙/손잡이 스타일을
+               그대로 물려받음(안 쓰면 브라우저 기본 파란 슬라이더로 나옴) -->
+          <div class="setting-control">
+            <input type="range" id="packmaker-font-size" min="6" max="16" step="1" value="11" />
+            <span class="setting-value" id="packmaker-font-size-value">11</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="packmaker-result" id="packmaker-result" hidden></div>
+
+      <div class="confirm-actions" style="margin-top:14px;">
+        <button type="button" class="btn btn-ghost btn-small" id="btn-packmaker-cancel" data-i18n="btn_cancel">취소</button>
+        <button type="button" class="btn btn-fixed-green btn-small" id="btn-packmaker-create" data-i18n="packmaker_create">만들어서 넣기</button>
       </div>
     </div>
   </div>
@@ -2262,7 +3058,18 @@
       <!-- 19차 재수정: "스킨에 마크 기본 스킨 걍 없애고 내가 추가한 것만 리스트에 추가하는
            식으로 하고" - 기본 스킨(스티브/알렉스 등) 섹션은 완전히 제거. 이제 이 팝업은
            위 3D 미리보기+업로드, 그리고 아래 "내가 추가한 스킨" 목록 두 부분만 남음 -->
-      <div class="settings-subgroup-title" data-i18n="settings_skin_custom_title">내가 추가한 스킨</div>
+      <!-- 24-156차 신규: "이미 마크 런처에 등록한 스킨이랑 플레이어 망토 로딩 전부 다 해줘"
+           마인크래프트 계정이 실제로 갖고 있는 망토를 전부 불러와서 보여줌. 카드를 누르면
+           위 3D 미리보기에 그 망토가 바로 입혀지고, 적용을 누르면 실제 계정에 반영됨 -->
+      <div class="settings-subgroup-title skin-cape-title">
+        <span data-i18n="skin_cape_title">내 망토</span>
+        <button id="btn-skin-cape-refresh" class="btn btn-ghost btn-small" type="button" data-i18n="btn_refresh">새로고침</button>
+      </div>
+      <div id="skin-cape-list" class="skin-cape-list">
+        <div class="skin-preset-empty" data-i18n="skin_cape_loading">망토를 불러오는 중이에요...</div>
+      </div>
+
+            <div class="settings-subgroup-title" data-i18n="settings_skin_custom_title">내가 추가한 스킨</div>
       <div id="skin-custom-list" class="skin-custom-list">
         <div class="skin-preset-empty" data-i18n="settings_skin_custom_empty">아직 직접 추가한 스킨이 없어요</div>
       </div>
@@ -2279,11 +3086,13 @@
 
   <!-- 19차: 소식(News) - "소식은 포럼이 아니야 내가 올리는 완전 이벤트나 이런 거야, 소식에는
        여러 박스로 올라갈 거야" - 개발자가 news.json(GitHub)에 올린 이벤트/소식을 여러 카드로 -->
+  <!-- 24-201차: 알림 / 선물함 (가운데 뜨는 창 - 업데이트 내역 팝업과 같은 모양) -->
+  
   <!-- 업데이트 내역 (작은 팝업창) -->
   <div id="updates-overlay" class="confirm-overlay" hidden>
     <div class="confirm-box updates-popup-box">
       <div class="updates-popup-header">
-        <span class="modal-title-label">Updates</span>
+        <span class="modal-title-label">업데이트</span>
         <button id="btn-updates-close" class="icon-btn" data-i18n-title="btn_close" title="닫기">
           <svg width="14" height="14" viewBox="0 0 10 10"><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" stroke-width="1.3"/></svg>
         </button>
@@ -2347,6 +3156,8 @@
       <div id="forum-user-actions" class="forum-user-actions">
         <button type="button" class="btn btn-ghost btn-small" id="btn-forum-user-add-friend" data-i18n="btn_add_friend">친구 추가</button>
         <button type="button" class="btn btn-ghost btn-small" id="btn-forum-user-whisper" data-i18n="whisper_title_prefix">귓속말</button>
+        <!-- 24-217차: 멤버 구독 - 구독하면 이 사람의 새 글이 알림함에 뜬다 -->
+        <button type="button" class="btn btn-ghost btn-small forum-user-sub-btn" id="btn-forum-user-subscribe" hidden>구독</button>
         <button type="button" class="btn btn-primary btn-small" id="btn-forum-user-join" hidden data-i18n="btn_join">참가하기</button>
       </div>
     </div>
@@ -2360,11 +3171,11 @@
       <div data-i18n="forum_report_title" class="confirm-message" id="forum-report-title">게시글 신고</div>
       <div class="forum-report-target" id="forum-report-target"></div>
       <div class="forum-report-reasons" id="forum-report-reasons">
-        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_spam" type="radio" name="forum-report-reason" value="스팸" checked /> 스팸</label>
-        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_abuse" type="radio" name="forum-report-reason" value="욕설/비방" /> 욕설/비방</label>
-        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_flood" type="radio" name="forum-report-reason" value="도배" /> 도배</label>
-        <label class="forum-report-reason-item"><input data-i18n="forum_report_reason_inappropriate" type="radio" name="forum-report-reason" value="부적절한 내용" /> 부적절한 내용</label>
-        <label class="forum-report-reason-item"><input data-i18n="reason_other" type="radio" name="forum-report-reason" value="기타" /> 기타</label>
+        <label class="forum-report-reason-item"><input type="radio" name="forum-report-reason" value="스팸" checked /> <span data-i18n="forum_report_reason_spam">스팸</span></label>
+        <label class="forum-report-reason-item"><input type="radio" name="forum-report-reason" value="욕설/비방" /> <span data-i18n="forum_report_reason_abuse">욕설/비방</span></label>
+        <label class="forum-report-reason-item"><input type="radio" name="forum-report-reason" value="도배" /> <span data-i18n="forum_report_reason_flood">도배</span></label>
+        <label class="forum-report-reason-item"><input type="radio" name="forum-report-reason" value="부적절한 내용" /> <span data-i18n="forum_report_reason_inappropriate">부적절한 내용</span></label>
+        <label class="forum-report-reason-item"><input type="radio" name="forum-report-reason" value="기타" /> <span data-i18n="reason_other">기타</span></label>
       </div>
       <textarea id="forum-report-detail" class="setting-input" rows="3" placeholder="자세한 내용을 적어주세요 (선택)" data-i18n-placeholder="ph_report_detail"></textarea>
       <div class="confirm-actions">
@@ -2423,7 +3234,16 @@
          좌클릭이 하던 "프로필 보기"를 여기로 옮김(맨 위 항목, openFriendProfileByAccountId 재사용) -->
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="profile" data-i18n="friend_ctx_profile">프로필 보기</button>
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="whisper" data-i18n="friend_ctx_whisper">귓속말</button>
+    <button type="button" class="dropdown-select-item" data-friend-ctx-action="memo">메모</button>
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="join" data-i18n="friend_ctx_join">참가하기</button>
+    <!-- 24-224차: "친구 폴더로 옮기기 눌러야 폴더 리스트 뜨게 하기" -->
+    <div class="friend-ctx-sep"></div>
+    <button type="button" class="dropdown-select-item friend-ctx-folder-toggle" id="btn-friend-ctx-folder">
+      <span data-i18n="friend_ctx_folder">폴더로 옮기기</span>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div id="friend-ctx-folders" class="friend-ctx-folders" hidden></div>
+    <div class="friend-ctx-sep"></div>
     <button type="button" class="dropdown-select-item" data-friend-ctx-action="remove" data-i18n="friend_ctx_remove">친구 삭제하기</button>
     <button type="button" class="dropdown-select-item is-danger" data-friend-ctx-action="block" data-i18n="friend_ctx_block">차단하기</button>
   </div>
@@ -2468,6 +3288,8 @@
 
   <audio id="sfx-coin"></audio>
 
+  <!-- 24-84차: 화면에 그려진 한국어->영어 표. i18n.js가 이 표를 읽으므로 먼저 와야 함 -->
+  <script src="i18n-ui.js"></script>
   <script src="i18n.js"></script>
   <!-- 9차: 스킨 렌더에 모자/망토까지 보여주기 위한 3D 스킨 뷰어 라이브러리 (MIT, 로컬 번들) -->
   <script src="vendor/skinview3d.bundle.js"></script>
